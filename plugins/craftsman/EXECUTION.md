@@ -7,8 +7,9 @@ workshop's content — this describes how craftsman executes *any* protocol, whi
 ## Where the content lives
 
 Directives and protocols are not bundled with this plugin — they live at `~/.claude/craftsman/` (`directives/`,
-`protocols/`, each with its own `index.md`), installed separately via `craftsman install` and updated independently of
-plugin updates. See `core.md` for the format every directive and protocol file follows.
+`protocols/`, each with its own `index.md`, plus `bundles/` for content grouped and enabled as a themed unit — see
+`core.md`, "Bundle"), installed separately via `craftsman install` and updated independently of plugin updates. See
+`core.md` for the format every directive, protocol, and bundle file follows.
 
 If `~/.claude/craftsman/` does not exist yet, this is a first run: say so, and offer to install the default starter
 workshop from the source recorded in this plugin's own configuration (see the `install` skill). Do not fabricate
@@ -27,6 +28,12 @@ directives or protocols — if there is truly nothing installed, tell the develo
 5. A protocol with `repeat-until` repeats its `steps` as one iteration, re-checking the condition after each pass, until
    it holds.
 
+**A step that lives inside a bundle only runs if that bundle is enabled.** A fundament protocol's `steps` can name a
+step that lives inside a bundle (see `core.md`'s "Bundle" — this is normal, not an exception). Before entering such a
+step, check `bundles/index.md`: bundle enabled → proceed as any other step; bundle installed but disabled, or not
+installed at all → stop at that point, name the bundle and what it would take to proceed (`enable bundle <id>`, or
+`install` first if it is missing), and ask rather than silently skipping the step or inventing a substitute.
+
 ## Loading directives
 
 A step loads only the directives its own `uses` field names, plus any directive named in an ancestor protocol's
@@ -36,10 +43,12 @@ every enabled directive on every step — see `core.md`, "Fields specific to `pr
 A directive named in `uses` that is itself composing (has `composes`) pulls in every directive it composes, recursively,
 unless an ancestor's `overrides` says otherwise for this call.
 
-Only **enabled** directives apply. A directive's current enabled/disabled state is its table membership in
-`~/.claude/craftsman/directives/index.md` — **not** its own `enabled-by-default` frontmatter field, which only decided
-which table it landed in in the first place, at install time. `craftsman enable` / `craftsman disable` move a row
-between the two tables; nothing in the directive's own file changes.
+Only **enabled** directives apply. A directive's current enabled/disabled state is its table membership — in
+`~/.claude/craftsman/directives/index.md` for a fundament directive, or in its bundle's own `bundle.md` for one that
+lives inside a bundle (and that bundle must itself be enabled in `bundles/index.md`, or the directive does not apply
+regardless of its own table) — **not** its own `enabled-by-default` frontmatter field, which only decided which
+table it landed in in the first place, at install time. `craftsman enable` / `craftsman disable` move a row between
+the two tables; nothing in the directive's own file changes.
 
 ## Applying an `overrides` map
 

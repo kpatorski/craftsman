@@ -11,8 +11,9 @@ allowed-tools: [Read, Write, Edit, Bash]
 
 1. **Load [MANAGEMENT.md](../../MANAGEMENT.md)** — the "The `merge` candidate check" section is the core of this skill;
    the versioning step applies at the end.
-2. Scan both indexes: for every entry, count how many other entries reference it (via `composes`, `steps`, or `uses`).
-   Collect every entry referenced by exactly one parent and nothing else.
+2. Scan every directive and protocol — top-level and inside every bundle: for each, count how many other entries
+   reference it (via `composes`, `steps`, or `uses`). Collect every entry referenced by exactly one parent and
+   nothing else. A bundle named in another bundle's `requires` is never a candidate — `requires` is not counted here.
 3. Present the full candidate list — each with its one parent — and ask which, if any, to fold in. Never merge without
    asking, and never merge more than one candidate per confirmation if the developer wants to review them individually.
 4. For each accepted candidate: inline its `## Directive` / `## Protocol` content into the parent's own body at the

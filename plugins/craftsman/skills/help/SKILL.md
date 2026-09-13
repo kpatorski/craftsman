@@ -18,9 +18,10 @@ Present, in the developer's language:
     - `/craftsman:analyse <input>` — raw requirements to Given/When/Then business rules.
     - `/craftsman:domain-design <input>` — event storming to written task specs.
     - `/craftsman:implement <task or spec>` — drive one task test-first, checkpoint by checkpoint.
-3. The management commands: `/craftsman:search <topic>`, `/craftsman:list [directives|protocols]`,
+3. The management commands: `/craftsman:search <topic>`, `/craftsman:list [directives|protocols|bundles]`,
    `/craftsman:enable <id>`, `/craftsman:disable <id>`, `/craftsman:install <path or URL>`, `/craftsman:uninstall <id>`,
-   `/craftsman:rename <old-id> <new-id>`, `/craftsman:merge`.
+   `/craftsman:rename <old-id> <new-id>`, `/craftsman:merge`. `enable`/`disable`/`install`/`uninstall`/`rename` all
+   take a directive, protocol, *or* bundle id — ids are unique across all three, so no separate syntax is needed.
 4. If `~/.claude/craftsman/` does not exist yet, mention `install` is the way to get a starter workshop in place.
-5. Point to `~/.claude/craftsman/directives/index.md` and `protocols/index.md` for what is actually installed right
-   now — this file explains commands, those explain content.
+5. Point to `~/.claude/craftsman/directives/index.md`, `protocols/index.md`, and `bundles/index.md` for what is
+   actually installed right now — this file explains commands, those explain content.

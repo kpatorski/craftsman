@@ -18,34 +18,40 @@ The three-question test that decides which one a new entry is, the full field re
 rule against adding fields no one needs yet — all in [`plugins/craftsman/core.md`](plugins/craftsman/core.md). Read that
 before authoring anything.
 
+A **bundle** is not a third kind — the three-question test above still only ever answers `directive` or `protocol`.
+It is a grouping and distribution unit: a named folder of directives and/or protocols that installs and enables
+together (`enable ddd-modelling` turns on everything a modelling method needs in one move). A directive or protocol
+belongs to a bundle by living inside it on disk, nothing more — no field to keep in sync. See `core.md`, "Bundle".
+
 ## Two repos, on purpose
 
 - **This repo** (`craftsman`) is the code: the plugin, its 12 command skills, the execution and management mechanics.
   Install it once, update it like any other plugin.
-- **Content** — directives and protocols — lives separately, at `~/.claude/craftsman/` on disk, installed via
-  `/craftsman:install` from one or more workshop sources (git repositories of `directives/` + `protocols/`, each with
-  its own `index.md`). A plugin update never touches your content; a content update never touches the plugin. See [
-  `plugins/craftsman/EXECUTION.md`](plugins/craftsman/EXECUTION.md), "Where the content lives".
+- **Content** — directives, protocols, and bundles — lives separately, at `~/.claude/craftsman/` on disk, installed
+  via `/craftsman:install` from one or more workshop sources (git repositories of `directives/` + `protocols/` +
+  `bundles/`, each collection with its own `index.md`). A plugin update never touches your content; a content update
+  never touches the plugin. See [`plugins/craftsman/EXECUTION.md`](plugins/craftsman/EXECUTION.md), "Where the
+  content lives".
 
-A reference workshop — this author's own `directives/` + `protocols/` — lives at `craftsman-workshop` (a sibling 
-repo). It is a starting point, not a default everyone must adopt: install it, fork it, or write your own from 
-scratch against `core.md`.
+A reference workshop — this author's own `directives/` + `protocols/` + `bundles/` — lives at `craftsman-workshop`
+(a sibling repo). It is a starting point, not a default everyone must adopt: install it, fork it, or write your own
+from scratch against `core.md`.
 
 ## Commands
 
-| Command                                              | Does                                                                            |
-|------------------------------------------------------|---------------------------------------------------------------------------------|
-| `/craftsman:analyse <input>`                         | Raw requirements → Given/When/Then business rules. No domain modelling.         |
-| `/craftsman:domain-design <input>`                   | Event storming (or whatever the workshop's own method is) → written task specs. |
-| `/craftsman:implement <task or spec>`                | Drives one task test-first, checkpoint by checkpoint.                           |
-| `/craftsman:search <topic>`                          | "Do we already have something about X?" — across both indexes.                  |
-| `/craftsman:list [directives\|protocols]`            | What's installed, enabled and disabled.                                         |
-| `/craftsman:enable <id>` / `/craftsman:disable <id>` | Toggle a directive or protocol.                                                 |
-| `/craftsman:install <path or URL>`                   | Add a directive, protocol, or a whole workshop source.                          |
-| `/craftsman:uninstall <id>`                          | Remove one.                                                                     |
-| `/craftsman:rename <old-id> <new-id>`                | Rename, updating every reference.                                               |
-| `/craftsman:merge`                                   | Find single-use entries and offer to fold them into their one parent.           |
-| `/craftsman:help`                                    | This table, from inside a session.                                              |
+| Command                                              | Does                                                                                                                                                  |
+|------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `/craftsman:analyse <input>`                         | Raw requirements → Given/When/Then business rules. No domain modelling.                                                                               |
+| `/craftsman:domain-design <input>`                   | Event storming (or whatever the workshop's own method is) → written task specs.                                                                       |
+| `/craftsman:implement <task or spec>`                | Drives one task test-first, checkpoint by checkpoint.                                                                                                 |
+| `/craftsman:search <topic>`                          | "Do we already have something about X?" — across all three indexes.                                                                                   |
+| `/craftsman:list [directives\|protocols\|bundles]`   | What's installed, enabled and disabled.                                                                                                               |
+| `/craftsman:enable <id>` / `/craftsman:disable <id>` | Toggle a directive, protocol, or bundle — ids are unique across all three, so the kind resolves by lookup. Toggling a bundle cascades to its members. |
+| `/craftsman:install <path or URL>`                   | Add a directive, protocol, bundle, or a whole workshop source.                                                                                        |
+| `/craftsman:uninstall <id>`                          | Remove one.                                                                                                                                           |
+| `/craftsman:rename <old-id> <new-id>`                | Rename, updating every reference.                                                                                                                     |
+| `/craftsman:merge`                                   | Find single-use entries and offer to fold them into their one parent.                                                                                 |
+| `/craftsman:help`                                    | This table, from inside a session.                                                                                                                    |
 
 Each entry-point command also triggers from plain conversation ("add a use case", "analyze these requirements", "digest
 these requirements") — see each skill's own `description` for its exact trigger phrases.
@@ -63,10 +69,13 @@ install a starter workshop. Or run `/craftsman:install <workshop-source-url>` yo
 ## For workshop authors
 
 Write directives and protocols against [`core.md`](plugins/craftsman/core.md)'s format — the three-question test, the
-field reference, and the golden rule against inventing fields. Every directive lives at `directives/<id>/directive.md`,
-every protocol at `protocols/<id>/protocol.md`, flat, with an `index.md` at the top of each collection categorising
-what's there. See `craftsman-workshop`'s own `directives/index.md` and `protocols/index.md` for a worked example at real
-scale (103 entries).
+field reference, and the golden rule against inventing fields. A **fundament** entry (used by more than one theme,
+or a single standalone preference) lives flat at `directives/<id>/directive.md` or `protocols/<id>/protocol.md`. A
+new rule that belongs to one identifiable theme a developer would want to switch on or off as a whole goes into a
+**bundle** instead: `bundles/<id>/bundle.md` plus its own `directives/` and `protocols/` subfolders, mirroring the
+top level. See `core.md`, "Bundle", and `craftsman-workshop`'s own `bundles/index.md` for the rule worked through on
+a real corpus (7 bundles, from a 62-protocol/41-directive workshop) — `bundles/index.md`'s own `## Examples` section
+walks the fundament-vs-bundle call on concrete entries.
 
 `/craftsman:install` validates syntax and checks for duplicates before accepting anything into `~/.claude/craftsman/` —
 see [`MANAGEMENT.md`](plugins/craftsman/MANAGEMENT.md) for exactly what it checks.
