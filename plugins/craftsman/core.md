@@ -111,6 +111,13 @@ A directive or protocol does not know which bundle it lives in, not even as pros
 protocol does not declare who calls it" above. Its own file says nothing about bundle membership; the folder it
 lives in is the only source of truth.
 
+The same direction-of-reference rule governs `requires` itself: a bundle declares what it needs, never who needs
+it. `tdd`'s own file says `requires: [testing]`; `testing`'s file says nothing about `tdd` or any other bundle that
+happens to require it, not even as prose ("used by `tdd` and `legacy-code`"). A reverse reference written at
+authoring time goes stale the moment a third bundle starts requiring it — the same reasoning that removed the
+"Used by" line from leaf protocols applies unchanged here. Whoever wants to know who requires a bundle scans every
+other bundle's `requires` for its id, the same way `search` scans `steps` for a protocol's id.
+
 ## Golden rule
 
 Do not add a new field to this file unless several directives or protocols would otherwise duplicate it. A field used by
