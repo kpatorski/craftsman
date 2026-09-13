@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "craftsman",
+  "description": "A HUMAN <-> AI loop for coding, requirements analysis and domain design, driven by directives and protocols the developer authored, not by a hardcoded process.",
+  "owner": {
+    "name": "Krzysztof Patorski",
+    "email": "patorski.krzysztof@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "craftsman",
+      "source": "./plugins/craftsman",
+      "description": "Orchestrates directives (what must be true) and protocols (what order to work in) through a checkpoint-gated HUMAN <-> AI loop. Ships with /craftsman:analyse, /craftsman:domain-design, /craftsman:implement, /craftsman:search and management commands."
+    }
+  ]
+}
