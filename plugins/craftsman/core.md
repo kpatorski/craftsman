@@ -88,6 +88,29 @@ composing protocol's `steps` for this id, at the moment someone asks — `search
 Do not write a "Used by" line into a leaf's own file: unlike a live scan, prose written at authoring time goes
 stale the first time a new composing protocol starts calling it, and nothing updates that line automatically.
 
+## Bundle
+
+A bundle is not a third kind — the three-question test above still only ever answers `directive` or `protocol`.
+A bundle is a grouping and distribution unit: a named folder of directives and/or protocols that installs and
+enables together (`enable bundle tdd` turns on everything the TDD loop needs in one move; `disable bundle tdd`
+turns it back off).
+
+Membership is positional, not a field: an entry belongs to a bundle by living under `bundles/<bundle-id>/directives/`
+or `bundles/<bundle-id>/protocols/`, the same way it belongs to the top level by living directly under
+`directives/` or `protocols/`. A bundle's own file never lists its members — `search`, `list`, and `merge` all
+discover them by walking the bundle's two folders, exactly as the top-level indexes walk `directives/` and
+`protocols/`. Nothing to keep in sync by hand — same reasoning as the removed "Used by" line.
+
+- **`id`** — unique across bundles, same rules as any other id.
+- **`title`** — one short sentence.
+- **`description`** — what enabling this bundle gives you, and who wants it.
+- **`requires`** *(optional)* — bundle ids this bundle depends on. Enabling this bundle enables each of these
+  first; if one is not installed, the tool names it and stops — never a silent partial enable.
+
+A directive or protocol does not know which bundle it lives in, not even as prose — same principle as "a leaf
+protocol does not declare who calls it" above. Its own file says nothing about bundle membership; the folder it
+lives in is the only source of truth.
+
 ## Golden rule
 
 Do not add a new field to this file unless several directives or protocols would otherwise duplicate it. A field used by
