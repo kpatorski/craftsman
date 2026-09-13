@@ -83,9 +83,10 @@ normal, not a sign the model is wrong.
   outcome, or relax one of its rules. Neither a step nor a directive declares which callers override it; that
   lives only on the overriding protocol, so there is one place to look, not two that can drift apart.
 
-A leaf protocol does not declare who calls it. "Used by X, Y" is derived by scanning every composing protocol's
-`steps` for this id — worth noting in a leaf's own `## Protocol` prose for a human reader, but never a formal field,
-so there is nothing to keep in sync by hand.
+A leaf protocol does not declare who calls it, not even as prose. "Who uses this" is answered by scanning every
+composing protocol's `steps` for this id, at the moment someone asks — `search` and `merge` both do exactly this.
+Do not write a "Used by" line into a leaf's own file: unlike a live scan, prose written at authoring time goes
+stale the first time a new composing protocol starts calling it, and nothing updates that line automatically.
 
 ## Golden rule
 
