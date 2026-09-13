@@ -8,13 +8,17 @@ allowed-tools: [Read, Write, Edit, Bash, Glob, Grep, WebFetch, AskUserQuestion]
 
 # analyse
 
-Turns a requirements input into `business-rules.md` — plain, structured Given/When/Then data any downstream reader (a human, `domain-design`, or anything else) can consume without `analyse` knowing that reader exists. Formerly the `digester` skill; see the `craftsman` plan, decision 7.
+Turns a requirements input into `business-rules.md` — plain, structured Given/When/Then data any downstream reader (a
+human, `domain-design`, or anything else) can consume without `analyse` knowing that reader exists. Formerly the
+`digester` skill; see the `craftsman` plan, decision 7.
 
 ## Run this
 
 1. **Load [EXECUTION.md](../../EXECUTION.md)** — the mechanics shared by every craftsman entry point.
-2. **Read `~/.claude/craftsman/protocols/analyse/protocol.md`** and execute it per EXECUTION.md's dispatch rules — `$ARGUMENTS` is the input (file path, URL, or inline text).
-3. If `~/.claude/craftsman/protocols/` does not exist, this is a first run — see EXECUTION.md, "Where the content lives".
+2. **Read `~/.claude/craftsman/protocols/analyse/protocol.md`** and execute it per EXECUTION.md's dispatch rules —
+   `$ARGUMENTS` is the input (file path, URL, or inline text).
+3. If `~/.claude/craftsman/protocols/` does not exist, this is a first run — see EXECUTION.md, "Where the content
+   lives".
 
 ## Notes
 

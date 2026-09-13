@@ -17,4 +17,5 @@ allowed-tools: [Read, Edit, Bash]
 
 ## Notes
 
-- Disabling an `entry-point` protocol (`analyse`, `domain-design`, `implement`, or a workshop-added one) removes its command from use — confirm before doing this, it is not a routine toggle like a stack preference.
+- Disabling an `entry-point` protocol (`analyse`, `domain-design`, `implement`, or a workshop-added one) removes its
+  command from use — confirm before doing this, it is not a routine toggle like a stack preference.

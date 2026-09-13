@@ -8,14 +8,19 @@ allowed-tools: [Read, Grep]
 
 # search
 
-The first step before writing a new directive or protocol, and before `install` accepts one — see `install`'s duplicate-detection requirement.
+The first step before writing a new directive or protocol, and before `install` accepts one — see `install`'s
+duplicate-detection requirement.
 
 ## Run this
 
-1. Read `~/.claude/craftsman/directives/index.md` and `~/.claude/craftsman/protocols/index.md` (both tables in every category — Enabled and Disabled).
-2. Match `$ARGUMENTS` against every row's `Id`, `Title`, and (by opening the linked file when the index columns alone don't decide it) `description`.
-3. If more than one candidate looks plausible from the index alone, open and read each candidate's full file before ranking — the index is for finding candidates, not for the final call.
-4. Report every real match: id, kind (directive/protocol), title, enabled/disabled, and the link. If nothing matches, say so plainly — do not stretch a weak match into a "sort of" answer.
+1. Read `~/.claude/craftsman/directives/index.md` and `~/.claude/craftsman/protocols/index.md` (both tables in every
+   category — Enabled and Disabled).
+2. Match `$ARGUMENTS` against every row's `Id`, `Title`, and (by opening the linked file when the index columns alone
+   don't decide it) `description`.
+3. If more than one candidate looks plausible from the index alone, open and read each candidate's full file before
+   ranking — the index is for finding candidates, not for the final call.
+4. Report every real match: id, kind (directive/protocol), title, enabled/disabled, and the link. If nothing matches,
+   say so plainly — do not stretch a weak match into a "sort of" answer.
 
 ## Notes
 
