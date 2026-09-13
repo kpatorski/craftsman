@@ -70,14 +70,18 @@ normal, not a sign the model is wrong.
 - **`entry-point`** *(optional, `true`)* — this protocol is one of the top-level entries craftsman exposes as a command
   (`/craftsman:analyse`, `/craftsman:domain-design`, `/craftsman:implement`, and any further ones a workshop adds). Only
   composing protocols carry this flag.
+- **`uses`** *(optional)* — the directive ids this protocol actively consults, beyond whatever `production-code`
+  or another blanket directive already covers by its own `applies-when`. Explicit, not a blind scan of every
+  enabled directive on every step — a step names what it needs.
 - **`match`** *(optional)* — present on a protocol that is one of several alternatives under a dispatching parent (an
   entry-point, or a composing protocol that picks one path rather than running all of `steps`). Free text describing
   the situation this alternative fits; the dispatcher reads every sibling's `match` and picks the best fit, or asks
   the developer when none fits cleanly.
-- **`overrides`** *(optional)* — a map of `step-id: how this protocol changes it`, for a step this protocol's own
-  `steps` list reuses from elsewhere. Applied before that shared step runs, for this call only — skip it, force its
-  outcome, or relax one of its rules. A step never declares which parents override it; that lives only on the
-  overriding protocol, so there is one place to look, not two that can drift apart.
+- **`overrides`** *(optional)* — a map of `entry-id: how this protocol changes it`, where the entry is a step this
+  protocol's `steps` list reuses, or a directive one of those steps would otherwise load. Applied for this call
+  only, before the affected step runs or the affected directive would otherwise apply — skip it, force its
+  outcome, or relax one of its rules. Neither a step nor a directive declares which callers override it; that
+  lives only on the overriding protocol, so there is one place to look, not two that can drift apart.
 
 A leaf protocol does not declare who calls it. "Used by X, Y" is derived by scanning every composing protocol's
 `steps` for this id — worth noting in a leaf's own `## Protocol` prose for a human reader, but never a formal field,
