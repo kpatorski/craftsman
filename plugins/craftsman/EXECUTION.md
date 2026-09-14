@@ -132,11 +132,22 @@ A `checkpoint` is where execution stops and talks to the developer — full fiel
 - After the answer: record step + question + answer + resulting decision in the session's checkpoint log, then act on
   it. "Adjust" means redo the current step in the new direction, not carry on.
 
-Before the `prompt`, say in one short line which step this is (its id) and what it's for — a developer reading the
-transcript, possibly having lost track of where things stand, should never hit a bare question with no idea what
-process produced it. Then ask in the developer's language: a short, direct question; a numbered list of concrete
-options when the choice is between discrete alternatives; free-form when it is open. Do not stack the next step's
-work "just in case" while waiting.
+Before the `prompt`, say in one short line, in plain language, what is happening right now — a developer reading
+the transcript, possibly having lost track of where things stand, should never hit a bare question with no idea
+what produced it. Naming the step's id is fine as a trailing aside for someone tracing the run, but the line itself
+must read like something you'd say to a colleague, not a list of directive/protocol ids strung together — "citing
+your own machinery instead of saying what's happening" is the same failure as a bare question with no lead-in,
+just dressed up as an answer to it.
+
+Fill the `prompt`'s own placeholders with the real thing, not a compressed tag list standing in for it. When a
+prompt template asks for content "as drafted" (`draft-spec`) or a full list (`collect-events`, `attach-rules-batch`,
+...), that means the actual text — criteria written out, the real phrases — not single words abbreviating them
+("confirmed/rejected-busy/rejected-blocked" is not acceptance criteria, it's a filing label for them). A developer
+who has to ask "what does that abbreviation mean" is reading a checkpoint that failed at its one job.
+
+Then ask in the developer's language: a short, direct question; a numbered list of concrete options when the
+choice is between discrete alternatives; free-form when it is open. Do not stack the next step's work "just in
+case" while waiting.
 
 ## Language
 
