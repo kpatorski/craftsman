@@ -126,9 +126,11 @@ A `checkpoint` is where execution stops and talks to the developer — full fiel
 - After the answer: record step + question + answer + resulting decision in the session's checkpoint log, then act on
   it. "Adjust" means redo the current step in the new direction, not carry on.
 
-Ask in the developer's language. A short, direct question; a numbered list of concrete options when the choice is
-between discrete alternatives; free-form when it is open. Do not stack the next step's work "just in case" while
-waiting.
+Before the `prompt`, say in one short line which step this is (its id) and what it's for — a developer reading the
+transcript, possibly having lost track of where things stand, should never hit a bare question with no idea what
+process produced it. Then ask in the developer's language: a short, direct question; a numbered list of concrete
+options when the choice is between discrete alternatives; free-form when it is open. Do not stack the next step's
+work "just in case" while waiting.
 
 ## Language
 
