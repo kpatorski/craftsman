@@ -78,10 +78,16 @@ to do to you. craftsman only ever tells you it happened and lets you decide:
 
 - **The plugin itself**: every command checks its own version against `~/.claude/craftsman/`'s own record of it (a
   local, offline comparison — no network call) and says so, once, when they differ, pointing at
-  [`CHANGELOG.md`](CHANGELOG.md). To actually update, run `claude plugin update craftsman@craftsman` yourself, when
-  you're ready. (Claude Code does have an opt-in auto-update for marketplaces — off by default for any marketplace
-  that isn't Anthropic's own, including this one — see `/plugin` → Marketplaces if you want to turn it on; craftsman
-  itself never turns it on for you.)
+  [`CHANGELOG.md`](CHANGELOG.md). To actually update, run these yourself, when you're ready:
+  ```
+  claude plugin marketplace update craftsman
+  claude plugin update craftsman@craftsman
+  ```
+  The first refreshes Claude Code's cached copy of this marketplace repo; the second installs whatever newer version
+  that copy now has. Takes effect in a new session — the one you ran it from keeps the version it already loaded.
+  (Claude Code does have an opt-in auto-update for marketplaces — off by default for any marketplace that isn't
+  Anthropic's own, including this one — see `/plugin` → Marketplaces if you want to turn it on; craftsman itself
+  never turns it on for you.)
 - **A workshop source** (e.g. `craftsman-workshop`): re-run `/craftsman:install <same-source-url>` any time. If
   nothing changed upstream, it says so and stops. If something did, it shows what and asks before touching anything
   — see [`MANAGEMENT.md`](plugins/craftsman/MANAGEMENT.md), "Checking a known source for updates". Nothing checks
