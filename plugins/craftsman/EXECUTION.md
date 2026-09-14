@@ -86,6 +86,12 @@ Written in English regardless of conversation language. Holds:
 
   A step reused across several parents (its id appears in more than one composing protocol's `steps`) takes its parent
   from the walk it is on for this call.
+
+  **Mirror this in Claude Code's own task list** (`TaskCreate` / `TaskUpdate` / `TaskList`, or the legacy `TodoWrite`
+  if that is what the session has instead) whenever those tools are available — one entry per step in the current
+  call stack, status kept in lockstep with the stack above. This is only available on some models and
+  configurations; if none of these tools exist in the current session, skip this silently — the session file above
+  remains the durable, resumable record regardless, and is never optional the way this display is.
 - **Directives in effect** — every directive actually loaded so far this run: its id, the workshop source it came from
   (`directives/index.md`'s Sources table), and that source's version (a commit sha, when the source is a git
   repository). On resume, compare this list against the currently-installed versions and say plainly what differs —
