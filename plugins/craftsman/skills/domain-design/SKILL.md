@@ -8,8 +8,7 @@ allowed-tools: [Read, Write, Edit, Bash, Glob, Grep, WebFetch, AskUserQuestion]
 
 # domain-design
 
-Turns a raw requirements input into `specs/NNN-slug.md` files a human then hands to `implement`. Formerly the `analyst`
-skill; see the `craftsman` plan, decision 7.
+Turns a raw requirements input into `specs/NNN-slug.md` files a human then hands to `implement`.
 
 ## Run this
 

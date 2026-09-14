@@ -2,8 +2,7 @@
 
 A HUMAN <-> AI loop for coding, requirements analysis and domain design — never one large generated drop. craftsman
 executes **directives** (what must be true about the code right now) and **protocols** (what order to work in, and where
-to stop) that a workshop author wrote, stopping at every checkpoint to confirm direction. Formerly three separate
-skills — `developer`, `analyst`, `digester` — unified under one tool with a shared, extensible content format.
+to stop) that a workshop author wrote, stopping at every checkpoint to confirm direction.
 
 ## The model
 
@@ -20,8 +19,9 @@ before authoring anything.
 
 A **bundle** is not a third kind — the three-question test above still only ever answers `directive` or `protocol`.
 It is a grouping and distribution unit: a named folder of directives and/or protocols that installs and enables
-together (`enable ddd-modelling` turns on everything a modelling method needs in one move). A directive or protocol
-belongs to a bundle by living inside it on disk, nothing more — no field to keep in sync. See `core.md`, "Bundle".
+together (`/craftsman:enable event-storming` turns on everything that modelling method needs in one move). A
+directive or protocol belongs to a bundle by living inside it on disk, nothing more — no field to keep in sync. See
+`core.md`, "Bundle".
 
 ## Two repos, on purpose
 
@@ -33,9 +33,9 @@ belongs to a bundle by living inside it on disk, nothing more — no field to ke
   never touches the plugin. See [`plugins/craftsman/EXECUTION.md`](plugins/craftsman/EXECUTION.md), "Where the
   content lives".
 
-A reference workshop — this author's own `directives/` + `protocols/` + `bundles/` — lives at `craftsman-workshop`
-(a sibling repo). It is a starting point, not a default everyone must adopt: install it, fork it, or write your own
-from scratch against `core.md`.
+A reference workshop — this author's own `directives/` + `protocols/` + `bundles/` — lives at
+[`kpatorski/craftsman-workshop`](https://github.com/kpatorski/craftsman-workshop). It is a starting point, not a
+default everyone must adopt: install it, fork it, or write your own from scratch against `core.md`.
 
 ## Commands
 
@@ -59,9 +59,12 @@ these requirements") — see each skill's own `description` for its exact trigge
 ## Installing
 
 ```
-/plugin marketplace add <this-repo-url-or-path>
+/plugin marketplace add kpatorski/craftsman
 /plugin install craftsman
 ```
+
+(`<this-repo-url-or-path>` works too — a local clone path, or any other git URL, if you're not installing from
+GitHub directly.)
 
 Then, on first use of any entry-point command, craftsman notices `~/.claude/craftsman/` doesn't exist yet and offers to
 install a starter workshop. Or run `/craftsman:install <workshop-source-url>` yourself, any time.
@@ -73,9 +76,10 @@ field reference, and the golden rule against inventing fields. A **fundament** e
 or a single standalone preference) lives flat at `directives/<id>/directive.md` or `protocols/<id>/protocol.md`. A
 new rule that belongs to one identifiable theme a developer would want to switch on or off as a whole goes into a
 **bundle** instead: `bundles/<id>/bundle.md` plus its own `directives/` and `protocols/` subfolders, mirroring the
-top level. See `core.md`, "Bundle", and `craftsman-workshop`'s own `bundles/index.md` for the rule worked through on
-a real corpus (7 bundles, from a 62-protocol/41-directive workshop) — `bundles/index.md`'s own `## Examples` section
-walks the fundament-vs-bundle call on concrete entries.
+top level. See `core.md`, "Bundle", and
+[`craftsman-workshop`'s own `bundles/index.md`](https://github.com/kpatorski/craftsman-workshop/blob/main/bundles/index.md)
+for the rule worked through on a real corpus (7 bundles, from a 62-protocol/41-directive workshop) — its own
+`## Examples` section walks the fundament-vs-bundle call on concrete entries.
 
 `/craftsman:install` validates syntax and checks for duplicates before accepting anything into `~/.claude/craftsman/` —
 see [`MANAGEMENT.md`](plugins/craftsman/MANAGEMENT.md) for exactly what it checks.

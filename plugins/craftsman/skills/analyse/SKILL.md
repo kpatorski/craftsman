@@ -9,8 +9,7 @@ allowed-tools: [Read, Write, Edit, Bash, Glob, Grep, WebFetch, AskUserQuestion]
 # analyse
 
 Turns a requirements input into `business-rules.md` — plain, structured Given/When/Then data any downstream reader (a
-human, `domain-design`, or anything else) can consume without `analyse` knowing that reader exists. Formerly the
-`digester` skill; see the `craftsman` plan, decision 7.
+human, `domain-design`, or anything else) can consume without `analyse` knowing that reader exists.
 
 ## Run this
 
