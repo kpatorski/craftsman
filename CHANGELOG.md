@@ -3,6 +3,14 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.1.1
+
+- Fix: syntax validation now explicitly rejects frontmatter that isn't valid YAML at all, instead of only implying
+  it. See `MANAGEMENT.md`, "Syntax validation".
+- Fix: the plugin-version check now covers the case where `~/.claude/craftsman/` already exists but its version
+  marker doesn't (content installed before this check existed) — treated as a mismatch instead of silently doing
+  nothing. See `MANAGEMENT.md`, "Plugin version".
+
 ## 0.1.0
 
 First versioned release. Includes, relative to the initial bundle-based design:

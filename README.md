@@ -108,6 +108,16 @@ see [`MANAGEMENT.md`](plugins/craftsman/MANAGEMENT.md) for exactly what it check
   per-task session file, resuming, the checkpoint protocol.
 - [`MANAGEMENT.md`](plugins/craftsman/MANAGEMENT.md) — how content gets installed, validated, renamed, merged, and versioned.
 
+### Releasing a change to this repo
+
+Bump `"version"` in [`plugins/craftsman/.claude-plugin/plugin.json`](plugins/craftsman/.claude-plugin/plugin.json)
+on every commit that changes plugin behaviour (not on a pure typo/doc fix), and add an entry to
+[`CHANGELOG.md`](CHANGELOG.md). `claude plugin update` compares this field, not raw commits — a content change
+without a version bump is invisible to it, and the only way a developer already on an older version can pick it up
+is `claude plugin uninstall craftsman@craftsman` + `claude plugin install craftsman@craftsman` (which ignores the
+version field and just takes whatever the marketplace currently has). Found live, the hard way, while testing this
+mechanism against a real install — see `MANAGEMENT.md`, "Plugin version".
+
 ## License
 
 [PolyForm Internal Use License 1.0.0](LICENSE.md) — free to use, including commercially, for your own internal
