@@ -20,6 +20,8 @@ updated since content was last touched (old version → new version), point to t
 write the new version into the marker. This is a fact worth knowing, not a warning to act on — it never triggers or
 suggests an automatic update; the plugin itself updates only when the developer runs it themselves (see README.md,
 "Updating"). If `~/.claude/craftsman/` does not exist yet, skip this check — a first install writes the marker fresh.
+If `~/.claude/craftsman/` exists but the marker file does not (content installed before this file existed), treat it
+the same as a mismatch — say so once, using "unknown" as the old version, and write the marker.
 
 ## Resolving an id
 
