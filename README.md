@@ -71,6 +71,22 @@ if you're not installing from GitHub directly.)
 Then, on first use of any entry-point command, craftsman notices `~/.claude/craftsman/` doesn't exist yet and offers to
 install a starter workshop. Or run `/craftsman:install <workshop-source-url>` yourself, any time.
 
+## Updating
+
+No auto-update, by design — updating a plugin without asking is exactly the kind of thing this project doesn't want
+to do to you. craftsman only ever tells you it happened and lets you decide:
+
+- **The plugin itself**: every command checks its own version against `~/.claude/craftsman/`'s own record of it (a
+  local, offline comparison — no network call) and says so, once, when they differ, pointing at
+  [`CHANGELOG.md`](CHANGELOG.md). To actually update, run `claude plugin update craftsman@craftsman` yourself, when
+  you're ready. (Claude Code does have an opt-in auto-update for marketplaces — off by default for any marketplace
+  that isn't Anthropic's own, including this one — see `/plugin` → Marketplaces if you want to turn it on; craftsman
+  itself never turns it on for you.)
+- **A workshop source** (e.g. `craftsman-workshop`): re-run `/craftsman:install <same-source-url>` any time. If
+  nothing changed upstream, it says so and stops. If something did, it shows what and asks before touching anything
+  — see [`MANAGEMENT.md`](plugins/craftsman/MANAGEMENT.md), "Checking a known source for updates". Nothing checks
+  this for you in the background either.
+
 ## For workshop authors
 
 Write directives and protocols against [`core.md`](plugins/craftsman/core.md)'s format — the three-question test, the

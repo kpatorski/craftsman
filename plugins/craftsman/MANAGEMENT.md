@@ -10,6 +10,17 @@ first mutation, and say so once. After every mutating command completes, commit 
 command and what changed (e.g. `enable directive prefer-lombok`, `install protocol from <source>`). If `git` is not
 available, skip versioning silently — do not block the command on it.
 
+## Plugin version
+
+`~/.claude/craftsman/.craftsman-plugin-version` records which version of this plugin last touched this content tree
+— read from this plugin's own `.claude-plugin/plugin.json`, found the same way this file itself was loaded. Every
+command compares the two before doing anything else — this is a local, offline comparison of two files already on
+disk, cheap enough to run every time, never a network call. On a mismatch: say once, plainly, that the plugin
+updated since content was last touched (old version → new version), point to this plugin's own `CHANGELOG.md`, and
+write the new version into the marker. This is a fact worth knowing, not a warning to act on — it never triggers or
+suggests an automatic update; the plugin itself updates only when the developer runs it themselves (see README.md,
+"Updating"). If `~/.claude/craftsman/` does not exist yet, skip this check — a first install writes the marker fresh.
+
 ## Resolving an id
 
 An id is unique across `directives/`, `protocols/`, and `bundles/` together (validated at every install — see below).
@@ -20,6 +31,22 @@ a path.
 
 A bare `$ARGUMENTS` id is never prefixed with its kind (no `enable directive <id>` vs `enable bundle <id>`) — ids are
 globally unique, so the lookup above always resolves to exactly one kind, one place.
+
+## Checking a known source for updates (`install`)
+
+If `$ARGUMENTS` matches the `Location` of a `Source` already recorded in any index's `Sources` table, this is not a
+new install — it is a check. Fetch the source's current state and compare its commit sha to the `Version` already
+recorded for that row:
+
+- **Same sha** — nothing changed since the last sync. Say so, stop.
+- **Different sha** — say what changed (new, changed, or removed files, from a diff against what's installed) and
+  ask whether to apply it. Applying re-runs syntax validation and duplicate detection on every changed file exactly
+  as a fresh install would (see below — a changed *id* whose content differs from what's installed is expected here,
+  not a conflict to reject), then updates the `Sources` row's `Version` to the new sha. Declining leaves everything
+  as it is, including `Version` — the next check shows the same diff again.
+
+This never runs on its own — only when the developer explicitly re-runs `install` with a URI already recorded as a
+source. Nothing fetches in the background.
 
 ## Duplicate detection (`install`)
 

@@ -21,6 +21,9 @@ always means the one belonging to *this running plugin*: already loaded, the sam
 
 ## Dispatch
 
+0. Run the plugin-version check — `MANAGEMENT.md`, "Plugin version" — before anything else. A local comparison of
+   two files already on disk, not a network call; skip it only when step 1 below is about to report that
+   `~/.claude/craftsman/` does not exist yet.
 1. Find the entry-point protocol matching the invoked skill (`analyse`, `domain-design`, `implement`, or a
    workshop-added one carrying `entry-point: true`) in `~/.claude/craftsman/protocols/index.md`.
 2. Read its `## Protocol` section and walk it top to bottom.
