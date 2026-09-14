@@ -65,13 +65,14 @@ surfaces), mention it before installing — the developer may prefer to skip the
 
 ## Syntax validation (`install`)
 
-Before a new file is added to `directives/` or `protocols/`, validate it: the mandatory sections are present
-(Frontmatter, Schema, the kind-specific body section, i.e. `## Directive` or `## Protocol`), the frontmatter fields
-match `core.md`'s contract for its kind, and every relative link it contains resolves to a real file once installed —
-except mentions of `core.md` itself, which must be name-only (`` `core.md` ``), never a link: it lives in this
-plugin's own code, not in installed content, so no link written into content could stay valid across a plugin
-update. See `EXECUTION.md`, "Where the content lives". Reject with a clear reason rather than installing something
-broken.
+Before a new file is added to `directives/` or `protocols/`, validate it: the frontmatter parses as YAML at all
+(reject with the parser's own error if it doesn't — malformed YAML never reaches the checks below), the mandatory
+sections are present (Frontmatter, Schema, the kind-specific body section, i.e. `## Directive` or `## Protocol`),
+the frontmatter fields match `core.md`'s contract for its kind, and every relative link it contains resolves to a
+real file once installed — except mentions of `core.md` itself, which must be name-only (`` `core.md` ``), never a
+link: it lives in this plugin's own code, not in installed content, so no link written into content could stay
+valid across a plugin update. See `EXECUTION.md`, "Where the content lives". Reject with a clear reason rather than
+installing something broken.
 
 A `bundle.md` validates the same way, against `core.md`'s `bundle` fields (`id`, `title`, `description`, `requires?`
 only — reject a `bundle.md` that tries to list its members as a field, that belongs to directory placement, not
