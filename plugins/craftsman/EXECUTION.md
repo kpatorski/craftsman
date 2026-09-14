@@ -15,6 +15,10 @@ If `~/.claude/craftsman/` does not exist yet, this is a first run: say so, and o
 workshop from the source recorded in this plugin's own configuration (see the `install` skill). Do not fabricate
 directives or protocols — if there is truly nothing installed, tell the developer and stop.
 
+A directive, protocol, or bundle file mentions `core.md` by name only, never as a link — this plugin caches its own
+code under a path that changes on every update, so no link written into installed content could stay valid. `core.md`
+always means the one belonging to *this running plugin*: already loaded, the same way this file was.
+
 ## Dispatch
 
 1. Find the entry-point protocol matching the invoked skill (`analyse`, `domain-design`, `implement`, or a
