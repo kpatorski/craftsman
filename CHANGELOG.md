@@ -3,6 +3,15 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.1.2
+
+- Fix: every checkpoint now states which step (id) it's for, in one line, before the actual question — found live
+  while running a real task, when a bare question with no lead-in left a developer reading the transcript unable to
+  tell what produced it. See `EXECUTION.md`, "Checkpoint protocol".
+- Feature: the call stack now mirrors into Claude Code's own task list (`TaskCreate`/`TaskUpdate`/`TaskList`, or
+  legacy `TodoWrite`) when those tools are available in the session — a live view alongside the durable session
+  file. Silently skipped where the tools aren't present. See `EXECUTION.md`, "`<type>-session-<slug>.md`".
+
 ## 0.1.1
 
 - Fix: syntax validation now explicitly rejects frontmatter that isn't valid YAML at all, instead of only implying
