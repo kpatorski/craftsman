@@ -60,11 +60,13 @@ these requirements") — see each skill's own `description` for its exact trigge
 
 ```
 /plugin marketplace add kpatorski/craftsman
-/plugin install craftsman
+/plugin install craftsman@craftsman
 ```
 
-(`<this-repo-url-or-path>` works too — a local clone path, or any other git URL, if you're not installing from
-GitHub directly.)
+The `@craftsman` names the marketplace explicitly (`<plugin>@<marketplace>`) — this is the form confirmed to work.
+
+(`<this-repo-url-or-path>` works too in place of `kpatorski/craftsman` — a local clone path, or any other git URL,
+if you're not installing from GitHub directly.)
 
 Then, on first use of any entry-point command, craftsman notices `~/.claude/craftsman/` doesn't exist yet and offers to
 install a starter workshop. Or run `/craftsman:install <workshop-source-url>` yourself, any time.
@@ -89,3 +91,9 @@ see [`MANAGEMENT.md`](plugins/craftsman/MANAGEMENT.md) for exactly what it check
 - [`EXECUTION.md`](plugins/craftsman/EXECUTION.md) — how a protocol actually runs: dispatch, directive loading, the 
   per-task session file, resuming, the checkpoint protocol.
 - [`MANAGEMENT.md`](plugins/craftsman/MANAGEMENT.md) — how content gets installed, validated, renamed, merged, and versioned.
+
+## License
+
+[PolyForm Internal Use License 1.0.0](LICENSE.md) — free to use, including commercially, for your own internal
+purposes. Redistribution (forking and republishing, mirroring, or otherwise passing this repository or a modified
+version of it on to third parties) is not permitted.
