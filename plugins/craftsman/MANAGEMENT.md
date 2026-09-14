@@ -97,11 +97,12 @@ Protocols` / `## Directives` tables — for an entry that lives inside one). Not
 changes — `enabled-by-default` is what a fresh install starts from, not the live state. See `EXECUTION.md`,
 "Loading directives".
 
-**Enabling or disabling a bundle** moves its row in `bundles/index.md`, and cascades: every member id currently in
-that bundle's Disabled table (on enable) or Enabled table (on disable) moves too, in the same command. A member the
-developer already toggled individually inside the bundle keeps that state — cascading only ever moves rows still
-sitting at the bundle's own default, never overrides an explicit individual toggle silently. Say which individual
-overrides were left alone.
+**Enabling or disabling a bundle** moves its row in `bundles/index.md`, and cascades: every member id moves to the
+same table too, in the same command — including one the developer had toggled individually before this bundle-level
+command ran. A bundle's own `bundle.md` records only current table position, nothing about how a member got there,
+so there is nothing to preserve selectively: an individual toggle inside an enabled bundle is a statement about
+*right now*, not a standing exception the next bundle-level command must remember. Say plainly that the cascade
+overwrites any individual state, so the developer can re-toggle after if they still want the exception.
 
 **Resolving `requires` on enable:** before enabling a bundle, check every id in its `requires`. Installed and
 enabled — proceed. Installed but disabled — ask whether to enable it too (default yes) before continuing. Not
