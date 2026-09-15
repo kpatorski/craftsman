@@ -50,6 +50,13 @@ to do to you. craftsman only ever tells you it happened and lets you decide:
   — see [`MANAGEMENT.md`](plugins/craftsman/MANAGEMENT.md), "Checking a known source for updates". Nothing checks
   this for you in the background either.
 
+  **This never touches your own work.** A directive or protocol you wrote yourself — anything not present in the
+  source you're updating from — is never a candidate for deletion. If you hand-edited a file that came from that
+  source and upstream hasn't changed it since, your edit is left alone; you're told it was skipped, not silently
+  overwritten. A file you edited *and* upstream also changed is shown as a real conflict, with both diffs, so you
+  choose — nothing is applied without your say-so. And anything you've deliberately disabled stays disabled through
+  an update to its content; only a first install ever decides a fresh entry's starting Enabled/Disabled state.
+
 ## The model
 
 Two kinds, nesting on any depth — plus a **bundle**, a grouping and distribution unit for both (not a third kind,

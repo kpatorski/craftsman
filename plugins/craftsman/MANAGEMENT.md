@@ -37,18 +37,52 @@ globally unique, so the lookup above always resolves to exactly one kind, one pl
 ## Checking a known source for updates (`install`)
 
 If `$ARGUMENTS` matches the `Location` of a `Source` already recorded in any index's `Sources` table, this is not a
-new install — it is a check. Fetch the source's current state and compare its commit sha to the `Version` already
-recorded for that row:
+new install — it is a check. Fetch the source's current state (full clone with history — never `--depth 1` here;
+the next paragraph explains why) and compare its commit sha to the `Version` already recorded for that row:
 
 - **Same sha** — nothing changed since the last sync. Say so, stop.
-- **Different sha** — say what changed (new, changed, or removed files, from a diff against what's installed) and
-  ask whether to apply it. Applying re-runs syntax validation and duplicate detection on every changed file exactly
-  as a fresh install would (see below — a changed *id* whose content differs from what's installed is expected here,
-  not a conflict to reject), then updates the `Sources` row's `Version` to the new sha. Declining leaves everything
-  as it is, including `Version` — the next check shows the same diff again.
+- **Different sha** — classify every file, then act per file. See below.
 
 This never runs on its own — only when the developer explicitly re-runs `install` with a URI already recorded as a
 source. Nothing fetches in the background.
+
+### Three-way classification, not a two-way diff
+
+A plain diff between "source now" and "what's on disk" cannot tell whether a difference came from upstream or from
+the developer's own hand — and a developer who has added their own directives or protocols, or hand-edited an
+installed one, is not a hypothetical, it's the normal way this tool gets used. The fix needs a third point of
+reference: the **baseline**, i.e. the source's content at the sha already recorded in `Version` — `git show
+<Version>:<path>` against the fetched clone, since the clone now holds full history. Classify each file by
+comparing all three (baseline, source-now, on-disk):
+
+| On-disk vs. baseline | Source-now vs. baseline | Meaning              | Action                                                             |
+|-----------------------|--------------------------|-----------------------|----------------------------------------------------------------------|
+| same                  | changed                  | clean upstream update | show it, apply after agreement — as before                          |
+| changed               | same                     | developer's own edit  | leave it untouched; say it was skipped and why                      |
+| changed               | changed                  | real conflict         | show both diffs; ask: keep local, take upstream, or merge by hand   |
+| n/a — not in baseline or source | n/a              | developer's own new file | never a deletion candidate — it didn't come from this source       |
+| n/a — not in source anymore | same as baseline      | removed upstream       | propose deleting it                                                  |
+| n/a — not in source anymore | changed locally         | removed vs. local work | keep it; say plainly upstream deleted it, then ask what to do        |
+
+Applying a change still re-runs syntax validation and duplicate detection on every touched file exactly as a fresh
+install would (a changed *id* whose content now differs from what's installed is expected here, not a conflict to
+reject) — but never touches which table (Enabled/Disabled) an existing entry's row sits in; see "Enable / disable"
+below.
+
+**No baseline available** (source isn't a git repository, `Version` is empty, or the recorded sha is gone from
+history) — there is nothing to classify against. Fall back to the old two-way behavior, but safer: every
+difference is shown and asked about individually, and a file present on disk but absent from the source is never
+proposed for deletion.
+
+### Moving `Version` forward
+
+Declining the check entirely leaves `Version` untouched — the next check shows the same diff again, as before.
+Once every file in the diff has an explicit decision (applied / kept local / merged by hand), `Version` moves to
+the new sha — **including for files where the developer chose "keep local".** This is not data loss: the baseline
+means "the last state of the source this tool has seen," not "the state currently on disk." Without moving it, a
+file with a kept-local decision would show up as the same conflict forever. The rule is all-or-nothing on the
+decision, not on the outcome: never move `Version` if any file in the diff was left without an explicit decision —
+otherwise a skipped upstream change silently drops off the radar for good.
 
 ## Duplicate detection (`install`)
 
@@ -125,7 +159,9 @@ Moves the entry's row between the Enabled and Disabled tables of its category, i
 (`directives/index.md` or `protocols/index.md` for a fundament entry; the bundle's own `bundle.md` — its `##
 Protocols` / `## Directives` tables — for an entry that lives inside one). Nothing in the entry's own file
 changes — `enabled-by-default` is what a fresh install starts from, not the live state. See `EXECUTION.md`,
-"Loading directives".
+"Loading directives". Updating an entry that already exists (see "Checking a known source for updates" above)
+never moves its row either — `enabled-by-default` governs only the first install of a given id, never a later
+content update to it.
 
 **Enabling or disabling a bundle** moves its row in `bundles/index.md`, and cascades: every member id moves to the
 same table too, in the same command — including one the developer had toggled individually before this bundle-level
