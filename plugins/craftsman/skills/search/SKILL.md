@@ -13,13 +13,19 @@ duplicate-detection requirement.
 
 ## Run this
 
-1. Read `~/.claude/craftsman/directives/index.md`, `~/.claude/craftsman/protocols/index.md`, and
-   `~/.claude/craftsman/bundles/index.md` (both tables in every category — Enabled and Disabled), plus every
-   `bundles/*/bundle.md` for the entries that live inside one.
-2. Match `$ARGUMENTS` against every row's `Id`, `Title`, and (by opening the linked file when the index columns alone
-   don't decide it) `description`.
-3. If more than one candidate looks plausible from the index alone, open and read each candidate's full file before
-   ranking — the index is for finding candidates, not for the final call.
+1. **`Grep`, not `Read`, for the first pass** — the candidate set lives across up to ten files (the three top-level
+   indexes plus every `bundles/*/bundle.md`, since bundle membership is positional per `core.md` and only visible by
+   opening each one), and reading all of them in full on every search is the slow, expensive way to answer "does
+   this exist". One `Grep` call, case-insensitive, for `$ARGUMENTS` (and its individual significant words if it's a
+   phrase) across `~/.claude/craftsman/directives/index.md`, `~/.claude/craftsman/protocols/index.md`,
+   `~/.claude/craftsman/bundles/index.md`, and `~/.claude/craftsman/bundles/*/bundle.md` gets the same coverage —
+   every `Id`, `Title`, and row — for a fraction of the cost. If `~/.claude/craftsman/` does not exist yet, `Grep`
+   simply finds nothing there; check for the directory separately to give the right message (see Notes).
+2. From the grep hits, collect candidate ids (a hit on a table row's `Id`/`Title` cell is enough to shortlist it).
+3. Only `Read` a candidate's own file when the grep hit alone doesn't decide it — a row whose `Id`/`Title` didn't
+   match but might be relevant by `description`, or more than one plausible candidate that needs ranking. This is
+   the only point where full files get opened, and only the specific candidates, never the whole index or every
+   bundle.
 4. Report every real match: id, kind (directive/protocol/bundle), title, enabled/disabled, and the link. If nothing
    matches, say so plainly — do not stretch a weak match into a "sort of" answer.
 

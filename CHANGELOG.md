@@ -3,6 +3,15 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.1.5
+
+- Fix: `search` now finds candidates with `Grep` across all ten files (three top-level indexes plus every
+  `bundles/*/bundle.md`) in one pass, instead of `Read`-ing all ten in full on every call. Same coverage — bundle
+  membership is still positional, so every bundle still gets looked at — just not loaded wholesale up front. `Read`
+  is now reserved for the few candidates that actually need their own `description` checked or need ranking. Found
+  live: a plain topic search took noticeably long, flagged directly as disproportionate for a lookup that should
+  focus on a handful of matching rows. See `skills/search/SKILL.md`.
+
 ## 0.1.4
 
 - Fix: `enable`/`disable` now moves a table row with a bundled script (`scripts/toggle_table_row.py`) instead of a
