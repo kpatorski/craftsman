@@ -3,6 +3,12 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.1.9
+
+- Fix: the "diff beyond a handful of lines" threshold for `shows`'s HTML rendering is now a precise 3 lines, not
+  a vague "handful" — the developer asked for a concrete number after confirming the mechanism itself works. See
+  `core.md`, the `checkpoint` field's `shows` entry.
+
 ## 0.1.8
 
 - Fix: `shows`'s HTML-diff rendering (0.1.7) is now a real, bundled script (`scripts/render_diff.py`) instead of
