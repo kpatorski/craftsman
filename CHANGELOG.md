@@ -8,9 +8,12 @@ not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets s
 - Fix: re-running `install` on a known source now uses a three-way diff (baseline at the recorded `Version`,
   source now, and what's on disk) instead of a two-way diff — a developer's own new entries are never proposed for
   deletion, a hand-edited installed file is never silently overwritten by an upstream change that didn't touch it,
-  and a real conflict (both sides changed) is shown with both diffs instead of one side winning by default. Found
-  by asking "what happens to a developer's own protocols on update?" and tracing the old two-way diff through it —
-  it had no way to tell who made a given difference. See `MANAGEMENT.md`, "Checking a known source for updates".
+  and a real conflict (both sides changed) is presented as a concrete three-choice checkpoint (accept upstream /
+  keep local / show me the diff — inline, or a local dark-theme HTML file for a long one) instead of one side
+  winning by default. Found by asking "what happens to a developer's own protocols on update?" and tracing the old
+  two-way diff through it — it had no way to tell who made a given difference; the conflict-presentation part was
+  refined again live once the first version ("show both diffs, ask") turned out to be too vague to actually follow.
+  See `MANAGEMENT.md`, "Checking a known source for updates" and "Presenting a conflict".
 - Fix: updating an existing entry's content no longer moves its row between the Enabled and Disabled tables —
   `enabled-by-default` now only ever governs a first install, never a later content update, closing a direct
   contradiction with the "Enable / disable" section (which already said live state isn't the same as

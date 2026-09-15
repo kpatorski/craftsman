@@ -59,7 +59,7 @@ comparing all three (baseline, source-now, on-disk):
 |-----------------------|--------------------------|-----------------------|----------------------------------------------------------------------|
 | same                  | changed                  | clean upstream update | show it, apply after agreement — as before                          |
 | changed               | same                     | developer's own edit  | leave it untouched; say it was skipped and why                      |
-| changed               | changed                  | real conflict         | show both diffs; ask: keep local, take upstream, or merge by hand   |
+| changed               | changed                  | real conflict         | see "Presenting a conflict" below — never resolved silently          |
 | n/a — not in baseline or source | n/a              | developer's own new file | never a deletion candidate — it didn't come from this source       |
 | n/a — not in source anymore | same as baseline      | removed upstream       | propose deleting it                                                  |
 | n/a — not in source anymore | changed locally         | removed vs. local work | keep it; say plainly upstream deleted it, then ask what to do        |
@@ -69,6 +69,24 @@ install would (a changed *id* whose content now differs from what's installed is
 reject) — but never touches which table (Enabled/Disabled) an existing entry's row sits in; see "Enable / disable"
 below.
 
+### Presenting a conflict
+
+A vague "show both diffs" is not an instruction anyone could follow the same way twice. For each conflicted id:
+
+1. State plainly that this id has two different versions since the last sync — yours and upstream's. Name the id.
+2. Offer exactly three choices, always in this order, and wait for one:
+   - **Accept upstream** — overwrite the local copy with the source's current version.
+   - **Keep local** — leave the file exactly as it is; upstream's change is not applied to this file.
+   - **Show me the diff** — before deciding, see the actual change.
+3. On "show me the diff": render it as a unified diff, baseline → local and baseline → upstream, inline in the
+   terminal if it's short. If it's long, or several conflicted files are being reviewed together, write one
+   self-contained local HTML file instead — dark theme, no network dependency, one section per conflicted id — to
+   a temp path, and say where it is. Either way, loop back to step 2 for a real decision; "show me the diff" is
+   never itself the final answer for a file.
+4. Whatever gets chosen — accept upstream or keep local — is that file's decision for "Moving `Version` forward"
+   below. A merge-by-hand is just "keep local" followed by the developer editing the file themselves afterward;
+   this protocol does not attempt to auto-merge content.
+
 **No baseline available** (source isn't a git repository, `Version` is empty, or the recorded sha is gone from
 history) — there is nothing to classify against. Fall back to the old two-way behavior, but safer: every
 difference is shown and asked about individually, and a file present on disk but absent from the source is never
@@ -77,7 +95,7 @@ proposed for deletion.
 ### Moving `Version` forward
 
 Declining the check entirely leaves `Version` untouched — the next check shows the same diff again, as before.
-Once every file in the diff has an explicit decision (applied / kept local / merged by hand), `Version` moves to
+Once every file in the diff has an explicit decision (applied / accepted upstream / kept local), `Version` moves to
 the new sha — **including for files where the developer chose "keep local".** This is not data loss: the baseline
 means "the last state of the source this tool has seen," not "the state currently on disk." Without moving it, a
 file with a kept-local decision would show up as the same conflict forever. The rule is all-or-nothing on the
