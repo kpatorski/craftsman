@@ -3,6 +3,13 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.1.6
+
+- Fix: a checkpoint's lead-in and `prompt` now must break onto separate lines when they cover more than one
+  distinct point, instead of packing everything into one dense paragraph. Found live, twice in a row in the same
+  run — the same class of readability failure the 0.1.2 lead-in fix targeted, just not covered by its wording.
+  See `EXECUTION.md`, "Checkpoint protocol".
+
 ## 0.1.5
 
 - Fix: `search` now finds candidates with `Grep` across all ten files (three top-level indexes plus every

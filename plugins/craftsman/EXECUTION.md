@@ -149,6 +149,12 @@ Then ask in the developer's language: a short, direct question; a numbered list 
 choice is between discrete alternatives; free-form when it is open. Do not stack the next step's work "just in
 case" while waiting.
 
+When the lead-in or the `prompt` covers more than one distinct point — several facts, several decisions bundled
+into one ask, a status update touching more than one thing — put each point on its own line, not packed into one
+dense paragraph. This failed live, twice in a row in the same run, in the exact same way as the two failures
+above: a checkpoint that is technically correct but unreadable because every point runs together. The fix is the
+same discipline as the lead-in and content rules just above it — this is not a separate, optional nicety.
+
 ## Language
 
 - Converse with the developer in their language; match and switch with them.
