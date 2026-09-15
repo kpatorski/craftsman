@@ -87,11 +87,9 @@ A vague "show both diffs" is not an instruction anyone could follow the same way
    - **Accept upstream** — overwrite the local copy with the source's current version.
    - **Keep local** — leave the file exactly as it is; upstream's change is not applied to this file.
    - **Show me the diff** — before deciding, see the actual change.
-3. On "show me the diff": render it as a unified diff, baseline → local and baseline → upstream, inline in the
-   terminal if it's short. If it's long, or several conflicted files are being reviewed together, write one
-   self-contained local HTML file instead — dark theme, no network dependency, one section per conflicted id — to
-   a temp path, and say where it is. Either way, loop back to step 2 for a real decision; "show me the diff" is
-   never itself the final answer for a file.
+3. On "show me the diff": render it per `core.md`'s `shows` rule — baseline → local and baseline → upstream, one
+   section per conflicted id if several are being reviewed together. Loop back to step 2 for a real decision;
+   "show me the diff" is never itself the final answer for a file.
 4. Whatever gets chosen — accept upstream or keep local — is that file's decision for "Moving `Version` forward"
    below. A merge-by-hand is just "keep local" followed by the developer editing the file themselves afterward;
    this protocol does not attempt to auto-merge content.

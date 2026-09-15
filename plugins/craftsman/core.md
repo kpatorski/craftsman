@@ -65,7 +65,12 @@ normal, not a sign the model is wrong.
     - `blocking: true` — no further step runs, nothing is written, until this is answered.
     - `when: <condition>` *(optional)* — only stop if the condition holds; no condition means always stop.
     - `shows: [...]` *(optional)* — what to render before asking (a diff, a file list, a stub list — whatever the
-      protocol names).
+      protocol names). A diff beyond a handful of lines renders as a self-contained local HTML file (dark theme, no
+      network dependency) delivered to the developer, not pasted as raw `+`/`-` text into the conversation — a wall
+      of diff text in a chat window is exactly the readability failure this guards against, and it gets worse every
+      class a `tdd-loop` touches, not better. A short diff can stay inline. This governs every checkpoint that
+      shows a diff alike — `review-design-direction`, `refactor-tests`, `refactor-production`, `finish-loop`,
+      `MANAGEMENT.md`'s own conflict presentation — one rule, not one per protocol.
     - Disabling a protocol that has a checkpoint means "do not stop me here" — no separate toggle needed.
 - **`entry-point`** *(optional, `true`)* — this protocol is one of the top-level entries craftsman exposes as a command
   (`/craftsman:analyse`, `/craftsman:domain-design`, `/craftsman:implement`, and any further ones a workshop adds). Only

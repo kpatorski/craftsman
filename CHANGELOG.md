@@ -3,6 +3,15 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.1.7
+
+- Fix: `shows: [...]` now renders a diff beyond a handful of lines as a self-contained local HTML file (dark
+  theme), not raw `+`/`-` text pasted into the conversation — a rule in `core.md` covering every checkpoint that
+  shows a diff (`review-design-direction`, `refactor-tests`, `refactor-production`, `finish-loop`,
+  `MANAGEMENT.md`'s conflict presentation), generalized from what 0.1.3's decision-12 work already built for
+  updates alone. Found live: a raw diff pasted mid-`tdd-loop` was flagged as unreadable, and about to recur on
+  every class from then on if left as-is. See `core.md`, the `checkpoint` field's `shows` entry.
+
 ## 0.1.6
 
 - Fix: a checkpoint's lead-in and `prompt` now must break onto separate lines when they cover more than one
