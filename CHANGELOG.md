@@ -3,6 +3,21 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.1.4
+
+- Fix: `enable`/`disable` now moves a table row with a bundled script (`scripts/toggle_table_row.py`) instead of a
+  hand-edited string-match diff. Found live, in a separate session, running a plain 4-directive enable: three of
+  four table edits failed with "string to replace not found" (column widths shift on every row move), forcing
+  repeated re-reads, hand-rolled Python just to compute padding, and several minutes for what should have been a
+  trivial operation. The script re-reads the file fresh every call, finds the id's current table itself, moves it,
+  renumbers, and repads — including converting an emptied table to this content tree's established prose and back.
+  Handles every shape in the tree: category sections, a bundle's own tables, and `bundles/index.md`'s differently
+  shaped table. See `MANAGEMENT.md`, "Enable / disable".
+- Fix: "Plugin version" now covers the case where the version marker reads *newer* than this session's own loaded
+  plugin — happens whenever a different, longer-running or more-recently-started session touches the same shared
+  `~/.claude/craftsman/` first. Previously undocumented; an agent hitting it had no defined procedure and guessed
+  at 60% confidence. See `MANAGEMENT.md`, "Plugin version".
+
 ## 0.1.3
 
 - Fix: re-running `install` on a known source now uses a three-way diff (baseline at the recorded `Version`,

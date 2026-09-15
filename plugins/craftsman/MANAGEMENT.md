@@ -23,6 +23,15 @@ suggests an automatic update; the plugin itself updates only when the developer 
 If `~/.claude/craftsman/` exists but the marker file does not (content installed before this file existed), treat it
 the same as a mismatch — say so once, using "unknown" as the old version, and write the marker.
 
+**The marker can also read *newer* than this running session's own plugin.** `~/.claude/craftsman/` is one shared
+path on disk — if another session (or the developer, from a terminal) updated the plugin and touched this content
+tree first, that session already wrote the newer version into the marker, while this session loaded its own
+plugin.json at its own start and has not changed since. This is not a broken state and does not need "unknown"
+handling: say plainly, once, that a *different* session updated the plugin to a newer version than this one has
+loaded (old = this session's version, new = the marker's), and that a fresh session picks it up (see README.md,
+"Updating" — a running session keeps the version it started with). Never overwrite the marker with this session's
+own, older version in this direction — that would erase the newer session's record for no reason.
+
 ## Resolving an id
 
 An id is unique across `directives/`, `protocols/`, and `bundles/` together (validated at every install — see below).
@@ -113,7 +122,7 @@ plus every `bundles/*/bundle.md` for members that live inside one). If the *id* 
   both contents) as a warning and ask the developer how to proceed.
 
 If no id collision exists but a *near-duplicate* is found by title/description (the same kind of match `search`
-surfaces), mention it before installing — the developer may prefer to skip the install and use the existing one instead.
+surfaces), mention it before installing — the developer may prefer to skip the install and use the existing one.
 
 ## Syntax validation (`install`)
 
@@ -180,6 +189,21 @@ changes — `enabled-by-default` is what a fresh install starts from, not the li
 "Loading directives". Updating an entry that already exists (see "Checking a known source for updates" above)
 never moves its row either — `enabled-by-default` governs only the first install of a given id, never a later
 content update to it.
+
+**Always move the row with `scripts/toggle_table_row.py <file> <id> <enable|disable>`, never by hand-editing the
+table with a string-match tool.** Every row move changes the column widths of a correctly-padded table (see the
+user's `markdown-tables.md` rule, which this content follows throughout), so a hand-edit needs to reproduce the
+whole table's padding correctly on every single change — slow, and it fails outright the moment the file has
+drifted from whatever copy is still in context. The script re-reads the file fresh every time, finds the id's
+current table itself, moves it, renumbers, and repads both tables — including converting a table that becomes
+empty into this content tree's established one-line prose ("Empty — nothing has been switched off yet."/"Empty —
+nothing in this category is enabled yet.") instead of leaving a bare header, and converting an empty section's
+prose back into a real table the moment something moves into it. It works unmodified on every shape in this tree —
+a category section in `directives/index.md`/`protocols/index.md`, a `bundle.md`'s `## Protocols`/`## Directives`
+tables, and `bundles/index.md`'s differently-shaped (5-column, bare-id-not-linked) table. One caveat: a moved row
+is always appended at the end of its destination table, same as a fresh `install` appends — round-tripping a row
+out and back does not restore its original position in the list, only its membership. `git diff` the result before
+committing, same as any other mutation.
 
 **Enabling or disabling a bundle** moves its row in `bundles/index.md`, and cascades: every member id moves to the
 same table too, in the same command — including one the developer had toggled individually before this bundle-level
