@@ -66,11 +66,16 @@ normal, not a sign the model is wrong.
     - `when: <condition>` *(optional)* — only stop if the condition holds; no condition means always stop.
     - `shows: [...]` *(optional)* — what to render before asking (a diff, a file list, a stub list — whatever the
       protocol names). A diff beyond a handful of lines renders as a self-contained local HTML file (dark theme, no
-      network dependency) delivered to the developer, not pasted as raw `+`/`-` text into the conversation — a wall
-      of diff text in a chat window is exactly the readability failure this guards against, and it gets worse every
-      class a `tdd-loop` touches, not better. A short diff can stay inline. This governs every checkpoint that
-      shows a diff alike — `review-design-direction`, `refactor-tests`, `refactor-production`, `finish-loop`,
-      `MANAGEMENT.md`'s own conflict presentation — one rule, not one per protocol.
+      network dependency), via `scripts/render_diff.py` (see the `install`/management scripts, same place as
+      `scripts/toggle_table_row.py`) — not pasted as raw `+`/`-` text into the conversation. A wall of diff text in
+      a chat window is exactly the readability failure this guards against, and it gets worse every class a
+      `tdd-loop` touches, not better. Print the script's `file://` link plainly in the chat message — that is the
+      primary, portable way to hand it over (clickable or copy-pasteable, works on any OS, doesn't depend on a
+      chat UI's file-card rendering, which is not reliable). `--open` is an optional convenience on top of the
+      link, never a substitute for printing it — it does nothing useful in a remote or headless environment. A
+      short diff can stay inline as plain text. This governs every checkpoint that shows a diff alike —
+      `review-design-direction`, `refactor-tests`, `refactor-production`, `finish-loop`, `MANAGEMENT.md`'s own
+      conflict presentation — one rule, not one per protocol.
     - Disabling a protocol that has a checkpoint means "do not stop me here" — no separate toggle needed.
 - **`entry-point`** *(optional, `true`)* — this protocol is one of the top-level entries craftsman exposes as a command
   (`/craftsman:analyse`, `/craftsman:domain-design`, `/craftsman:implement`, and any further ones a workshop adds). Only

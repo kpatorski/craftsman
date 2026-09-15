@@ -3,6 +3,16 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.1.8
+
+- Fix: `shows`'s HTML-diff rendering (0.1.7) is now a real, bundled script (`scripts/render_diff.py`) instead of
+  hand-rolled Python each time, and always prints a `file://` link for the result — the primary way to hand it to
+  the developer, portable across every OS and environment. `--open` (auto-launch the default browser) is now an
+  explicit opt-in convenience, not assumed: it's macOS/Linux/Windows-only and does nothing useful in a remote or
+  headless environment, and a chat UI's file-card delivery isn't reliably visible either. Found live, immediately
+  after 0.1.7: the developer couldn't see the delivered file, then asked for a portable link instead of relying on
+  auto-open once that worked but wasn't universal. See `core.md`, the `checkpoint` field's `shows` entry.
+
 ## 0.1.7
 
 - Fix: `shows: [...]` now renders a diff beyond a handful of lines as a self-contained local HTML file (dark
