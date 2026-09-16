@@ -3,6 +3,21 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.1.10
+
+- Fix: `scripts/validate_content.py` replaces prose-only duplicate/id/link/syntax validation in `MANAGEMENT.md`
+  with one deterministic, repeatable script. Found live: a real id collision (`event-storming`, used by both a
+  bundle and its own entry protocol) sat unnoticed in a workshop source because every session re-derived these
+  checks from prose instead of running a shared implementation. See `MANAGEMENT.md`, "Duplicate detection" and
+  "Syntax validation".
+- Fix: `scripts/rename_id.py` replaces prose-only reference-finding for `rename` with a deterministic,
+  whole-token substitution across every file, directory, and table row referencing an id — the same class of risk
+  as the bug above (a multi-file change with an easy-to-miss spot), applied to the one remaining mutating command
+  with no script backing it. See `MANAGEMENT.md`, "Renaming".
+- Fix: `help` now prints a fixed, pre-written block instead of a set of talking points the agent re-composed (and
+  re-read a file for) on every invocation — the same class of fix as `search`'s 0.1.5 change, applied to a command
+  that never needed any live interpretation at all. See `skills/help/SKILL.md`.
+
 ## 0.1.9
 
 - Fix: the "diff beyond a handful of lines" threshold for `shows`'s HTML rendering is now a precise 3 lines, not

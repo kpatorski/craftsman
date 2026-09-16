@@ -111,6 +111,16 @@ otherwise a skipped upstream change silently drops off the radar for good.
 
 ## Duplicate detection (`install`)
 
+**Run `scripts/validate_content.py <content-root>` for id uniqueness, link validity, required fields/sections, and
+`requires` resolution — every deterministic check in this section and the next, in one pass, instead of an agent
+re-deriving them from prose each time.** Found live: a real id collision (`event-storming`, used by both a bundle
+and its own entry protocol) sat unnoticed in the content tree because every session had re-implemented this
+checking ad hoc — including this plugin's own author, more than once, in scratch scripts nobody kept. Treat a
+non-zero exit as a rejection reason to report to the developer. The prose in this section and "Syntax validation"
+below is the specification the script encodes — read it to understand or extend a check, never to re-implement one
+by hand. `search`'s own near-duplicate matching (title/description, not id) is the one part of this section the
+script does not cover — that stays a judgement call.
+
 Before adding a new directive, protocol, or bundle, run the same search `search` would run: match the incoming id,
 title and description against all three indexes (`directives/index.md`, `protocols/index.md`, `bundles/index.md`,
 plus every `bundles/*/bundle.md` for members that live inside one). If the *id* already exists:
@@ -123,6 +133,9 @@ If no id collision exists but a *near-duplicate* is found by title/description (
 surfaces), mention it before installing — the developer may prefer to skip the install and use the existing one.
 
 ## Syntax validation (`install`)
+
+Covered by `scripts/validate_content.py`, same as "Duplicate detection" above — this section is what it checks,
+not a separate manual step.
 
 Before a new file is added to `directives/` or `protocols/`, validate it: the frontmatter parses as YAML at all
 (reject with the parser's own error if it doesn't — malformed YAML never reaches the checks below), the mandatory
@@ -144,7 +157,8 @@ After every mutating command that touches the population of `directives/`, `prot
 re-run the id-set check: every id physically on disk appears in exactly one Enabled/Disabled table (its own index if
 fundament, its bundle's `bundle.md` if not), and every id in a table exists on disk. A table silently holding the
 wrong-but-still-valid content for its position (a copy-paste into the wrong section) passes every link check and
-every duplicate check, and is caught only by this count.
+every duplicate check, and is caught only by this count. `scripts/validate_content.py` re-runs this too — it is the
+"run the whole script again" step, not a separate manual re-check.
 
 ## Installing a bundle
 
@@ -169,14 +183,27 @@ itself be a good candidate for its own file — propose extracting it and linkin
 
 ## Renaming
 
-`rename <old-id> <new-id>` updates: the id in the entry's own frontmatter, its directory name, every `composes` /
-`steps` / `uses` / `overrides` reference to it across every collection (top-level and every bundle), and every link
-in prose bodies. Refuse if `<new-id>` already exists anywhere (unless it is this same entry) — this is the same
-uniqueness rule `install` enforces, applied to the target name.
+**Run `scripts/rename_id.py <content-root> <old-id> <new-id>`** — it renames the entry's directory and replaces
+every whole-token occurrence of the id across every `.md` file under the root in one pass (frontmatter `id`,
+`composes` / `steps` / `uses` / `requires` / `overrides`, prose links, backtick mentions, index and `bundle.md`
+table rows) — instead of an agent hand-finding each reference, which is exactly how a real, live id collision
+(`event-storming`, see `validate_content.py`'s docstring) went unnoticed for a while: one missed spot in a
+multi-file change is invisible until something else breaks. Refuses outright (no files touched) if `<new-id>`
+already exists anywhere — the same uniqueness rule `install` enforces, applied to the target name.
+
+**Read the printed diff, not just the replacement count, before committing** — confirmed live against a real
+case (renaming `naming`): a whole-token match cannot distinguish "the `naming` directive" from ordinary prose
+that happens to contain the same word ("naming decisions"), so a false-positive replacement is possible when the
+id is also an English word. This is a narrower, more visible risk than the missed-reference problem the script
+replaces — review it the same way any other mutation's diff gets reviewed before commit (see "Versioning"). The
+script also does not re-pad a table whose id column changed width; re-run the affected row through
+`scripts/toggle_table_row.py` (disable then re-enable it) if the column looks wrong, before committing. Run
+`scripts/validate_content.py` afterward either way — it catches an id left un-renamed in one table but not
+another, the last-mile check this script does not replace.
 
 Renaming a directive or protocol never moves it between the top level and a bundle, or between bundles — only its
 id and directory name change, in place. Renaming a bundle itself additionally updates every other bundle's
-`requires` list that names the old id.
+`requires` list that names the old id — `rename_id.py` finds these the same way it finds any other reference.
 
 ## Enable / disable
 
