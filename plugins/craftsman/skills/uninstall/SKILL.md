@@ -1,7 +1,8 @@
 ---
 name: uninstall
 description: >
-  Removes a directive, protocol, or bundle by id from `~/.claude/craftsman/`. Trigger: "/craftsman:uninstall", "remove directive", "remove protocol", "remove bundle", "uninstall".
+  Removes a directive, protocol, or bundle by id from `~/.claude/craftsman/`. Trigger: "/craftsman:uninstall", "remove
+  directive", "remove protocol", "remove bundle", "uninstall".
 argument-hint: "<id>"
 allowed-tools: [Read, Edit, Bash, AskUserQuestion]
 ---

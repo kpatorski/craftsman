@@ -1,7 +1,8 @@
 ---
 name: help
 description: >
-  Explains what craftsman is and lists its commands. Trigger: "/craftsman:help", "what can craftsman do", "craftsman commands".
+  Explains what craftsman is and lists its commands. Trigger: "/craftsman:help", "what can craftsman do", "craftsman
+  commands".
 allowed-tools: [Read]
 ---
 

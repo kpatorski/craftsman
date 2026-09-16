@@ -1,7 +1,11 @@
 ---
 name: analyse
 description: >
-  Turns raw requirements (a file, a URL, or pasted text) into Given/When/Then business rules — nothing more. No domain modelling; that is `domain-design`'s job. Executes the `analyse` entry-point protocol, section by section, each batch confirmed before the next. Progress is persisted to a per-task `analyse-session-<slug>.md` under `.claude/sessions/` in the project. Trigger: "/craftsman:analyse", "digest these requirements", "extract business rules", "resume the analyse session".
+  Turns raw requirements (a file, a URL, or pasted text) into Given/When/Then business rules — nothing more. No domain
+  modelling; that is `domain-design`'s job. Executes the `analyse` entry-point protocol, section by section, each batch
+  confirmed before the next. Progress is persisted to a per-task `analyse-session-<slug>.md` under `.claude/sessions/`
+  in the project. Trigger: "/craftsman:analyse", "digest these requirements", "extract business rules", "resume the
+  analyse session".
 argument-hint: "<input file, URL, or inline text> [session=<path to session file>]"
 allowed-tools: [Read, Write, Edit, Bash, Glob, Grep, WebFetch, AskUserQuestion]
 ---

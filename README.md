@@ -114,14 +114,14 @@ these requirements") — see each skill's own `description` for its exact trigge
 ## For workshop authors
 
 Write directives and protocols against [`core.md`](plugins/craftsman/core.md)'s format — the three-question test, the
-field reference, and the golden rule against inventing fields. A **fundament** entry (used by more than one theme,
-or a single standalone preference) lives flat at `directives/<id>/directive.md` or `protocols/<id>/protocol.md`. A
-new rule that belongs to one identifiable theme a developer would want to switch on or off as a whole goes into a
-**bundle** instead: `bundles/<id>/bundle.md` plus its own `directives/` and `protocols/` subfolders, mirroring the
-top level. See [`core.md`](plugins/craftsman/core.md), "Bundle", and
-[`craftsman-workshop`'s own `bundles/index.md`](https://github.com/kpatorski/craftsman-workshop/blob/main/bundles/index.md)
-for the rule worked through on a real corpus (7 bundles, from a 62-protocol/41-directive workshop) — its own
-`## Examples` section walks the fundament-vs-bundle call on concrete entries.
+field reference, and the golden rule against inventing fields. A **fundament** entry (used by more than one theme, or a
+single standalone preference) lives flat at `directives/<id>/directive.md` or `protocols/<id>/protocol.md`. A new rule
+that belongs to one identifiable theme a developer would want to switch on or off as a whole goes into a **bundle**
+instead: `bundles/<id>/bundle.md` plus its own `directives/` and `protocols/` subfolders, mirroring the top level. See
+[`core.md`](plugins/craftsman/core.md), "Bundle", and [`craftsman-workshop`'s own
+`bundles/index.md`](https://github.com/kpatorski/craftsman-workshop/blob/main/bundles/index.md) for the rule worked
+through on a real corpus (7 bundles, from a 62-protocol/41-directive workshop) — its own `## Examples` section walks the
+fundament-vs-bundle call on concrete entries.
 
 `/craftsman:install` validates syntax and checks for duplicates before accepting anything into `~/.claude/craftsman/` —
 see [`MANAGEMENT.md`](plugins/craftsman/MANAGEMENT.md) for exactly what it checks.
@@ -130,7 +130,8 @@ see [`MANAGEMENT.md`](plugins/craftsman/MANAGEMENT.md) for exactly what it check
 
 - [`EXECUTION.md`](plugins/craftsman/EXECUTION.md) — how a protocol actually runs: dispatch, directive loading, the 
   per-task session file, resuming, the checkpoint protocol.
-- [`MANAGEMENT.md`](plugins/craftsman/MANAGEMENT.md) — how content gets installed, validated, renamed, merged, and versioned.
+- [`MANAGEMENT.md`](plugins/craftsman/MANAGEMENT.md) — how content gets installed, validated, renamed, merged, and
+  versioned.
 
 ### Releasing a change to this repo
 

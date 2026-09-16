@@ -1,7 +1,12 @@
 ---
 name: domain-design
 description: >
-  Turns a requirements input into reviewed, written task specs — event storming (or whatever the installed workshop's own analysis method is) run in a HUMAN <-> AI loop, one confirmed building block at a time, instead of a guessed backlog. Executes the `domain-design` entry-point protocol. Progress is persisted to a per-task `domain-design-session-<slug>.md` under `.claude/sessions/` in the project. Trigger: "/craftsman:domain-design", "analyze these requirements", "run event storming on this", "turn this into specs", "resume the domain design session".
+  Turns a requirements input into reviewed, written task specs — event storming (or whatever the installed workshop's
+  own analysis method is) run in a HUMAN <-> AI loop, one confirmed building block at a time, instead of a guessed
+  backlog. Executes the `domain-design` entry-point protocol. Progress is persisted to a per-task
+  `domain-design-session-<slug>.md` under `.claude/sessions/` in the project. Trigger: "/craftsman:domain-design",
+  "analyze these requirements", "run event storming on this", "turn this into specs", "resume the domain design
+  session".
 argument-hint: "<input file, URL, or inline text> [session=<path to session file>]"
 allowed-tools: [Read, Write, Edit, Bash, Glob, Grep, WebFetch, AskUserQuestion]
 ---

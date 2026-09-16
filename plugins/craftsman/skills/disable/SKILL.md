@@ -1,7 +1,9 @@
 ---
 name: disable
 description: >
-  Disables a directive, protocol, or bundle by id — moves it into the Disabled table of its category (or, for a bundle, cascades to its members too). For a protocol with a `checkpoint`, this means "do not stop me here" — see `core.md`. Trigger: "/craftsman:disable", "disable directive", "disable protocol", "disable bundle", "turn off".
+  Disables a directive, protocol, or bundle by id — moves it into the Disabled table of its category (or, for a bundle,
+  cascades to its members too). For a protocol with a `checkpoint`, this means "do not stop me here" — see `core.md`.
+  Trigger: "/craftsman:disable", "disable directive", "disable protocol", "disable bundle", "turn off".
 argument-hint: "<id>"
 allowed-tools: [Read, Edit, Bash]
 ---

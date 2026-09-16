@@ -1,7 +1,12 @@
 ---
 name: implement
 description: >
-  Drives a coding task the way the developer works, in a HUMAN <-> AI loop instead of one large generated drop. Executes the `implement` entry-point protocol from the installed workshop, matching the task to a scenario and walking it step by step — stopping at every checkpoint to confirm direction with the developer. Progress is persisted to a per-task `implement-session-<slug>.md` under `.claude/sessions/` in the project, so one task can span many Claude sessions. Trigger: "/craftsman:implement", "work in my style", "add a use case", "let's TDD this", "drive this change with my coding style", "resume the coding session", "continue the implement loop".
+  Drives a coding task the way the developer works, in a HUMAN <-> AI loop instead of one large generated drop. Executes
+  the `implement` entry-point protocol from the installed workshop, matching the task to a scenario and walking it step
+  by step — stopping at every checkpoint to confirm direction with the developer. Progress is persisted to a per-task
+  `implement-session-<slug>.md` under `.claude/sessions/` in the project, so one task can span many Claude sessions.
+  Trigger: "/craftsman:implement", "work in my style", "add a use case", "let's TDD this", "drive this change with my
+  coding style", "resume the coding session", "continue the implement loop".
 argument-hint: "<task description, or a spec file path> [session=<path to session file>]"
 allowed-tools: [Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion]
 ---

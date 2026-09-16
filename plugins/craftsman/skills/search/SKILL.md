@@ -1,7 +1,10 @@
 ---
 name: search
 description: >
-  Answers "do we already have something about X?" — searches `~/.claude/craftsman/directives/index.md`, `protocols/index.md` and `bundles/index.md` (plus every bundle's own member tables) by id, title and description, and returns candidates with links and enabled/disabled status. Trigger: "/craftsman:search", "do we have a directive for...", "is there already a protocol that...", "is there a bundle for...", "check before I write a new one".
+  Answers "do we already have something about X?" — searches `~/.claude/craftsman/directives/index.md`,
+  `protocols/index.md` and `bundles/index.md` (plus every bundle's own member tables) by id, title and description, and
+  returns candidates with links and enabled/disabled status. Trigger: "/craftsman:search", "do we have a directive
+  for...", "is there already a protocol that...", "is there a bundle for...", "check before I write a new one".
 argument-hint: "<topic>"
 allowed-tools: [Read, Grep]
 ---

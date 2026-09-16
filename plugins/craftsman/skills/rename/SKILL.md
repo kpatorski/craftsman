@@ -1,7 +1,8 @@
 ---
 name: rename
 description: >
-  Renames a directive, protocol, or bundle id, updating every reference to it across every collection. Trigger: "/craftsman:rename", "rename directive", "rename protocol", "rename bundle".
+  Renames a directive, protocol, or bundle id, updating every reference to it across every collection. Trigger:
+  "/craftsman:rename", "rename directive", "rename protocol", "rename bundle".
 argument-hint: "<old-id> <new-id>"
 allowed-tools: [Read, Write, Edit, Bash, Grep]
 ---

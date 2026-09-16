@@ -1,7 +1,9 @@
 ---
 name: list
 description: >
-  Lists installed directives, protocols and bundles, enabled and disabled, grouped by category. Trigger: "/craftsman:list", "list plugins", "list protocols", "list bundles", "list directives", "what's installed", "what's enabled".
+  Lists installed directives, protocols and bundles, enabled and disabled, grouped by category. Trigger:
+  "/craftsman:list", "list plugins", "list protocols", "list bundles", "list directives", "what's installed", "what's
+  enabled".
 argument-hint: "[directives|protocols|bundles]"
 allowed-tools: [Read]
 ---

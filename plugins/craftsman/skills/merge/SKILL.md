@@ -1,7 +1,8 @@
 ---
 name: merge
 description: >
-  Finds directives or protocols that live in their own file but are used by exactly one parent, and proposes folding each into that parent. Trigger: "/craftsman:merge", "clean up single-use entries", "merge candidates".
+  Finds directives or protocols that live in their own file but are used by exactly one parent, and proposes folding
+  each into that parent. Trigger: "/craftsman:merge", "clean up single-use entries", "merge candidates".
 allowed-tools: [Read, Write, Edit, Bash]
 ---
 

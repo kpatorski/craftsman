@@ -1,7 +1,9 @@
 ---
 name: enable
 description: >
-  Enables a directive, protocol, or bundle by id — moves it into the Enabled table of its category (or, for a bundle, cascades to its members too). Trigger: "/craftsman:enable", "enable directive", "enable protocol", "enable bundle", "turn on".
+  Enables a directive, protocol, or bundle by id — moves it into the Enabled table of its category (or, for a bundle,
+  cascades to its members too). Trigger: "/craftsman:enable", "enable directive", "enable protocol", "enable bundle",
+  "turn on".
 argument-hint: "<id>"
 allowed-tools: [Read, Edit, Bash]
 ---

@@ -1,7 +1,9 @@
 ---
 name: install
 description: >
-  Installs a directive, protocol, bundle, or a whole workshop source, from a local path or a URL, into `~/.claude/craftsman/`. Trigger: "/craftsman:install", "install plugin", "install protocol", "install bundle", "add a workshop source".
+  Installs a directive, protocol, bundle, or a whole workshop source, from a local path or a URL, into
+  `~/.claude/craftsman/`. Trigger: "/craftsman:install", "install plugin", "install protocol", "install bundle", "add a
+  workshop source".
 argument-hint: "<path or URL to a directive.md, protocol.md, bundle.md, or a workshop source>"
 allowed-tools: [Read, Write, Edit, Bash, WebFetch, AskUserQuestion]
 ---
