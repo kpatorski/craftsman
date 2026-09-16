@@ -164,18 +164,26 @@ every duplicate check, and is caught only by this count. `scripts/validate_conte
 
 A bundle installs as a unit: materialize `bundles/<id>/bundle.md` plus its `directives/` and `protocols/`
 subfolders, run duplicate detection and syntax validation on every file it contains (the bundle itself and each
-member), add one row to `bundles/index.md`, and one `Sources` entry for the bundle as a whole rather than one per
-member file. If any `requires` it declares is not already installed, say so before finishing — installing a bundle
-does not install what it requires; that is a separate, explicit step, same as enabling one (see "Resolving
-`requires`" below).
+member), add one row to `bundles/index.md` (`scripts/toggle_table_row.py bundles/index.md add enabled "<cells>"`),
+one row per member to the bundle's own `bundle.md` tables (same script, `--after-heading "## Protocols"` or
+`"## Directives"`), and one `Sources` entry for the bundle as a whole rather than one per member file. If any
+`requires` it declares is not already installed, say so before finishing — installing a bundle does not install
+what it requires; that is a separate, explicit step, same as enabling one (see "Resolving `requires`" below). Run
+`scripts/validate_content.py` once at the end, after every row is in place, not once per member.
 
 ## The `merge` candidate check
 
-`merge` scans every directive and protocol — top-level and inside every bundle — for one that lives in its own file
-but is referenced (via `composes`, `steps`, or `uses`) by **exactly one** parent, and by nothing else. Each such
-candidate is proposed to the developer as a merge into that one parent — never merged automatically. Declining leaves
-it exactly as it is. This is unrelated to `requires`: a bundle required by several others is not a merge candidate,
-`requires` is not a reference this check counts.
+**Run `scripts/merge_candidates.py <content-root>`** for the scan itself — it walks every directive and protocol,
+top-level and inside every bundle, and reports every one that lives in its own file but is referenced (via
+`composes`, `steps`, or `uses`) by **exactly one** parent, and by nothing else. This is unrelated to `requires`: a
+bundle required by several others is not a merge candidate, `requires` is not a reference this check counts. An
+earlier hand-rolled version of this scan used a single-line regex on these fields and silently missed every
+reference inside a multi-line flow list (`composes: [a, b,` wrapped across lines) — the script parses the whole
+frontmatter properly instead (see `scripts/_frontmatter.py`) and does not have that failure mode.
+
+Each candidate the script reports is proposed to the developer as a merge into that one parent — never merged
+automatically. Declining leaves it exactly as it is. The script only scans and reports; the actual inlining (step
+4 below) is not automated — a merge changes prose structure, which needs judgment, not just reference-counting.
 
 `install` runs a version of the same check in reverse: if the content being installed already contains, inline,
 something that duplicates an existing standalone directive or protocol — or something substantial enough that it would

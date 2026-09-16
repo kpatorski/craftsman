@@ -3,6 +3,20 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.1.11
+
+- Fix: every remaining mutating command now has a deterministic script backing its mechanics, closing out the
+  same class of fix as 0.1.10's `validate_content.py`/`rename_id.py`. `scripts/merge_candidates.py` (the `merge`
+  scan), `scripts/list_content.py` (`list`, prints tables verbatim instead of re-composing them), and
+  `scripts/uninstall_id.py` (dry-run reference check + `--yes` removal) are new; `scripts/toggle_table_row.py`
+  gained `add`/`remove` modes for `install`/`uninstall`'s table-row mechanics, on top of its existing
+  `enable`/`disable`. See `MANAGEMENT.md` and each command's own `SKILL.md`.
+- Fix: a real bug found while building the above — an early version of `merge_candidates.py` used a single-line
+  regex to read `composes`/`steps`/`uses` and silently missed every reference inside a multi-line flow list
+  (`production-code`'s own `composes:` wraps across 3 lines), undercounting references and misclassifying shared
+  directives as merge candidates. Fixed by extracting `validate_content.py`'s already-correct frontmatter parser
+  into a shared `scripts/_frontmatter.py` both scripts import, instead of a second, weaker parser existing at all.
+
 ## 0.1.10
 
 - Fix: `scripts/validate_content.py` replaces prose-only duplicate/id/link/syntax validation in `MANAGEMENT.md`
