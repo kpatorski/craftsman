@@ -14,9 +14,8 @@ allowed-tools: [Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion]
 # implement
 
 An orchestrator. It does not write a solution end to end and then report. It advances a coding task in small,
-checkpoint-gated moves, following the `implement` protocol installed at
-`~/.claude/craftsman/protocols/implement/protocol.md` and whatever it calls. The developer stays in the loop at every
-decision point.
+checkpoint-gated moves, following the `implement` entry-point protocol the installed workshop provides and whatever
+it calls. The developer stays in the loop at every decision point.
 
 ## Why this exists
 
@@ -30,7 +29,7 @@ purpose, wherever that content says to check in.
 1. **Load [EXECUTION.md](../../EXECUTION.md)** — the mechanics shared by every craftsman entry point: dispatch,
    directive loading, the session file, resuming, the checkpoint protocol. Everything below is specific to `implement`;
    everything about *how* to run it is there.
-2. **Read `~/.claude/craftsman/protocols/implement/protocol.md`** and execute it per EXECUTION.md's dispatch rules —
+2. **Resolve the `implement` entry-point protocol and execute it** per EXECUTION.md's dispatch rules —
    `$ARGUMENTS` is the task description or spec file path.
 3. If `~/.claude/craftsman/protocols/` does not exist, this is a first run — EXECUTION.md's "Where the content lives"
    section covers it; do not proceed with an invented process.

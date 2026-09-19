@@ -18,8 +18,8 @@ human, `domain-design`, or anything else) can consume without `analyse` knowing 
 ## Run this
 
 1. **Load [EXECUTION.md](../../EXECUTION.md)** — the mechanics shared by every craftsman entry point.
-2. **Read `~/.claude/craftsman/protocols/analyse/protocol.md`** and execute it per EXECUTION.md's dispatch rules —
-   `$ARGUMENTS` is the input (file path, URL, or inline text).
+2. **Resolve the `analyse` entry-point protocol and execute it** per EXECUTION.md's dispatch rules — `$ARGUMENTS`
+   is the input (file path, URL, or inline text).
 3. If `~/.claude/craftsman/protocols/` does not exist, this is a first run — see EXECUTION.md, "Where the content
    lives".
 

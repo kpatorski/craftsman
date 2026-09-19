@@ -18,7 +18,7 @@ Turns a raw requirements input into `specs/NNN-slug.md` files a human then hands
 ## Run this
 
 1. **Load [EXECUTION.md](../../EXECUTION.md)** — the mechanics shared by every craftsman entry point.
-2. **Read `~/.claude/craftsman/protocols/domain-design/protocol.md`** and execute it per EXECUTION.md's dispatch rules —
+2. **Resolve the `domain-design` entry-point protocol and execute it** per EXECUTION.md's dispatch rules —
    `$ARGUMENTS` is the input (file path, URL, or inline text).
 3. If `~/.claude/craftsman/protocols/` does not exist, this is a first run — see EXECUTION.md, "Where the content
    lives".

@@ -68,8 +68,8 @@ more below):
 | `protocol`  | What order to work in, and where to stop   | It is callable, or it is not |
 
 The three-question test that decides which one a new entry is, the full field reference for both kinds, and the golden
-rule against adding fields no one needs yet — all in [`plugins/craftsman/core.md`](plugins/craftsman/core.md). Read that
-before authoring anything.
+rule against adding fields no one needs yet — all in [`plugins/craftsman/core.md`](plugins/craftsman/core.md#the-three-question-test). Read 
+that before authoring anything.
 
 A **bundle** is not a third kind — the three-question test above still only ever answers `directive` or `protocol`.
 It is a grouping and distribution unit: a named folder of directives and/or protocols that installs and enables
