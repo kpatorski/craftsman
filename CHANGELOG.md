@@ -3,6 +3,19 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.1.12
+
+- Fix: `analyse`/`domain-design`/`implement` resolve their entry-point protocol by role (`entry-point: true` in
+  the installed workshop's `protocols/index.md`), not by a hardcoded content path. The hardcoded path was already
+  dead per EXECUTION.md's own dispatch rules, silently broke if the entry point lived inside a bundle, and left
+  `rename` able to orphan a command. This was actually shipped in the previous commit, without the version bump
+  its own behaviour-change rule requires — caught and corrected here rather than left unbumped.
+- Feature: the session file's checkpoint log now records who answered a `type: ask` checkpoint (`human:<git
+  user.name or user.email>`, never left blank), and resuming a session says plainly when the actor resuming
+  differs from the log's most recent entries — the same "say what differs, never assume" treatment
+  `EXECUTION.md` already gives to directive-version drift, extended to identity. See `EXECUTION.md`, "Checkpoint
+  log" and "Resuming".
+
 ## 0.1.11
 
 - Fix: every remaining mutating command now has a deterministic script backing its mechanics, closing out the

@@ -97,8 +97,12 @@ Written in English regardless of conversation language. Holds:
   repository). On resume, compare this list against the currently-installed versions and say plainly what differs —
   never silently assume they still match. This is what lets a task be picked up faithfully by a different developer on a
   different machine.
-- **Checkpoint log** — one entry per checkpoint reached: which step, what was asked, what the developer answered, the
-  resulting decision. Append-only.
+- **Checkpoint log** — one entry per checkpoint reached: which step, what was asked, who answered, what they
+  answered, the resulting decision. Append-only. "Who" is written as `human:<git user.name or user.email>` when
+  the target project is a git repository with one configured, `human:developer` otherwise — never left blank.
+  N/A for a `type: notify` checkpoint, which does not wait for an answer. This is what makes "picked up
+  faithfully by a different developer" (see Directives in effect, above) something the next session can actually
+  check, not just assume.
 - **Parked** — items deferred per `defer-discovered-gaps` (or an equivalent workshop directive), each to become its own
   later task.
 - **Next** — the one line a future session resumes from.
@@ -113,7 +117,8 @@ On invocation:
 - Look in `.claude/sessions/` for `<entry>-session-*.md`. If `session=` is given, or exactly one unfinished file
   matching this entry exists, read it in full, state in one or two lines where things stand (task, current step, what is
   parked), re-state the Directives in effect comparison from above, and ask whether to resume from the current step or
-  somewhere else.
+  somewhere else. If the actor resuming now differs from the checkpoint log's most recent entries, say so plainly,
+  the same way a version drift is said plainly — never silently assume it's the same developer picking this back up.
 - If several unfinished session files exist for this entry and none is named, list them (slug, task, current step,
   `Next`) and ask which to resume.
 - Do not restart a protocol from the top unless asked.
@@ -129,8 +134,8 @@ A `checkpoint` is where execution stops and talks to the developer — full fiel
 - `blocking: true` — take no further step, write nothing, without an answer. Every checkpoint before a large or
   hard-to-reverse move (including any git commit) is blocking.
 - `shows: [...]` — render these before asking: whatever the protocol names (a diff, a file list, a stub list).
-- After the answer: record step + question + answer + resulting decision in the session's checkpoint log, then act on
-  it. "Adjust" means redo the current step in the new direction, not carry on.
+- After the answer: record step + question + who answered + answer + resulting decision in the session's
+  checkpoint log, then act on it. "Adjust" means redo the current step in the new direction, not carry on.
 
 Before the `prompt`, say in one short line, in plain language, what is happening right now — a developer reading
 the transcript, possibly having lost track of where things stand, should never hit a bare question with no idea
@@ -167,6 +172,6 @@ same discipline as the lead-in and content rules just above it — this is not a
 - If the task matches no entry-point alternative and the developer does not want the closest one, stop cleanly — do not
   invent a process the installed content does not describe.
 - craftsman's defaults are a posture, not a cage: if the developer explicitly asks to skip a checkpoint for one move,
-  that is their call — note it in the checkpoint log and continue.
+  that is their call — note it, and who authorized it, in the checkpoint log and continue.
 - One task, one session file. A genuinely separate task — including a parked follow-up picked up later — is a new run
   with its own session file.
