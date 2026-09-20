@@ -3,6 +3,18 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.1.13
+
+- Feature: a Claude Code status line showing the current command -> batch -> protocol -> directive, always
+  visible instead of only readable from the session file or the task list. `scripts/render_status.py` (new)
+  parses the session's Call stack and prints one compact line; the new `statusline-setup` skill wires it into
+  `settings.json` (a plugin cannot register a status line on install — this is always a one-time manual step).
+  See `MANAGEMENT.md`, "Status line".
+- Fix: `EXECUTION.md`'s own example of the Call stack format was stale — it showed a flat, single-line `a > b >
+  c (active)` shape, but real session files already write an indented, one-line-per-level tree with free-text
+  status annotations (`(active — batch 2 of 4)`, `(blocked — waiting on X)`) and an undocumented `-> hand-off:`
+  variant. The example now matches actual practice; this is what makes it parseable by a script at all.
+
 ## 0.1.12
 
 - Fix: `analyse`/`domain-design`/`implement` resolve their entry-point protocol by role (`entry-point: true` in

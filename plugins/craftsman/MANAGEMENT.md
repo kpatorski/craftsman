@@ -253,3 +253,16 @@ installed at all — name it, explain that the bundle depends on it, and stop; d
 in `requires`. If so, name that bundle and ask whether to disable it too (a bundle can't stay enabled without
 something it requires) or stop and leave both as they are. Never leave an enabled bundle silently missing a
 requirement.
+
+## Status line
+
+`scripts/render_status.py` renders one line — the current session's Call stack (see `EXECUTION.md`, "Call
+stack"), deepest step first, plus that step's protocol's `uses:` directives — for Claude Code's native status
+line feature. It reads the JSON Claude Code passes a `statusLine` command on stdin, locates
+`<project>/.claude/sessions/*.md` (preferring an `active` file over a `blocked` one, most recently modified
+first), and never raises: any failure prints a short, honest fallback line instead of breaking the status line.
+
+Claude Code has no mechanism for a plugin to register a status line on install — it is always a one-time,
+explicit edit to `settings.json` (user- or project-level). The `statusline-setup` skill does this edit; see its
+own file for the exact steps. It never overwrites an existing `statusLine` entry without asking, and always shows
+the change as a diff before writing — the same discipline as any other change to a developer's own configuration.

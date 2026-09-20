@@ -79,12 +79,29 @@ Written in English regardless of conversation language. Holds:
 - **Task** — the task statement and the resolved entry-point protocol. Human-readable "what is this file" line, kept at
   the top.
 - **Status** — `active` / `blocked` / `done`, and the timestamp of the last update.
-- **Call stack** — the path from the entry-point protocol down to the current step, indented like a stack trace, each
-  level marked `pending` / `active` / `done`:
+- **Call stack** — the full planned tree from the entry-point protocol down, **one line per level, indented two
+  spaces per depth**, each line `<id> (<status>[ — free text])` where `<status>` is `pending` / `active` /
+  `blocked` / `done` and the free text is optional context (what a batch covers, why a step is blocked):
 
-      implement > scenario-new-use-case > tdd-loop > cover-cycle > cover-batch (active)
+      implement (active)
+        scenario-new-use-case (active)
+          tdd-loop (active)
+            cover-cycle (active)
+              cover-batch (active — batch 2 of an estimated 4)
+      domain-design (active)
+        ingest (done)
+        requirements-analysis (active)
+          event-storming (active)
+            collect-events (done)
+            attach-event-rules (active — batch 3, full pass)
+            identify-aggregates (pending — full)
 
-  A step reused across several parents (its id appears in more than one composing protocol's `steps`) takes its parent
+  A step not yet reached but already known (a sibling still to come, a planned hand-off) is listed as `pending` at
+  its real depth — the block is the whole planned tree as currently known, not only the path walked so far. A
+  hand-off to another session's entry point is written `-> hand-off: <id> (pending)` at the depth it will resume
+  from. This exact shape — literal indentation, not prose describing the same thing — is what
+  `scripts/render_status.py` parses to drive an optional status line; see `MANAGEMENT.md`, "Status line". A step
+  reused across several parents (its id appears in more than one composing protocol's `steps`) takes its parent
   from the walk it is on for this call.
 
   **Mirror this in Claude Code's own task list** (`TaskCreate` / `TaskUpdate` / `TaskList`, or the legacy `TodoWrite`

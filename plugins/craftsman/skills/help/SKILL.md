@@ -33,6 +33,8 @@ Management commands:
   /craftsman:uninstall <id>
   /craftsman:rename <old-id> <new-id>
   /craftsman:merge                              find single-use entries worth folding into their one caller
+  /craftsman:statusline-setup                   wire the command -> batch -> protocol -> directive indicator
+                                                 into Claude Code's status line (one-time setup)
 
 No installed content yet? `/craftsman:install <workshop URL>` gets a starter set in place.
 
