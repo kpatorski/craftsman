@@ -79,7 +79,7 @@ directive or protocol belongs to a bundle by living inside it on disk, nothing m
 
 ## Two repos, on purpose
 
-- **This repo** (`craftsman`) is the code: the plugin, its 12 command skills, the execution and management mechanics.
+- **This repo** (`craftsman`) is the code: the plugin, its 13 command skills, the execution and management mechanics.
   Install it once, update it like any other plugin.
 - **Content** — directives, protocols, and bundles — lives separately, at `~/.claude/craftsman/` on disk, installed
   via `/craftsman:install` from one or more workshop sources (git repositories of `directives/` + `protocols/` +
@@ -97,7 +97,7 @@ default everyone must adopt: install it, fork it, or write your own from scratch
 | Command                                              | Does                                                                                                                                                  |
 |------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `/craftsman:analyse <input>`                         | Raw requirements → Given/When/Then business rules. No domain modelling.                                                                               |
-| `/craftsman:domain-design <input>`                   | Event storming (or whatever the workshop's own method is) → written task specs.                                                                       |
+| `/craftsman:domain-design <input>`                   | Event storming (or whatever the workshop's own method is) → specs and working code, one use case at a time.                                           |
 | `/craftsman:implement <task or spec>`                | Drives one task test-first, checkpoint by checkpoint.                                                                                                 |
 | `/craftsman:search <topic>`                          | "Do we already have something about X?" — across all three indexes.                                                                                   |
 | `/craftsman:list [directives\|protocols\|bundles]`   | What's installed, enabled and disabled.                                                                                                               |

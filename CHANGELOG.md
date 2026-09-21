@@ -3,6 +3,15 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.1.14
+
+- Docs: `domain-design`'s command description, `help` text and README now say what the starter workshop's
+  `domain-design` does since the workshop moved to slices: every event first, then one use case at a time from its
+  rules to a reviewed spec to implemented, committed code, with a direction check after each. Nothing in the plugin's
+  code changed — this is the workshop's protocols (`slice-loop`, `confirm-direction`) and the text describing them.
+  Update the workshop source with `/craftsman:install <same-source-url>`; a `domain-design` session already in
+  progress has a Call stack in the old shape and needs re-deriving on resume.
+
 ## 0.1.13
 
 - Feature: a Claude Code status line showing the current command -> batch -> protocol -> directive, always

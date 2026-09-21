@@ -21,7 +21,7 @@ never a large, unconfirmed drop of generated work.
 
 Entry points:
   /craftsman:analyse <input>          raw requirements -> Given/When/Then business rules
-  /craftsman:domain-design <input>    event storming -> written task specs
+  /craftsman:domain-design <input>    event storming -> specs and working code, one use case at a time
   /craftsman:implement <task/spec>    drive one task test-first, checkpoint by checkpoint
 
 Management commands:
