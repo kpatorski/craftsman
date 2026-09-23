@@ -3,6 +3,12 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.2.1
+
+- Fix: the command descriptions in `/craftsman:help` (and the dashboard's "Commands" section, which shows the same
+  block) started in different columns, so the list looked ragged. They are now aligned to one column, and the wrapped
+  second lines line up under the first. Text spacing only; nothing about what the commands do changed.
+
 ## 0.2.0
 
 - Feature: the `dashboard` (added in 0.1.15) is reworked into something usable day to day. One collapsible row per

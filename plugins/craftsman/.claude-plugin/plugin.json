@@ -1,6 +1,6 @@
 {
   "name": "craftsman",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Drives coding, requirements analysis and domain design in a HUMAN <-> AI loop, executing directives and protocols the developer authored instead of a hardcoded process.",
   "author": {
     "name": "Krzysztof Patorski",
