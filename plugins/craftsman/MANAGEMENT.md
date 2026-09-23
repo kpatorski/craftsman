@@ -266,3 +266,25 @@ Claude Code has no mechanism for a plugin to register a status line on install �
 explicit edit to `settings.json` (user- or project-level). The `statusline-setup` skill does this edit; see its
 own file for the exact steps. It never overwrites an existing `statusLine` entry without asking, and always shows
 the change as a diff before writing — the same discipline as any other change to a developer's own configuration.
+
+## Dashboard
+
+`scripts/render_dashboard.py` renders a single, self-contained, local HTML file — help, and every
+bundle/protocol/directive currently installed, with its enabled/disabled state and its own file's description
+(never the index row's, which is only ever a lookup — see the script's own docstring). A search box filters the
+page client-side; nothing about it makes a network request. The `dashboard` skill runs it and prints the
+`file://` link, the same handoff convention every other locally-rendered HTML file in this plugin uses (`core.md`,
+`shows`).
+
+**This is read-only by construction, not by restraint.** A static HTML file opened in a browser has no access to
+write back to the machine it was generated on — there is no mechanism by which a click in the page could run
+`craftsman enable`/`disable` for real. Each entry's row instead shows the exact command
+(`/craftsman:enable <id>` / `/craftsman:disable <id>`) in a click-to-select field, ready to paste into Claude
+Code — a deliberate choice, not a missing feature: making the toggle actually write would need a background local
+HTTP server the dashboard's JS could call, a new kind of component this plugin does not otherwise run, and one
+that would have to decide on its own whether a filesystem-mutating request from a browser tab needs confirmation.
+The copy-paste command gets most of the value (no hand-typing an id, no memorizing which of enable/disable
+applies) without introducing that.
+
+The page is a snapshot, not a live view — re-run the `dashboard` skill to regenerate it after installing,
+enabling, or disabling anything; a browser refresh alone replays the same file.

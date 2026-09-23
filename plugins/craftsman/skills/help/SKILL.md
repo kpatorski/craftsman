@@ -35,6 +35,8 @@ Management commands:
   /craftsman:merge                              find single-use entries worth folding into their one caller
   /craftsman:statusline-setup                   wire the command -> batch -> protocol -> directive indicator
                                                  into Claude Code's status line (one-time setup)
+  /craftsman:dashboard                          local HTML dashboard -- browse everything installed, search,
+                                                 copy-paste enable/disable commands
 
 No installed content yet? `/craftsman:install <workshop URL>` gets a starter set in place.
 

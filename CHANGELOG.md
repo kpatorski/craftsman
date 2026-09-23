@@ -3,6 +3,23 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.1.15
+
+- Fix: `EXECUTION.md`'s session-file contract gives `Checkpoint log`, `Directives in effect`, `Task`, `Status`, and
+  `Next` an actual labeled shape instead of free-running prose. Found live, reading a real session file on a
+  second machine: only `Call stack` had ever been given a parseable grammar (0.1.13); everything else was a
+  numbered list of dense paragraphs with bold words as the only structure — unfindable by grep, unusable as a data
+  source for anything beyond a human re-reading the whole log. `Checkpoint log` entries are now `### N.
+  \`step-id\`` headings with **Asked:**/**Answer:**/**Decision:**/**Actor:** lines; `Directives in effect` is a
+  table; `Task`/`Status`/`Next` get the same labeled-line treatment. `scripts/render_status.py`'s `## Status`
+  parser updated to match (now searches for the backtick-quoted word anywhere on the line, not only at its
+  start). See `EXECUTION.md`, "`<type>-session-<slug>.md`".
+- Feature: a local HTML dashboard (`scripts/render_dashboard.py`, new `dashboard` skill) — dark theme, browses
+  every installed bundle/protocol/directive with its own file's description and enabled/disabled state, plus the
+  `help` command block, all client-side searchable. Read-only by construction: a static file has no way to write
+  back to the disk it was generated from, so each row shows the exact `/craftsman:enable`/`disable` command to
+  copy instead of toggling anything live. See `MANAGEMENT.md`, "Dashboard".
+
 ## 0.1.14
 
 - Docs: `domain-design`'s command description, `help` text and README now say what the starter workshop's

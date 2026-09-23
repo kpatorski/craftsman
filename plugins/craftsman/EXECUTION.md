@@ -76,9 +76,13 @@ add a `.claude/sessions/` line.
 
 Written in English regardless of conversation language. Holds:
 
-- **Task** — the task statement and the resolved entry-point protocol. Human-readable "what is this file" line, kept at
-  the top.
-- **Status** — `active` / `blocked` / `done`, and the timestamp of the last update.
+- **Task** — three labeled lines: **Statement:** (the task itself — prose, can run several sentences),
+  **Entry point:** (the resolved entry-point protocol chain, e.g. `` `domain-design` → `ingest`,
+  `requirements-analysis` ``), and **Related sessions:** (another session file in this project that references or
+  is referenced by this one — omit the line entirely when there is none; never write it empty).
+- **Status** — two labeled lines: **State:** (`` `active` `` / `` `blocked` `` / `` `done` ``, backtick-quoted) and
+  **Last updated:** (the timestamp). Two fields, not one sentence combining them, so either is greppable without
+  parsing the other; `scripts/render_status.py` reads **State:**'s backtick-quoted word.
 - **Call stack** — the full planned tree from the entry-point protocol down, **one line per level, indented two
   spaces per depth**, each line `<id> (<status>[ — free text])` where `<status>` is `pending` / `active` /
   `blocked` / `done` and the free text is optional context (what a batch covers, why a step is blocked):
@@ -109,20 +113,36 @@ Written in English regardless of conversation language. Holds:
   call stack, status kept in lockstep with the stack above. This is only available on some models and
   configurations; if none of these tools exist in the current session, skip this silently — the session file above
   remains the durable, resumable record regardless, and is never optional the way this display is.
-- **Directives in effect** — every directive actually loaded so far this run: its id, the workshop source it came from
-  (`directives/index.md`'s Sources table), and that source's version (a commit sha, when the source is a git
-  repository). On resume, compare this list against the currently-installed versions and say plainly what differs —
-  never silently assume they still match. This is what lets a task be picked up faithfully by a different developer on a
-  different machine.
-- **Checkpoint log** — one entry per checkpoint reached: which step, what was asked, who answered, what they
-  answered, the resulting decision. Append-only. "Who" is written as `human:<git user.name or user.email>` when
-  the target project is a git repository with one configured, `human:developer` otherwise — never left blank.
-  N/A for a `type: notify` checkpoint, which does not wait for an answer. This is what makes "picked up
+- **Directives in effect** — a table, one row per directive actually loaded so far this run:
+
+      | Id           | Source                                       | Version   |
+      |--------------|-----------------------------------------------|-----------|
+      | `test-style` | `craftsman-workshop` (see Sources in the index) | `b0a7994` |
+
+  ("Source" is the workshop source from `directives/index.md`'s Sources table; "Version" is that source's version —
+  a commit sha, when it is a git repository.) Empty at the start of a run — write `None loaded yet.` as prose
+  instead of a header-only table, the same empty-table convention `toggle_table_row.py` already uses for index
+  files. On resume, compare this table against the currently-installed versions and say plainly what differs —
+  never silently assume they still match. This is what lets a task be picked up faithfully by a different developer
+  on a different machine.
+- **Checkpoint log** — one entry per checkpoint reached, each its own `### N. \`step-id\`` heading — carrying the
+  same batch/context suffix the Call stack line for that step has, e.g.
+  `` ### 3. `attach-event-rules` (batch 1: Block created, Block edited) `` — followed by labeled lines:
+  - **Asked:** — what was put to the developer (or stated, for a `notify` checkpoint).
+  - **Answer:** — their answer, verbatim or a faithful restatement. Omit this line for a `type: notify`
+    checkpoint — it did not wait for one.
+  - **Decision:** — what this settles, when it is more than a restatement of the answer. Omit if there is
+    nothing beyond the answer itself.
+  - **Actor:** — `human:<git user.name or user.email>` when the target project is a git repository with one
+    configured, `human:developer` otherwise — never left blank. Omit for a `type: notify` checkpoint.
+
+  Append-only — never edit or renumber an earlier entry. This labeled shape, not one dense paragraph per entry, is
+  what lets a specific field be found or extracted without re-reading the whole log, and is what makes "picked up
   faithfully by a different developer" (see Directives in effect, above) something the next session can actually
-  check, not just assume.
-- **Parked** — items deferred per `defer-discovered-gaps` (or an equivalent workshop directive), each to become its own
-  later task.
-- **Next** — the one line a future session resumes from.
+  check with a grep on **Actor:**, not just assume.
+- **Parked** — items deferred per `defer-discovered-gaps` (or an equivalent workshop directive), each to become
+  its own later task.
+- **Next** — one labeled line: **Next:** followed by the line a future session resumes from.
 
 Keep it current in the same turn as the event: a step starts or finishes, a checkpoint is answered, something is parked.
 It must never lag the conversation.
@@ -134,8 +154,9 @@ On invocation:
 - Look in `.claude/sessions/` for `<entry>-session-*.md`. If `session=` is given, or exactly one unfinished file
   matching this entry exists, read it in full, state in one or two lines where things stand (task, current step, what is
   parked), re-state the Directives in effect comparison from above, and ask whether to resume from the current step or
-  somewhere else. If the actor resuming now differs from the checkpoint log's most recent entries, say so plainly,
-  the same way a version drift is said plainly — never silently assume it's the same developer picking this back up.
+  somewhere else. If the actor resuming now differs from the checkpoint log's most recent **Actor:** fields, say so
+  plainly, the same way a version drift is said plainly — never silently assume it's the same developer picking
+  this back up.
 - If several unfinished session files exist for this entry and none is named, list them (slug, task, current step,
   `Next`) and ask which to resume.
 - Do not restart a protocol from the top unless asked.

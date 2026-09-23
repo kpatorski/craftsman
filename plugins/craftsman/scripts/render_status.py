@@ -21,7 +21,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from _frontmatter import parse_frontmatter, split_frontmatter  # noqa: E402
 
-STATUS_RE = re.compile(r"^`(\w+)`")
+STATUS_RE = re.compile(r"`(\w+)`")
 LINE_RE = re.compile(r"^(\s*)(?:-> hand-off:\s*)?([A-Za-z0-9-]+)\s*\((\w+)")
 
 
@@ -35,7 +35,9 @@ def project_dir_from_stdin_json(payload):
 
 
 def file_status(path):
-    """First `` `word` `` after the `## Status` heading, or None if the file has no readable status."""
+    """First `` `word` `` on the first non-blank line after the `## Status` heading, or None if unreadable.
+    Matches both the current `- **State:** `active`` shape and the older bare `` `active` -- ... `` shape a
+    not-yet-updated session file may still have -- searched anywhere in the line, not anchored to its start."""
     text = path.read_text(errors="replace")
     in_status = False
     for line in text.split("\n"):
@@ -45,7 +47,7 @@ def file_status(path):
         if in_status and line.strip() == "":
             continue
         if in_status:
-            m = STATUS_RE.match(line.strip())
+            m = STATUS_RE.search(line.strip())
             return m.group(1) if m else None
     return None
 
