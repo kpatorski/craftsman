@@ -25,18 +25,18 @@ Entry points:
   /craftsman:implement <task/spec>    drive one task test-first, checkpoint by checkpoint
 
 Management commands:
-  /craftsman:search <topic>                    is there already something about this?
+  /craftsman:search <topic>                         is there already something about this?
   /craftsman:list [directives|protocols|bundles]
-  /craftsman:enable <id>                        (directive, protocol, or bundle -- ids are unique across all three)
+  /craftsman:enable <id>                            (directive, protocol, or bundle -- ids are unique across all three)
   /craftsman:disable <id>
-  /craftsman:install <path or URL>              install a directive, protocol, bundle, or a whole workshop source
+  /craftsman:install <path or URL>                  install a directive, protocol, bundle, or a whole workshop source
   /craftsman:uninstall <id>
   /craftsman:rename <old-id> <new-id>
-  /craftsman:merge                              find single-use entries worth folding into their one caller
-  /craftsman:statusline-setup                   wire the command -> batch -> protocol -> directive indicator
-                                                 into Claude Code's status line (one-time setup)
-  /craftsman:dashboard                          local HTML dashboard -- browse everything installed, search,
-                                                 copy-paste enable/disable commands
+  /craftsman:merge                                  find single-use entries worth folding into their one caller
+  /craftsman:statusline-setup                       wire the command -> batch -> protocol -> directive indicator
+                                                    into Claude Code's status line (one-time setup)
+  /craftsman:dashboard                              local HTML dashboard -- browse everything installed, search,
+                                                    copy-paste enable/disable commands
 
 No installed content yet? `/craftsman:install <workshop URL>` gets a starter set in place.
 
