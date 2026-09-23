@@ -107,7 +107,7 @@ default everyone must adopt: install it, fork it, or write your own from scratch
 | `/craftsman:rename <old-id> <new-id>`                | Rename, updating every reference.                                                                                                                     |
 | `/craftsman:merge`                                   | Find single-use entries and offer to fold them into their one parent.                                                                                 |
 | `/craftsman:statusline-setup`                        | Wire the command → batch → protocol → directive indicator into Claude Code's status line (one-time setup).                                            |
-| `/craftsman:dashboard`                               | Local HTML dashboard of everything installed — help, bundles, protocols, directives, searchable, with copy-pasteable enable/disable commands.         |
+| `/craftsman:dashboard`                               | Local HTML dashboard of everything installed — commands, bundles, protocols, directives, searchable, with copy-pasteable enable/disable commands.     |
 | `/craftsman:help`                                    | This table, from inside a session.                                                                                                                    |
 
 Each entry-point command also triggers from plain conversation ("add a use case", "analyze these requirements", "digest

@@ -269,7 +269,7 @@ the change as a diff before writing — the same discipline as any other change 
 
 ## Dashboard
 
-`scripts/render_dashboard.py` renders a single, self-contained, local HTML file — help, and every
+`scripts/render_dashboard.py` renders a single, self-contained, local HTML file — the command list, and every
 bundle/protocol/directive currently installed, with its enabled/disabled state and its own file's description
 (never the index row's, which is only ever a lookup — see the script's own docstring). A search box filters the
 page client-side; nothing about it makes a network request. The `dashboard` skill runs it and prints the

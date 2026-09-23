@@ -2,7 +2,7 @@
 name: dashboard
 description: >
   Opens a local, self-contained, dark-theme HTML dashboard of everything installed under ~/.claude/craftsman/ --
-  help, and every bundle/protocol/directive with its description and enabled/disabled state, filterable by a
+  the command list, and every bundle/protocol/directive with its description and enabled/disabled state, filterable by a
   search box. Read-only: each row shows the exact enable/disable command to copy, it never toggles anything
   itself. Trigger: "/craftsman:dashboard", "show me the dashboard", "browse the bundles", "what's installed,
   visually".

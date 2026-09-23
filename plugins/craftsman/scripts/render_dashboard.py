@@ -21,6 +21,7 @@ Usage:
 relative to this file) -- never re-derived or duplicated, the same file `/craftsman:help` itself prints verbatim.
 """
 import argparse
+from datetime import datetime
 import html
 import pathlib
 import platform
@@ -195,14 +196,176 @@ def help_block(plugin_root):
 
 # ---- rendering --------------------------------------------------------------------------------------------
 
+
+# ---- markdown -> html (just enough for directive/protocol/bundle files) -----------------------------------------
+
+def render_inline(text, known_ids):
+    """Inline markdown: code spans, links, bold, italic. A relative link to another entry's file becomes a
+    `data-goto` link that switches the panel to that entry; any other relative link is shown as plain text (a
+    `file://` hop out of the page is exactly what the panel exists to avoid)."""
+    spans = []
+
+    def stash(m):
+        spans.append(f"<code>{html.escape(m.group(1))}</code>")
+        return f"\x00{len(spans) - 1}\x00"
+
+    text = re.sub(r"`([^`]+)`", stash, text)
+    text = html.escape(text, quote=False)
+
+    def link(m):
+        label, url = m.group(1), html.unescape(m.group(2))
+        if re.match(r"https?://", url):
+            return f'<a href="{html.escape(url)}" target="_blank" rel="noopener">{label}</a>'
+        target = re.search(r"([a-z0-9-]+)/(?:directive|protocol|bundle)\.md$", url)
+        if target and target.group(1) in known_ids:
+            return f'<a href="#" data-goto="{target.group(1)}">{label}</a>'
+        return f'<span class="ref">{label}</span>'
+
+    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", link, text)
+    text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
+    text = re.sub(r"(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])", r"<em>\1</em>", text)
+    return re.sub(r"\x00(\d+)\x00", lambda m: spans[int(m.group(1))], text)
+
+
+LIST_RE = re.compile(r"^(\s*)([-*]|\d+\.)\s+(.*)$")
+
+
+def render_list(items, known_ids):
+    """`items` is [(indent, ordered, text)]; nesting follows indentation."""
+    out, stack = [], []  # stack of (indent, tag)
+    for indent, ordered, text in items:
+        tag = "ol" if ordered else "ul"
+        while stack and indent < stack[-1][0]:
+            out.append(f"</li></{stack.pop()[1]}>")
+        if stack and indent > stack[-1][0]:
+            out.append(f"<{tag}>")
+            stack.append((indent, tag))
+        elif not stack:
+            out.append(f"<{tag}>")
+            stack.append((indent, tag))
+        else:
+            out.append("</li>")
+        out.append(f"<li>{render_inline(text, known_ids)}")
+    while stack:
+        out.append(f"</li></{stack.pop()[1]}>")
+    return "".join(out)
+
+
+def split_cells(line):
+    inner = line.strip()
+    inner = inner[1:] if inner.startswith("|") else inner
+    inner = inner[:-1] if inner.endswith("|") else inner
+    return [c.strip().replace("\x00", "|") for c in inner.replace("\\|", "\x00").split("|")]
+
+
+def is_block_start(line):
+    st = line.strip()
+    return (st.startswith("```") or st.startswith("#") or st.startswith(">") or st.startswith("|")
+            or LIST_RE.match(line) is not None or st == "---")
+
+
+def render_markdown(text, known_ids):
+    fm_text, body = split_frontmatter(text)
+    parts = []
+    if fm_text is not None:
+        parts.append(f'<pre class="fm">{html.escape(fm_text.strip())}</pre>')
+    lines = body.split("\n")
+    i, n = 0, len(lines)
+    while i < n:
+        line = lines[i]
+        st = line.strip()
+        if not st:
+            i += 1
+        elif st.startswith("```"):
+            code = []
+            i += 1
+            while i < n and not lines[i].strip().startswith("```"):
+                code.append(lines[i])
+                i += 1
+            i += 1
+            parts.append(f"<pre><code>{html.escape(chr(10).join(code))}</code></pre>")
+        elif re.match(r"#{1,6}\s", st):
+            level = len(st) - len(st.lstrip("#"))
+            parts.append(f"<h{level}>{render_inline(st[level:].strip(), known_ids)}</h{level}>")
+            i += 1
+        elif st == "---":
+            parts.append("<hr>")
+            i += 1
+        elif st.startswith("|") and i + 1 < n and re.fullmatch(r"[\s|:\-]+", lines[i + 1].strip()):
+            head = split_cells(lines[i])
+            i += 2
+            rows = []
+            while i < n and lines[i].strip().startswith("|"):
+                rows.append(split_cells(lines[i]))
+                i += 1
+            th = "".join(f"<th>{render_inline(c, known_ids)}</th>" for c in head)
+            tr = "".join("<tr>" + "".join(f"<td>{render_inline(c, known_ids)}</td>" for c in r) + "</tr>"
+                         for r in rows)
+            parts.append(f"<table><thead><tr>{th}</tr></thead><tbody>{tr}</tbody></table>")
+        elif st.startswith(">"):
+            quote = []
+            while i < n and lines[i].strip().startswith(">"):
+                quote.append(lines[i].strip().lstrip(">").strip())
+                i += 1
+            parts.append(f"<blockquote>{render_inline(' '.join(quote), known_ids)}</blockquote>")
+        elif LIST_RE.match(line):
+            items = []
+            while i < n:
+                m = LIST_RE.match(lines[i])
+                if m:
+                    items.append([len(m.group(1)), m.group(2)[0].isdigit(), m.group(3).strip()])
+                    i += 1
+                elif lines[i].strip() and lines[i].startswith("  ") and items:
+                    items[-1][2] += " " + lines[i].strip()  # wrapped continuation of the previous item
+                    i += 1
+                elif not lines[i].strip() and i + 1 < n and (LIST_RE.match(lines[i + 1])
+                                                            or lines[i + 1].startswith("  ")):
+                    i += 1
+                else:
+                    break
+            parts.append(render_list([tuple(x) for x in items], known_ids))
+        elif line.startswith("    "):
+            code = []
+            while i < n and (lines[i].startswith("    ") or not lines[i].strip()):
+                code.append(lines[i][4:])
+                i += 1
+            parts.append(f"<pre><code>{html.escape(chr(10).join(code).rstrip())}</code></pre>")
+        else:
+            para = [st]
+            i += 1
+            while i < n and lines[i].strip() and not is_block_start(lines[i]) and not lines[i].startswith("    "):
+                para.append(lines[i].strip())
+                i += 1
+            parts.append(f"<p>{render_inline(' '.join(para), known_ids)}</p>")
+    return "\n".join(parts)
+
+
+def doc_templates(entries, root):
+    """One inert `<template>` per entry holding its rendered file; the panel copies from it on demand."""
+    known = {e["id"] for e in entries}
+    out = []
+    for e in entries:
+        path = e["path"]
+        if path is None or not path.exists():
+            continue
+        try:
+            rel = path.resolve().relative_to(root.resolve())
+        except ValueError:
+            rel = path
+        body = render_markdown(path.read_text(errors="replace"), known)
+        out.append(f'<template id="doc-{html.escape(e["id"])}" data-path="{html.escape(str(rel))}">{body}</template>')
+    return "\n".join(out)
+
+
 BADGE = {True: '<span class="badge on">ENABLED</span>', False: '<span class="badge off">DISABLED</span>'}
 
 
-def file_link(path):
+def file_link(entry_id, path):
+    """A button, not a `file://` link: the panel shows the file inside the page instead of hopping out to the
+    browser's raw file view."""
     if path is None or not path.exists():
         return ""
-    uri = html.escape(path.resolve().as_uri())
-    return f'<a class="open" href="{uri}">open file</a>'
+    return f'<button class="view" type="button" data-view="{html.escape(entry_id)}">view</button>'
 
 
 def toggle_row(entry_id, enabled):
@@ -214,27 +377,36 @@ def toggle_row(entry_id, enabled):
     )
 
 
-def entry_card(e):
+def entry_card(e, members_html=""):
+    """One collapsible row: kind, id, title and status on the summary line; description, requires, the copyable
+    command and the file link inside. A bundle's own members nest inside its body (`members_html`)."""
     search_key = html.escape(" ".join([e["id"], e["title"], e["description"], e["category"] or "",
                                         e["bundle"] or "", e["kind"]]).lower())
     requires = f'<div class="requires">requires: {html.escape(", ".join(e["requires"]))}</div>' if e["requires"] else ""
     desc = html.escape(e["description"]) if e["description"] else '<span class="muted">(no description)</span>'
-    title = html.escape(e["title"]) if e["title"] else e["id"]
+    title = html.escape(e["title"]) if e["title"] else ""
+    members = f'<div class="members">{members_html}</div>' if members_html else ""
+
+    count = f'<span class="count">{members_html.count("<details")} items</span>' if members_html else ""
     return f"""
-<div class="entry {'enabled' if e['enabled'] else 'disabled'}" data-search="{search_key}">
-  <div class="entry-head">
+<details class="entry {'enabled' if e['enabled'] else 'disabled'} {e['kind']}" data-search="{search_key}">
+  <summary>
     <span class="kind">{e['kind']}</span>
     <code class="id">{html.escape(e['id'])}</code>
+    <span class="title">{title}</span>
+    {count}
     {BADGE[e['enabled']]}
+  </summary>
+  <div class="body">
+    <p class="desc">{desc}</p>
+    {requires}
+    <div class="row">
+      {toggle_row(e['id'], e['enabled'])}
+      {file_link(e['id'], e['path'])}
+    </div>
+    {members}
   </div>
-  <div class="title">{title}</div>
-  <p class="desc">{desc}</p>
-  {requires}
-  <div class="row">
-    {toggle_row(e['id'], e['enabled'])}
-    {file_link(e['path'])}
-  </div>
-</div>"""
+</details>"""
 
 
 def section_html(title, entries, group_by_category):
@@ -247,26 +419,19 @@ def section_html(title, entries, group_by_category):
             if e["category"] not in seen:
                 seen.append(e["category"])
         for cat in seen:
-            cat_entries = [e for e in entries if e["category"] == cat]
             label = html.escape(cat) if cat else "Uncategorized"
             body.append(f'<h3 class="category">{label}</h3>')
-            body.append('<div class="grid">' + "".join(entry_card(e) for e in cat_entries) + "</div>")
+            body.append('<div class="list">' + "".join(entry_card(e) for e in entries if e["category"] == cat) + "</div>")
     else:
-        body.append('<div class="grid">' + "".join(entry_card(e) for e in entries) + "</div>")
+        body.append('<div class="list">' + "".join(entry_card(e) for e in entries) + "</div>")
     return f'<section><h2>{html.escape(title)}</h2>{"".join(body)}</section>'
 
 
 def bundle_section_html(bundles, members):
     if not bundles:
         return '<section><h2>Bundles</h2><p class="muted">Empty.</p></section>'
-    parts = ['<section><h2>Bundles</h2>']
-    for b in bundles:
-        own = members.get(b["id"], [])
-        parts.append(entry_card(b))
-        if own:
-            parts.append('<div class="bundle-members grid">' + "".join(entry_card(e) for e in own) + "</div>")
-    parts.append("</section>")
-    return "".join(parts)
+    cards = "".join(entry_card(b, "".join(entry_card(m) for m in members.get(b["id"], []))) for b in bundles)
+    return f'<section><h2>Bundles</h2><div class="list">{cards}</div></section>'
 
 
 PAGE_SHELL = """<!DOCTYPE html>
@@ -281,13 +446,13 @@ PAGE_SHELL = """<!DOCTYPE html>
   }
   * { box-sizing: border-box; }
   body {
-    background: var(--bg); color: var(--text); margin: 0; padding: 2rem 2.5rem 4rem;
+    background: var(--bg); color: var(--text); margin: 0; padding: 2rem 2rem 4rem;
     font-family: -apple-system, "Segoe UI", sans-serif;
   }
   h1 { color: var(--heading); font-size: 1.5rem; margin: 0 0 .2rem; }
   .subtitle { color: var(--muted); font-size: .85rem; margin: 0 0 1.5rem; }
   #search {
-    width: 100%; max-width: 32rem; padding: .6rem .8rem; margin-bottom: 2rem;
+    width: 100%; max-width: 32rem; padding: .6rem .8rem; margin: 2rem 0 0;
     background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 6px;
     font-size: .95rem;
   }
@@ -298,48 +463,151 @@ PAGE_SHELL = """<!DOCTYPE html>
   }
   h3.category { color: var(--green); font-size: .9rem; text-transform: uppercase; letter-spacing: .04em;
     margin: 1.5rem 0 .6rem; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: .9rem; }
-  .entry {
-    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: .9rem 1rem;
-  }
-  .entry.enabled { border-left: 3px solid var(--green); }
-  .entry.disabled { border-left: 3px solid var(--muted); }
-  .entry-head { display: flex; align-items: center; gap: .5rem; margin-bottom: .3rem; }
-  .kind { font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
-  .id { color: var(--blue); font-family: "SF Mono", Menlo, Consolas, monospace; font-size: .85rem; }
-  .badge { margin-left: auto; font-size: .65rem; padding: .15rem .5rem; border-radius: 999px; letter-spacing: .03em; }
+  .list { display: flex; flex-direction: column; gap: .35rem; }
+  details.entry { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; }
+  details.entry.enabled { border-left: 3px solid var(--green); }
+  details.entry.disabled { border-left: 3px solid var(--muted); }
+  details.entry.hidden { display: none; }
+  summary { display: flex; align-items: baseline; gap: .6rem; padding: .5rem .8rem; cursor: pointer; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "\\25B8"; color: var(--muted); font-size: .75rem; }
+  details[open] > summary::before { content: "\\25BE"; }
+  summary:hover { background: #2a2d2e; }
+  .kind { font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); width: 4.6rem; flex: none; }
+  .id { color: var(--blue); font-family: "SF Mono", Menlo, Consolas, monospace; font-size: .85rem; flex: none; }
+  .title { color: var(--text); font-size: .88rem; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .count { color: var(--muted); font-size: .75rem; flex: none; }
+  .badge { font-size: .62rem; padding: .1rem .5rem; border-radius: 999px; letter-spacing: .03em; flex: none; }
   .badge.on { color: var(--green); border: 1px solid var(--green); background: rgba(78,201,176,.12); }
   .badge.off { color: var(--muted); border: 1px solid #555; background: rgba(128,128,128,.1); }
-  .title { font-weight: 600; color: var(--heading); margin-bottom: .3rem; }
-  .desc { font-size: .85rem; line-height: 1.45; margin: 0 0 .5rem; color: var(--text); }
+  .body { padding: .2rem .9rem .8rem 1.9rem; border-top: 1px solid var(--border); }
+  .desc { font-size: .85rem; line-height: 1.5; margin: .7rem 0 .5rem; }
   .requires { font-size: .75rem; color: var(--muted); margin-bottom: .5rem; }
-  .row { display: flex; align-items: center; gap: .6rem; }
+  .row { display: flex; align-items: center; gap: .8rem; }
   .cmd {
-    flex: 1; background: #1a1a1a; color: var(--green); border: 1px solid var(--border); border-radius: 4px;
+    flex: 1; min-width: 0; background: #1a1a1a; color: var(--green); border: 1px solid var(--border); border-radius: 4px;
     padding: .3rem .5rem; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: .78rem;
   }
-  .open { color: var(--blue); font-size: .78rem; white-space: nowrap; text-decoration: none; }
-  .open:hover { text-decoration: underline; }
+  .members { display: flex; flex-direction: column; gap: .3rem; margin-top: .8rem; }
   .muted { color: var(--muted); }
-  pre.help { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 1rem;
+  pre.help { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 1rem;
     overflow-x: auto; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: .82rem; line-height: 1.5; }
-  .bundle-members { margin: .6rem 0 1.8rem 1.5rem; }
+  .wrap { max-width: 1700px; margin: 0 auto; }
+  .layout { max-width: 1100px; margin: 0 auto; }
+  .layout.with-panel {
+    max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.8rem;
+    align-items: start;
+  }
+  #panel { display: none; }
+  .with-panel #panel {
+    display: block; position: sticky; top: 1rem; height: calc(100vh - 2rem); overflow: auto; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 8px; padding: 0 1.3rem 1.5rem;
+  }
+  .panel-head {
+    position: sticky; top: 0; background: var(--panel); padding: .9rem 0 .6rem; border-bottom: 1px solid var(--border);
+    display: flex; align-items: baseline; gap: .7rem; margin-bottom: .8rem;
+  }
+  .panel-head code { color: var(--blue); }
+  #panel-path { color: var(--muted); font-size: .75rem; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  #panel-close { background: none; border: 0; color: var(--muted); font-size: 1.2rem; cursor: pointer; }
+  #panel-close:hover { color: var(--heading); }
+  button.view {
+    background: none; border: 1px solid var(--border); color: var(--blue); border-radius: 4px; padding: .25rem .6rem;
+    font-size: .78rem; cursor: pointer; white-space: nowrap;
+  }
+  button.view:hover { border-color: var(--blue); }
+  .md { font-size: .86rem; line-height: 1.6; }
+  .md h1, .md h2, .md h3, .md h4 { color: var(--heading); border: 0; margin: 1.3rem 0 .5rem; }
+  .md h1 { font-size: 1.25rem; } .md h2 { font-size: 1.05rem; color: var(--blue); } .md h3, .md h4 { font-size: .95rem; }
+  .md p { margin: .5rem 0; }
+  .md code { background: #1a1a1a; border-radius: 3px; padding: .05rem .3rem; color: var(--green);
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: .8rem; }
+  .md pre { background: #1a1a1a; border: 1px solid var(--border); border-radius: 6px; padding: .7rem .9rem; overflow-x: auto; }
+  .md pre code { background: none; padding: 0; color: var(--text); }
+  .md pre.fm { color: var(--muted); }
+  .md table { border-collapse: collapse; margin: .7rem 0; display: block; overflow-x: auto; }
+  .md th, .md td { border: 1px solid var(--border); padding: .3rem .6rem; text-align: left; vertical-align: top; }
+  .md th { background: #2a2d2e; color: var(--heading); }
+  .md blockquote { border-left: 3px solid var(--blue); margin: .6rem 0; padding: .1rem .9rem; color: var(--muted); }
+  .md ul, .md ol { padding-left: 1.4rem; margin: .4rem 0; } .md li { margin: .2rem 0; }
+  .md a { color: var(--blue); } .md .ref { color: var(--muted); }
+  @media (max-width: 1000px) {
+    .layout.with-panel { grid-template-columns: 1fr; }
+    .with-panel #panel { position: static; height: auto; max-height: 75vh; }
+  }
 </style>
 </head>
 <body>
+<div class="wrap"><div class="layout"><main>
 <h1>__TITLE__</h1>
 <p class="subtitle">__SUBTITLE__</p>
-<input id="search" type="text" placeholder="Filter by id, title, description...">
-<section><h2>Help</h2><pre class="help">__HELP__</pre></section>
+<section><h2>Commands</h2><pre class="help">__HELP__</pre></section>
+<input id="search" type="text" placeholder="Filter bundles, protocols and directives by id, title, description...">
 __BODY__
+</main>
+<aside id="panel">
+  <div class="panel-head"><code id="panel-id"></code><span id="panel-path"></span>
+    <button id="panel-close" type="button" title="clear">&times;</button></div>
+  <div id="panel-body" class="md"></div>
+</aside>
+</div></div>
+__DOCS__
 <script>
 function tryCopy(el) {
   try { document.execCommand('copy'); } catch (e) { /* select-and-manual-copy still works */ }
 }
+var currentDoc = null;
+function syncViewButtons() {
+  document.querySelectorAll('button.view').forEach(function (b) {
+    b.textContent = (b.getAttribute('data-view') === currentDoc) ? 'hide' : 'view';
+  });
+}
+function showDoc(id) {
+  var t = document.getElementById('doc-' + id);
+  if (!t) { return; }
+  currentDoc = id;
+  document.querySelector('.layout').classList.add('with-panel');
+  document.getElementById('panel-id').textContent = id;
+  document.getElementById('panel-path').textContent = t.getAttribute('data-path');
+  document.getElementById('panel-body').innerHTML = t.innerHTML;
+  document.getElementById('panel').scrollTop = 0;
+  syncViewButtons();
+}
+function hidePanel() {
+  currentDoc = null;
+  document.querySelector('.layout').classList.remove('with-panel');
+  syncViewButtons();
+}
+document.addEventListener('click', function (ev) {
+  var view = ev.target.closest('[data-view]');
+  if (view) {
+    var id = view.getAttribute('data-view');
+    if (id === currentDoc) { hidePanel(); } else { showDoc(id); }
+    return;
+  }
+  var go = ev.target.closest('[data-goto]');
+  if (go) { ev.preventDefault(); showDoc(go.getAttribute('data-goto')); return; }
+  if (ev.target.id === 'panel-close') { hidePanel(); }
+});
+// Word-based matching: every word of the query must appear somewhere in an entry (any order), hyphens and other
+// punctuation count as spaces (so "test coverage" finds `check-coverage`), and a trailing plural "s" is ignored.
+function norm(t) { return t.toLowerCase().replace(/[^a-z0-9]+/g, ' '); }
+function stem(w) { return (w.length > 3 && /s$/.test(w) && !/ss$/.test(w)) ? w.slice(0, -1) : w; }
 document.getElementById('search').addEventListener('input', function () {
-  var q = this.value.trim().toLowerCase();
-  document.querySelectorAll('.entry').forEach(function (el) {
-    el.style.display = (!q || el.getAttribute('data-search').indexOf(q) !== -1) ? '' : 'none';
+  var words = norm(this.value).split(' ').filter(Boolean).map(stem);
+  var q = words.length > 0;
+  var all = Array.prototype.slice.call(document.querySelectorAll('details.entry'));
+  // undo whatever the previous keystroke opened, so refining or clearing the query restores the collapsed view
+  all.forEach(function (el) {
+    if (el.hasAttribute('data-auto')) { el.open = false; el.removeAttribute('data-auto'); }
+  });
+  all.reverse().forEach(function (el) {  // children first
+    if (el._hay === undefined) { el._hay = ' ' + norm(el.getAttribute('data-search')) + ' '; }
+    var own = !q || words.every(function (w) { return el._hay.indexOf(w) !== -1; });
+    var childShown = el.querySelector('details.entry:not(.hidden)') !== null;
+    el.classList.toggle('hidden', !(own || childShown));
+    // only a container is opened, and only to reveal a matching descendant -- a plain match stays collapsed
+    if (q && childShown && !el.open) { el.open = true; el.setAttribute('data-auto', '1'); }
   });
 });
 </script>
@@ -368,9 +636,11 @@ def build_page(root):
 
     page = PAGE_SHELL
     page = page.replace("__TITLE__", "craftsman dashboard")
-    page = page.replace("__SUBTITLE__", html.escape(f"content root: {root}"))
+    stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+    page = page.replace("__SUBTITLE__", html.escape(f"content root: {root}  \u00b7  generated {stamp} (a snapshot -- re-run /craftsman:dashboard to refresh)"))
     page = page.replace("__HELP__", html.escape(help_block(PLUGIN_ROOT)))
     page = page.replace("__BODY__", body)
+    page = page.replace("__DOCS__", doc_templates(entries, root))
     return page
 
 

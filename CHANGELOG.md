@@ -3,6 +3,22 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.2.0
+
+- Feature: the `dashboard` (added in 0.1.15) is reworked into something usable day to day. One collapsible row per
+  entry (kind, id, title, status) instead of a wall of cards; a bundle is one row that expands to its members. A
+  centred, width-limited page instead of one stretched across the whole screen.
+- Feature: a "view" button per entry shows the entry's own file inside the page, in a side panel that appears only
+  while a file is open ("view" turns into "hide"), instead of `open file` jumping out to the browser's raw file view.
+  The file is rendered (headings, tables, lists, code, frontmatter), and a link to another entry inside it switches
+  the panel to that entry. All file contents are embedded, so the page still works offline as a single file.
+- Feature: search matches by words, in any order, with hyphens treated as spaces and a trailing plural ignored, so
+  "tests coverage" finds `check-coverage` — previously the whole query had to appear as one exact string. Searching
+  no longer expands every match; only a bundle is opened, and only to reveal a matching member.
+- Docs: the command list section is called "Commands" and sits directly above the search box; the page states when
+  it was generated, since it is a snapshot (re-run `/craftsman:dashboard` after installing or toggling anything).
+  Entries are read from the indexes, so anything added through `/craftsman:install` shows up on the next run.
+
 ## 0.1.15
 
 - Fix: `EXECUTION.md`'s session-file contract gives `Checkpoint log`, `Directives in effect`, `Task`, `Status`, and
