@@ -14,7 +14,11 @@ Looks for, in the project directory:
     .claude/sessions/*.md                                      (session files, newest first)
 
 Usage:
-    render_report.py [<project-dir>] [--output /path/to/report.html] [--open]
+    render_report.py [<project-dir>] [--output /path/to/report.html] [--doc <file.md> ...] [--open]
+
+`--doc` (repeatable) names a file that was just written. The page is regenerated and, for each such file, two lines
+are printed -- the full path of the markdown file and a `file://` link straight to that document inside the page --
+so a step can always show both. A file the script would not otherwise look for is added under "Other".
 
 `<project-dir>` defaults to the current directory. `--output` defaults to `<project-dir>/.claude/reports/report.html`
 (next to the sessions, so it never clutters `git status`). Prints a `file://` link on success; exits 2 and writes
@@ -53,7 +57,7 @@ def session_state(text):
     return m.group(1) if m else None
 
 
-def discover(project):
+def discover(project, extra=()):
     """-> list of dicts (group, path, rel, id, title, text, state), in the order they appear in the navigation."""
     found = []
     for name in ANALYSIS_FILES:
@@ -72,10 +76,18 @@ def discover(project):
     if sessions.is_dir():
         for p in sorted(sessions.glob("*.md"), key=lambda q: q.stat().st_mtime, reverse=True):
             found.append(("Sessions", p))
+    listed = {p.resolve() for _, p in found}
+    for p in extra:
+        if p.resolve() not in listed:
+            found.append(("Other", p))
+            listed.add(p.resolve())
     docs = []
     for group, p in found:
         text = p.read_text(errors="replace")
-        rel = p.relative_to(project)
+        try:
+            rel = p.resolve().relative_to(project)
+        except ValueError:
+            rel = pathlib.Path(p.name)  # outside the project: shown by name only
         docs.append(dict(group=group, path=p.resolve(), rel=rel, id=slug(rel), title=doc_title(text, p),
                          text=text, state=session_state(text) if group == "Sessions" else None))
     return docs
@@ -83,7 +95,7 @@ def discover(project):
 
 def nav_html(docs):
     out = []
-    for group in ("Analysis", "Specs", "Sessions"):
+    for group in ("Analysis", "Specs", "Sessions", "Other"):
         members = [d for d in docs if d["group"] == group]
         if not members:
             continue
@@ -252,11 +264,17 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("project_dir", nargs="?", default=".")
     parser.add_argument("--output")
+    parser.add_argument("--doc", action="append", default=[])
     parser.add_argument("--open", action="store_true")
     args = parser.parse_args()
 
     project = pathlib.Path(args.project_dir).expanduser().resolve()
-    docs = discover(project)
+    extra = [pathlib.Path(d).expanduser().resolve() for d in args.doc]
+    missing = [str(d) for d in extra if not d.is_file()]
+    if missing:
+        print(f"Not a file: {', '.join(missing)}", file=sys.stderr)
+        sys.exit(2)
+    docs = discover(project, extra)
     if not docs:
         print(f"No craftsman artifacts found in {project} (looked for {', '.join(ANALYSIS_FILES)}, specs/, "
               f".claude/sessions/).", file=sys.stderr)
@@ -265,7 +283,14 @@ def main():
     output = pathlib.Path(args.output).expanduser() if args.output else project / ".claude" / "reports" / "report.html"
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(build_page(project, docs))
-    print(output.resolve().as_uri())
+    url = output.resolve().as_uri()
+    by_path = {d["path"]: d["id"] for d in docs}
+    if extra:
+        for d in extra:
+            print(f"md:   {d}")
+            print(f"html: {url}#{by_path[d]}")
+    else:
+        print(url)
     if args.open:
         open_in_browser(str(output))
 

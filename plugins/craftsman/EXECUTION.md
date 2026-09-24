@@ -149,18 +149,29 @@ It must never lag the conversation.
 
 ## Report
 
-A run ends with something pleasant to read, not just markdown files. When an entry-point protocol finishes — the
-session file's **State:** becomes `done` — run `scripts/render_report.py <target project>`, which renders the
-analysis artifacts (`business-rules.md`, `open-questions.md`, `event-model.md`, `specs/`) and the session file(s)
-into one self-contained HTML page at `<target project>/.claude/reports/report.html`, and print its `file://` link
-plainly. The markdown files remain the source of truth; the page is regenerated from them each time and is a
-snapshot. `/craftsman:report` runs the same script on demand, including mid-run (the artifacts are written
-incrementally).
+Results should be pleasant to read as they appear, not only when a run ends. **Every time a step writes or updates
+an artifact file** — `business-rules.md`, `open-questions.md`, `event-model.md`, a `specs/*.md`, or any other
+deliverable a protocol tells you to write — run `scripts/render_report.py <target project> --doc <file>` (one
+`--doc` per file written in that step). It regenerates the project's report page,
+`<target project>/.claude/reports/report.html`, which holds every artifact and the session file(s) as one
+self-contained, searchable page, and prints two lines per file:
 
-This is a courtesy, never part of the run's result: if the script fails, or finds nothing to render (exit code 2),
-say so in one line and finish normally — never block, retry, or treat the run as not done because of it. It lives
-here, not in a workshop's protocols, because the script is the plugin's and a workshop's content cannot name a path
-inside the plugin (see "Where the content lives").
+    md:   /full/path/to/specs/001-book-a-desk.md
+    html: file:///full/path/to/.claude/reports/report.html#specs-001-book-a-desk-md
+
+**Always show both, always as full paths, exactly as the script prints them** — never "wrote specs/xyz.md" alone,
+never a relative or shortened path. The `html:` link opens the report on that very document. Do the same once more
+when the entry-point protocol finishes (the session file's **State:** becomes `done`), for the files the run
+produced. The session file itself is part of the report but is not announced on every update — it changes on almost
+every turn.
+
+The markdown files remain the source of truth; the page is regenerated from them each time and is a snapshot.
+`/craftsman:report` runs the same script on demand, without `--doc`, and prints just the report's link.
+
+This is a courtesy, never part of a step's result: if the script fails, say so in one line — still giving the `md:`
+path — and carry on. Never block, retry, or treat the step as not done because of it. It lives here, not in a
+workshop's protocols, because the script is the plugin's and a workshop's content cannot name a path inside the
+plugin (see "Where the content lives").
 
 ## Resuming
 

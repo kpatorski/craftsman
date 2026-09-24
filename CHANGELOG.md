@@ -3,6 +3,16 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.4.0
+
+- Feature: the report is no longer produced only when a run ends. Every time a step writes or updates an artifact
+  file (`business-rules.md`, `open-questions.md`, `event-model.md`, `specs/*.md`, or any deliverable a protocol
+  names), the report page is regenerated and two lines are printed: `md:` with the file's full path and `html:` with
+  a `file://` link that opens the report on that document. Both are always shown as full paths — never just
+  "wrote specs/xyz.md". `scripts/render_report.py` gained `--doc <file>` (repeatable) for this; a file it would not
+  otherwise look for appears under "Other". The report stays one page holding every document, so links between
+  documents keep working and nothing extra lands in the project's `git status`.
+
 ## 0.3.0
 
 - Feature: `/craftsman:report` (new `scripts/render_report.py`) renders a project's results — `business-rules.md`,

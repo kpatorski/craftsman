@@ -29,5 +29,6 @@ skill does not load `MANAGEMENT.md`: it does not touch `~/.claude/craftsman/`, o
 
 - The page is a snapshot of what is on disk right now. Analysis files are written incrementally during a run, so
   this works mid-run too — re-run it to refresh.
-- Also generated automatically when an entry-point run finishes (`EXECUTION.md`, "Report").
+- Also regenerated automatically every time a step writes an artifact file, with `--doc <file>`, printing the full
+  `md:` path and the `html:` link to that document (`EXECUTION.md`, "Report").
 - Nothing here parses the structure of the files: their formats belong to the installed workshop.
