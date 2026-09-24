@@ -3,6 +3,22 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.3.0
+
+- Feature: `/craftsman:report` (new `scripts/render_report.py`) renders a project's results — `business-rules.md`,
+  `open-questions.md`, `event-model.md`, `specs/` and the session file(s) — as one self-contained, dark-theme HTML
+  page in the dashboard's style: navigation on the left, the chosen document rendered on the right, search across
+  all documents, links between documents that switch the view, and the state of each session (`active`, `blocked`,
+  `done`) shown in the navigation. The markdown stays the source of truth; the page is regenerated from disk each
+  time. Written to `.claude/reports/report.html` next to the sessions, so it does not clutter `git status`.
+- Feature: it is also generated automatically when an entry-point run finishes (`EXECUTION.md`, "Report"), with the
+  link printed at the end. A failure or an empty result never blocks or changes the run. This lives in the plugin's
+  execution mechanics, not in a workshop's protocols — nothing to update on the workshop side.
+- The report reads the files by name and does not parse their structure, since their formats belong to the workshop;
+  a workshop that writes other files gets them only once they are added to the script's list.
+- Internal: the markdown renderer used by the dashboard moved to a shared `scripts/_markdown.py`; the dashboard's
+  output is unchanged.
+
 ## 0.2.1
 
 - Fix: the command descriptions in `/craftsman:help` (and the dashboard's "Commands" section, which shows the same

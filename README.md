@@ -108,6 +108,7 @@ default everyone must adopt: install it, fork it, or write your own from scratch
 | `/craftsman:merge`                                   | Find single-use entries and offer to fold them into their one parent.                                                                                 |
 | `/craftsman:statusline-setup`                        | Wire the command → batch → protocol → directive indicator into Claude Code's status line (one-time setup).                                            |
 | `/craftsman:dashboard`                               | Local HTML dashboard of everything installed — commands, bundles, protocols, directives, searchable, with copy-pasteable enable/disable commands.     |
+| `/craftsman:report [project dir]`                    | Analysis artifacts and session(s) of a project as one searchable HTML report. Also generated when a run finishes.                                     |
 | `/craftsman:help`                                    | This table, from inside a session.                                                                                                                    |
 
 Each entry-point command also triggers from plain conversation ("add a use case", "analyze these requirements", "digest

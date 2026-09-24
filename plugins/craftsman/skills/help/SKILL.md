@@ -37,6 +37,8 @@ Management commands:
                                                     into Claude Code's status line (one-time setup)
   /craftsman:dashboard                              local HTML dashboard -- browse everything installed, search,
                                                     copy-paste enable/disable commands
+  /craftsman:report [project-dir]                   render a project's analysis artifacts and session(s) as one HTML
+                                                    report, with navigation and search
 
 No installed content yet? `/craftsman:install <workshop URL>` gets a starter set in place.
 

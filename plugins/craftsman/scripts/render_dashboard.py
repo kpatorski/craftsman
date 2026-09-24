@@ -31,6 +31,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from _frontmatter import parse_frontmatter, split_frontmatter  # noqa: E402
+from _markdown import MD_CSS, render_markdown  # noqa: E402
 
 PLUGIN_ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -197,152 +198,14 @@ def help_block(plugin_root):
 # ---- rendering --------------------------------------------------------------------------------------------
 
 
-# ---- markdown -> html (just enough for directive/protocol/bundle files) -----------------------------------------
-
-def render_inline(text, known_ids):
-    """Inline markdown: code spans, links, bold, italic. A relative link to another entry's file becomes a
-    `data-goto` link that switches the panel to that entry; any other relative link is shown as plain text (a
-    `file://` hop out of the page is exactly what the panel exists to avoid)."""
-    spans = []
-
-    def stash(m):
-        spans.append(f"<code>{html.escape(m.group(1))}</code>")
-        return f"\x00{len(spans) - 1}\x00"
-
-    text = re.sub(r"`([^`]+)`", stash, text)
-    text = html.escape(text, quote=False)
-
-    def link(m):
-        label, url = m.group(1), html.unescape(m.group(2))
-        if re.match(r"https?://", url):
-            return f'<a href="{html.escape(url)}" target="_blank" rel="noopener">{label}</a>'
-        target = re.search(r"([a-z0-9-]+)/(?:directive|protocol|bundle)\.md$", url)
-        if target and target.group(1) in known_ids:
-            return f'<a href="#" data-goto="{target.group(1)}">{label}</a>'
-        return f'<span class="ref">{label}</span>'
-
-    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", link, text)
-    text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
-    text = re.sub(r"(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])", r"<em>\1</em>", text)
-    return re.sub(r"\x00(\d+)\x00", lambda m: spans[int(m.group(1))], text)
-
-
-LIST_RE = re.compile(r"^(\s*)([-*]|\d+\.)\s+(.*)$")
-
-
-def render_list(items, known_ids):
-    """`items` is [(indent, ordered, text)]; nesting follows indentation."""
-    out, stack = [], []  # stack of (indent, tag)
-    for indent, ordered, text in items:
-        tag = "ol" if ordered else "ul"
-        while stack and indent < stack[-1][0]:
-            out.append(f"</li></{stack.pop()[1]}>")
-        if stack and indent > stack[-1][0]:
-            out.append(f"<{tag}>")
-            stack.append((indent, tag))
-        elif not stack:
-            out.append(f"<{tag}>")
-            stack.append((indent, tag))
-        else:
-            out.append("</li>")
-        out.append(f"<li>{render_inline(text, known_ids)}")
-    while stack:
-        out.append(f"</li></{stack.pop()[1]}>")
-    return "".join(out)
-
-
-def split_cells(line):
-    inner = line.strip()
-    inner = inner[1:] if inner.startswith("|") else inner
-    inner = inner[:-1] if inner.endswith("|") else inner
-    return [c.strip().replace("\x00", "|") for c in inner.replace("\\|", "\x00").split("|")]
-
-
-def is_block_start(line):
-    st = line.strip()
-    return (st.startswith("```") or st.startswith("#") or st.startswith(">") or st.startswith("|")
-            or LIST_RE.match(line) is not None or st == "---")
-
-
-def render_markdown(text, known_ids):
-    fm_text, body = split_frontmatter(text)
-    parts = []
-    if fm_text is not None:
-        parts.append(f'<pre class="fm">{html.escape(fm_text.strip())}</pre>')
-    lines = body.split("\n")
-    i, n = 0, len(lines)
-    while i < n:
-        line = lines[i]
-        st = line.strip()
-        if not st:
-            i += 1
-        elif st.startswith("```"):
-            code = []
-            i += 1
-            while i < n and not lines[i].strip().startswith("```"):
-                code.append(lines[i])
-                i += 1
-            i += 1
-            parts.append(f"<pre><code>{html.escape(chr(10).join(code))}</code></pre>")
-        elif re.match(r"#{1,6}\s", st):
-            level = len(st) - len(st.lstrip("#"))
-            parts.append(f"<h{level}>{render_inline(st[level:].strip(), known_ids)}</h{level}>")
-            i += 1
-        elif st == "---":
-            parts.append("<hr>")
-            i += 1
-        elif st.startswith("|") and i + 1 < n and re.fullmatch(r"[\s|:\-]+", lines[i + 1].strip()):
-            head = split_cells(lines[i])
-            i += 2
-            rows = []
-            while i < n and lines[i].strip().startswith("|"):
-                rows.append(split_cells(lines[i]))
-                i += 1
-            th = "".join(f"<th>{render_inline(c, known_ids)}</th>" for c in head)
-            tr = "".join("<tr>" + "".join(f"<td>{render_inline(c, known_ids)}</td>" for c in r) + "</tr>"
-                         for r in rows)
-            parts.append(f"<table><thead><tr>{th}</tr></thead><tbody>{tr}</tbody></table>")
-        elif st.startswith(">"):
-            quote = []
-            while i < n and lines[i].strip().startswith(">"):
-                quote.append(lines[i].strip().lstrip(">").strip())
-                i += 1
-            parts.append(f"<blockquote>{render_inline(' '.join(quote), known_ids)}</blockquote>")
-        elif LIST_RE.match(line):
-            items = []
-            while i < n:
-                m = LIST_RE.match(lines[i])
-                if m:
-                    items.append([len(m.group(1)), m.group(2)[0].isdigit(), m.group(3).strip()])
-                    i += 1
-                elif lines[i].strip() and lines[i].startswith("  ") and items:
-                    items[-1][2] += " " + lines[i].strip()  # wrapped continuation of the previous item
-                    i += 1
-                elif not lines[i].strip() and i + 1 < n and (LIST_RE.match(lines[i + 1])
-                                                            or lines[i + 1].startswith("  ")):
-                    i += 1
-                else:
-                    break
-            parts.append(render_list([tuple(x) for x in items], known_ids))
-        elif line.startswith("    "):
-            code = []
-            while i < n and (lines[i].startswith("    ") or not lines[i].strip()):
-                code.append(lines[i][4:])
-                i += 1
-            parts.append(f"<pre><code>{html.escape(chr(10).join(code).rstrip())}</code></pre>")
-        else:
-            para = [st]
-            i += 1
-            while i < n and lines[i].strip() and not is_block_start(lines[i]) and not lines[i].startswith("    "):
-                para.append(lines[i].strip())
-                i += 1
-            parts.append(f"<p>{render_inline(' '.join(para), known_ids)}</p>")
-    return "\n".join(parts)
-
-
 def doc_templates(entries, root):
     """One inert `<template>` per entry holding its rendered file; the panel copies from it on demand."""
     known = {e["id"] for e in entries}
+
+    def resolve(url):
+        target = re.search(r"([a-z0-9-]+)/(?:directive|protocol|bundle)\.md$", url)
+        return target.group(1) if target and target.group(1) in known else None
+
     out = []
     for e in entries:
         path = e["path"]
@@ -352,7 +215,7 @@ def doc_templates(entries, root):
             rel = path.resolve().relative_to(root.resolve())
         except ValueError:
             rel = path
-        body = render_markdown(path.read_text(errors="replace"), known)
+        body = render_markdown(path.read_text(errors="replace"), resolve)
         out.append(f'<template id="doc-{html.escape(e["id"])}" data-path="{html.escape(str(rel))}">{body}</template>')
     return "\n".join(out)
 
@@ -516,21 +379,6 @@ PAGE_SHELL = """<!DOCTYPE html>
     font-size: .78rem; cursor: pointer; white-space: nowrap;
   }
   button.view:hover { border-color: var(--blue); }
-  .md { font-size: .86rem; line-height: 1.6; }
-  .md h1, .md h2, .md h3, .md h4 { color: var(--heading); border: 0; margin: 1.3rem 0 .5rem; }
-  .md h1 { font-size: 1.25rem; } .md h2 { font-size: 1.05rem; color: var(--blue); } .md h3, .md h4 { font-size: .95rem; }
-  .md p { margin: .5rem 0; }
-  .md code { background: #1a1a1a; border-radius: 3px; padding: .05rem .3rem; color: var(--green);
-    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: .8rem; }
-  .md pre { background: #1a1a1a; border: 1px solid var(--border); border-radius: 6px; padding: .7rem .9rem; overflow-x: auto; }
-  .md pre code { background: none; padding: 0; color: var(--text); }
-  .md pre.fm { color: var(--muted); }
-  .md table { border-collapse: collapse; margin: .7rem 0; display: block; overflow-x: auto; }
-  .md th, .md td { border: 1px solid var(--border); padding: .3rem .6rem; text-align: left; vertical-align: top; }
-  .md th { background: #2a2d2e; color: var(--heading); }
-  .md blockquote { border-left: 3px solid var(--blue); margin: .6rem 0; padding: .1rem .9rem; color: var(--muted); }
-  .md ul, .md ol { padding-left: 1.4rem; margin: .4rem 0; } .md li { margin: .2rem 0; }
-  .md a { color: var(--blue); } .md .ref { color: var(--muted); }
   @media (max-width: 1000px) {
     .layout.with-panel { grid-template-columns: 1fr; }
     .with-panel #panel { position: static; height: auto; max-height: 75vh; }
@@ -634,7 +482,7 @@ def build_page(root):
         + section_html("Directives", directives, group_by_category=True)
     )
 
-    page = PAGE_SHELL
+    page = PAGE_SHELL.replace("</style>", MD_CSS + "</style>", 1)
     page = page.replace("__TITLE__", "craftsman dashboard")
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     page = page.replace("__SUBTITLE__", html.escape(f"content root: {root}  \u00b7  generated {stamp} (a snapshot -- re-run /craftsman:dashboard to refresh)"))

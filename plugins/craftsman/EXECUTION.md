@@ -71,8 +71,8 @@ One file per task, under `.claude/sessions/` in the project (`.claude/sessions/<
 `<entry>` is the invoked skill's name (`analyse`, `domain-design`, `implement`). The filename slug is a short kebab-case
 reduction of the task statement. `session=<path>` on the invocation overrides the location entirely.
 
-**First use in a project:** check whether `.claude/sessions/` is covered by `.gitignore`. If not, say so and offer to
-add a `.claude/sessions/` line.
+**First use in a project:** check whether `.claude/sessions/` and `.claude/reports/` (see "Report", below) are covered
+by `.gitignore`. If not, say so and offer to add the missing lines.
 
 Written in English regardless of conversation language. Holds:
 
@@ -146,6 +146,21 @@ Written in English regardless of conversation language. Holds:
 
 Keep it current in the same turn as the event: a step starts or finishes, a checkpoint is answered, something is parked.
 It must never lag the conversation.
+
+## Report
+
+A run ends with something pleasant to read, not just markdown files. When an entry-point protocol finishes — the
+session file's **State:** becomes `done` — run `scripts/render_report.py <target project>`, which renders the
+analysis artifacts (`business-rules.md`, `open-questions.md`, `event-model.md`, `specs/`) and the session file(s)
+into one self-contained HTML page at `<target project>/.claude/reports/report.html`, and print its `file://` link
+plainly. The markdown files remain the source of truth; the page is regenerated from them each time and is a
+snapshot. `/craftsman:report` runs the same script on demand, including mid-run (the artifacts are written
+incrementally).
+
+This is a courtesy, never part of the run's result: if the script fails, or finds nothing to render (exit code 2),
+say so in one line and finish normally — never block, retry, or treat the run as not done because of it. It lives
+here, not in a workshop's protocols, because the script is the plugin's and a workshop's content cannot name a path
+inside the plugin (see "Where the content lives").
 
 ## Resuming
 
