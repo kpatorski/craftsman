@@ -120,8 +120,9 @@ these requirements") — see each skill's own `description` for its exact trigge
 `http://localhost:4747`. Open it once and keep it on a second screen: it shows the session's stack collapsed to the
 step running now, the artifacts and specs as they are written, and everything installed, with working
 enable/disable switches — and it refreshes by itself as files change. Run it from another project and that project
-joins the same page. `/craftsman:dashboard status` tells whether it runs; `/craftsman:dashboard off` stops it. It
-also stops by itself after 8 hours with no page open.
+joins the same page; `/craftsman:dashboard remove` (or the × next to the project's name on the page) takes the
+current one — or `remove <dir>`, any other — off it again, without touching its files. `/craftsman:dashboard status`
+tells whether it runs; `/craftsman:dashboard off` stops it. It also stops by itself after 8 hours with no page open.
 
 Nothing needs installing beyond `python3`, which craftsman's scripts already use. On WSL 2 the address opens as is
 in a Windows browser. The server is optional: without it, every file a run writes is still announced with its full

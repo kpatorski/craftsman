@@ -38,7 +38,8 @@ Management commands:
   /craftsman:dashboard [on|off|status]              live dashboard in the browser -- sessions, artifacts, specs,
                                                     installed content with enable/disable switches; refreshes itself.
                                                     `on` (the default) starts a local server and prints its URL;
-                                                    `off` stops it
+                                                    `off` stops it; `remove [dir]` takes a project off
+                                                    the page (its files stay)
   /craftsman:report [project-dir]                   render a project's analysis artifacts and session(s) as one HTML
                                                     report, with navigation and search
 

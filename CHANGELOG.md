@@ -3,6 +3,12 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.5.2
+
+- Feature: a project can be taken off the dashboard — `/craftsman:dashboard remove` for the current project,
+  `remove <dir>` for any other, or the × next to the project's name on the page (it asks first). Only the dashboard
+  forgets it; the project's files are untouched. Before this, the only way was `off` and `on` again.
+
 ## 0.5.1
 
 - Fix: the dashboard's project switcher named each project by its last folder only, so two projects that both end

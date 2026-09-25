@@ -29,6 +29,12 @@
   .menu-item.current { background: #094771; color: var(--heading); }
   .menu-item .grow { flex: 1; overflow: hidden; text-overflow: ellipsis; }
   .menu-item.top { padding-left: 16px; font-weight: 500; }
+  .project { display: flex; align-items: center; gap: 6px; }
+  .project-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rm-project { flex: none; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center;
+    background: none; border: 1px solid transparent; color: var(--muted); cursor: pointer; font-size: 15px;
+    line-height: 1; padding: 0; border-radius: 4px; }
+  .rm-project:hover { color: var(--red); border-color: #7a3b33; }
   .changed-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex: none; }
   .count { color: var(--muted); font-size: 12px; }
 
@@ -41,7 +47,7 @@
   .live { font-size: 12px; color: var(--muted); }
   .live::before { content: "●"; color: var(--green); margin-right: 5px; }
   .live.off::before { color: var(--red); }
-  .projects { margin: 6px 16px 0; width: calc(100% - 32px); background: var(--panel2); color: var(--text);
+  .projects { flex: 1; min-width: 0; margin: 0; background: var(--panel2); color: var(--text);
     border: 1px solid var(--border); border-radius: 4px; padding: 3px; font-size: 12px; }
   .btn { background: var(--panel2); border: 1px solid var(--border); color: var(--text); border-radius: 4px;
     padding: 3px 10px; font-size: 12px; cursor: pointer; }
@@ -399,10 +405,13 @@ function renderMenu() {
   const item = (t, id, text, extra = "", top = false) =>
     `<div class="menu-item${top ? " top" : ""}${cur(t, id)}" data-nav="${t}"${id ? ` data-id="${esc(id)}"` : ""}><span class="grow">${text}</span>${extra}</div>`;
   const names = { "business-rules": "Business rules", "open-questions": "Open questions", "event-model": "Event model" };
-  let html = `<div class="brand">craftsman</div><div class="project" title="${esc(D.project.path)}">${esc(projectLabel(D.project.path))}`;
-  if (D.projects.length > 1) html += `<select class="projects" id="projects">${D.projects.map(p =>
-    `<option value="${esc(p)}"${p === D.project.path ? " selected" : ""} title="${esc(p)}">${esc(projectLabel(p))}</option>`).join("")}</select>`;
-  html += `</div>`;
+  // one row: the project (a switcher when there are several, its name otherwise) and the × that removes it
+  const which = D.projects.length > 1
+    ? `<select class="projects" id="projects" title="${esc(D.project.path)}">${D.projects.map(p =>
+        `<option value="${esc(p)}"${p === D.project.path ? " selected" : ""} title="${esc(p)}">${esc(projectLabel(p))}</option>`).join("")}</select>`
+    : `<span class="project-name" title="${esc(D.project.path)}">${esc(projectLabel(D.project.path))}</span>`;
+  let html = `<div class="brand">craftsman</div><div class="project">${which}` +
+    `<button class="rm-project" data-remove-project="${esc(D.project.path)}" title="remove this project from the dashboard (its files stay)">×</button></div>`;
   html += `<div class="menu-group">${item("now", undefined, "◉ Now", "", true)}</div>`;
   html += `<div class="menu-group"><div class="menu-title">Artifacts</div>`;
   files.filter(f => names[f.kind]).forEach(f => html += item("file", f.id, names[f.kind], changed(f)));
@@ -651,6 +660,16 @@ async function toggle(id, action, yes) {
     (out.commit ? ` · commit ${out.commit}` : "") + (out.cascade ? " · every member of the bundle follows it" : "") : `${id} is already ${action}d`);
   reload();
 }
+async function removeProject(path) {
+  const r = await fetch("/api/projects/remove", { method: "POST", headers: { "Content-Type": "application/json", "X-Craftsman": "1" },
+    body: JSON.stringify({ path }) });
+  const out = await r.json().catch(() => ({ ok: false, error: "no answer from the server" }));
+  if (!out.ok) return toast(out.error || "failed");
+  toast(`removed ${projectLabel(path)} from the dashboard`);
+  project = out.projects[out.projects.length - 1] || "";
+  history.replaceState(null, "", project ? "?project=" + encodeURIComponent(project) : location.pathname);
+  current = { type: "now" }; reload();
+}
 let live = false;
 function connect() {
   const es = new EventSource("/api/events");
@@ -670,8 +689,13 @@ document.addEventListener("toggle", e => {
   e.target.open ? openKeys.add(k) : openKeys.delete(k);
 }, true);
 document.addEventListener("click", e => {
-  const t = e.target.closest("[data-switch],[data-copy],[data-toggle],[data-file],[data-lib],[data-nav],[data-goto]");
+  const t = e.target.closest("[data-remove-project],[data-switch],[data-copy],[data-toggle],[data-file],[data-lib],[data-nav],[data-goto]");
   if (!t) return;
+  if (t.dataset.removeProject) {
+    const path = t.dataset.removeProject;
+    if (!confirm(`Remove ${projectLabel(path)} from the dashboard?\n\n${path}\n\nOnly the dashboard forgets it — the project's files stay as they are.`)) return;
+    return removeProject(path);
+  }
   if (t.dataset.switch) {
     e.preventDefault(); e.stopPropagation();
     const x = libById[t.dataset.switch];

@@ -6,6 +6,7 @@ file changes on disk. See MANAGEMENT.md, "Dashboard".
 Usage:
     dashboard_server.py on|start [--project <dir>] [--content ~/.claude/craftsman] [--port 4747]
     dashboard_server.py off|stop
+    dashboard_server.py remove [--project <dir>]
     dashboard_server.py status
 
 `start` runs the server in the background, detached from the calling shell, and prints its URL. If one is already
@@ -27,6 +28,7 @@ import sys
 import threading
 import time
 import urllib.parse
+import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -72,6 +74,17 @@ class Hub:
                 self.changed = [str(project)]
                 self.lock.notify_all()
         self.save()
+
+    def remove_project(self, project):
+        with self.lock:
+            if project not in self.projects:
+                return False
+            self.projects.remove(project)
+            self.version += 1
+            self.changed = [str(project)]
+            self.lock.notify_all()
+        self.save()
+        return True
 
     def save(self):
         STATE.write_text(json.dumps(dict(pid=os.getpid(), port=self.port, version=plugin_version(),
@@ -188,6 +201,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(400, dict(error=f"not a directory: {project}"))
             self.hub.add_project(project)
             return self.send(200, dict(ok=True, projects=[str(p) for p in self.hub.projects]))
+        if url.path == "/api/projects/remove":
+            project = pathlib.Path(body.get("path", "")).expanduser().resolve()
+            if not self.hub.remove_project(project):
+                return self.send(404, dict(error=f"not on the dashboard: {project}"))
+            return self.send(200, dict(ok=True, projects=[str(p) for p in self.hub.projects]))
         if url.path == "/api/toggle":
             action, entry_id = body.get("action"), str(body.get("id", ""))
             if action not in ("enable", "disable") or not entry_id:
@@ -300,7 +318,7 @@ def start(project, content, port):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("command", choices=["on", "off", "start", "stop", "status", "serve"])
+    ap.add_argument("command", choices=["on", "off", "start", "stop", "status", "remove", "serve"])
     ap.add_argument("--project", action="append", default=[])
     ap.add_argument("--content", default=str(pathlib.Path.home() / ".claude" / "craftsman"))
     ap.add_argument("--port", type=int, default=4747)
@@ -314,6 +332,20 @@ def main():
     if args.command == "start":
         return start(projects[-1], content, args.port)
     state = running()
+    if args.command == "remove":
+        if not state:
+            print("no dashboard server running")
+            return
+        project = projects[-1]
+        try:
+            out = request(state["port"], "/api/projects/remove", dict(path=str(project)))
+        except urllib.error.HTTPError:
+            print(f"{project} is not on the dashboard")
+            return
+        print(f"removed {project} from the dashboard -- its files are untouched")
+        if not out["projects"]:
+            print("no project left; the server keeps running until `off`")
+        return
     if args.command == "stop":
         if not state:
             print("no dashboard server running")
