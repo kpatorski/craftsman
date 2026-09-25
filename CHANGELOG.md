@@ -3,6 +3,12 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.5.1
+
+- Fix: the dashboard's project switcher named each project by its last folder only, so two projects that both end
+  in `workspace` looked identical. It now shows the shortest trailing part of the path that tells them apart
+  (`gym/workspace`, `Projects/workspace`), with the full path on hover.
+
 ## 0.5.0
 
 - Feature: `/craftsman:dashboard` is now live. It starts a small local web server (`scripts/dashboard_server.py`,

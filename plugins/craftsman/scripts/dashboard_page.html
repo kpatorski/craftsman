@@ -217,6 +217,16 @@ const squash = s => String(s ?? "").replace(/\s+/g, " ").trim();
 const ICON = { done: "✓", active: "●", pending: "○", blocked: "■" };
 const COPY_SVG = `<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M3 11V3.5A1.5 1.5 0 0 1 4.5 2H11" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>`;
 const copyCmd = c => `<span class="cmd"><button class="copy" data-copy="${esc(c)}" title="copy">${COPY_SVG}</button><code>${esc(c)}</code></span>`;
+// Shortest trailing part of each project path that tells the projects apart: gym/workspace vs Projects/workspace.
+function projectLabel(path) {
+  const all = (D.projects.length ? D.projects : [path]).map(p => p.split("/").filter(Boolean));
+  const mine = path.split("/").filter(Boolean);
+  for (let n = 1; n <= mine.length; n++) {
+    const tail = mine.slice(-n).join("/");
+    if (all.filter(parts => parts.slice(-n).join("/") === tail).length <= 1) return tail;
+  }
+  return path;
+}
 const ico = st => `<span class="ico ${st}">${ICON[st] || "·"}</span>`;
 function det(key, cls, summary, inner) {
   return `<details class="${cls}" data-key="${esc(key)}"${openKeys.has(key) ? " open" : ""}>` +
@@ -379,7 +389,7 @@ function renderCard(session) {
 }
 function renderSide() {
   document.getElementById("side").innerHTML =
-    `<div class="side-title">Sessions · ${esc(D.project.name)}</div>` + sortedSessions().map(renderCard).join("");
+    `<div class="side-title">Sessions · ${esc(projectLabel(D.project.path))}</div>` + sortedSessions().map(renderCard).join("");
 }
 
 // ---------------------------------------------------------------- menu (left)
@@ -389,9 +399,9 @@ function renderMenu() {
   const item = (t, id, text, extra = "", top = false) =>
     `<div class="menu-item${top ? " top" : ""}${cur(t, id)}" data-nav="${t}"${id ? ` data-id="${esc(id)}"` : ""}><span class="grow">${text}</span>${extra}</div>`;
   const names = { "business-rules": "Business rules", "open-questions": "Open questions", "event-model": "Event model" };
-  let html = `<div class="brand">craftsman</div><div class="project" title="${esc(D.project.path)}">${esc(D.project.name)}`;
+  let html = `<div class="brand">craftsman</div><div class="project" title="${esc(D.project.path)}">${esc(projectLabel(D.project.path))}`;
   if (D.projects.length > 1) html += `<select class="projects" id="projects">${D.projects.map(p =>
-    `<option value="${esc(p)}"${p === D.project.path ? " selected" : ""}>${esc(p.split("/").pop())}</option>`).join("")}</select>`;
+    `<option value="${esc(p)}"${p === D.project.path ? " selected" : ""} title="${esc(p)}">${esc(projectLabel(p))}</option>`).join("")}</select>`;
   html += `</div>`;
   html += `<div class="menu-group">${item("now", undefined, "◉ Now", "", true)}</div>`;
   html += `<div class="menu-group"><div class="menu-title">Artifacts</div>`;
