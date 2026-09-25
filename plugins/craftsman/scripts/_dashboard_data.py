@@ -91,9 +91,10 @@ def manage_info(content):
 
 
 def build(project, content, projects):
+    """`project` may be None (every project was taken off the page): the installed content still shows."""
     lib, docs = library(content)
-    return dict(project=dict(name=project.name, path=str(project)), projects=[str(p) for p in projects],
-                files=project_files(project), library=lib, docs=docs, help=help_block(PLUGIN_ROOT),
+    return dict(project=dict(name=project.name, path=str(project)) if project else None,
+                projects=[str(p) for p in projects], files=project_files(project) if project else [], library=lib, docs=docs, help=help_block(PLUGIN_ROOT),
                 manage=manage_info(content))
 
 

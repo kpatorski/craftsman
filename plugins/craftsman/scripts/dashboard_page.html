@@ -194,7 +194,7 @@ let D, files, fileById, libById, sessions, loaded = false;
 
 function ingest(data) {
   const before = loaded ? Object.fromEntries(sessions.map(s => [s.file.id, (leafOf(s) || {}).id + "|" + s.state])) : {};
-  D = data; files = D.files; project = D.project.path;
+  D = data; files = D.files; project = D.project ? D.project.path : "";
   fileById = Object.fromEntries(files.map(f => [f.id, f]));
   libById = Object.fromEntries(D.library.map(e => [e.id, e]));
   sessions = files.filter(f => f.kind === "session").map(parseSession);
@@ -207,6 +207,7 @@ function ingest(data) {
       if (before[s.file.id] !== undefined && before[s.file.id] !== now) flashKeys.add("card:" + s.file.id); });
   }
   if (current.type === "file" && !fileById[current.id]) current = { type: "now" };
+  if (!D.project && current.type === "specs") current = { type: "now" };
   if (current.type === "lib" && !libById[current.id]) current = { type: "library" };
   loaded = true;
 }
@@ -395,7 +396,8 @@ function renderCard(session) {
 }
 function renderSide() {
   document.getElementById("side").innerHTML =
-    `<div class="side-title">Sessions · ${esc(projectLabel(D.project.path))}</div>` + sortedSessions().map(renderCard).join("");
+    (D.project ? `<div class="side-title">Sessions · ${esc(projectLabel(D.project.path))}</div>` + sortedSessions().map(renderCard).join("")
+      : `<div class="side-title">Sessions</div><div class="muted" style="padding:4px;font-size:12.5px">No project on the dashboard.</div>`);
 }
 
 // ---------------------------------------------------------------- menu (left)
@@ -406,21 +408,24 @@ function renderMenu() {
     `<div class="menu-item${top ? " top" : ""}${cur(t, id)}" data-nav="${t}"${id ? ` data-id="${esc(id)}"` : ""}><span class="grow">${text}</span>${extra}</div>`;
   const names = { "business-rules": "Business rules", "open-questions": "Open questions", "event-model": "Event model" };
   // one row: the project (a switcher when there are several, its name otherwise) and the × that removes it
-  const which = D.projects.length > 1
+  const which = !D.project ? `<span class="project-name muted">no project</span>` : D.projects.length > 1
     ? `<select class="projects" id="projects" title="${esc(D.project.path)}">${D.projects.map(p =>
         `<option value="${esc(p)}"${p === D.project.path ? " selected" : ""} title="${esc(p)}">${esc(projectLabel(p))}</option>`).join("")}</select>`
     : `<span class="project-name" title="${esc(D.project.path)}">${esc(projectLabel(D.project.path))}</span>`;
-  let html = `<div class="brand">craftsman</div><div class="project">${which}` +
-    `<button class="rm-project" data-remove-project="${esc(D.project.path)}" title="remove this project from the dashboard (its files stay)">×</button></div>`;
+  let html = `<div class="brand">craftsman</div><div class="project">${which}` + (D.project
+    ? `<button class="rm-project" data-remove-project="${esc(D.project.path)}" title="remove this project from the dashboard (its files stay)">×</button>` : "") + `</div>`;
   html += `<div class="menu-group">${item("now", undefined, "◉ Now", "", true)}</div>`;
-  html += `<div class="menu-group"><div class="menu-title">Artifacts</div>`;
-  files.filter(f => names[f.kind]).forEach(f => html += item("file", f.id, names[f.kind], changed(f)));
-  const specs = files.filter(f => f.kind === "spec");
-  html += item("specs", undefined, "Specs", `<span class="count">${specs.length}</span>`);
-  specs.forEach(f => html += item("file", f.id, "&nbsp;&nbsp;" + esc(frontmatter(f.raw).title || f.rel), changed(f)));
-  html += `</div><div class="menu-group"><div class="menu-title">Sessions</div>`;
-  sortedSessions().forEach(s => html += item("file", s.file.id, `${ico(s.state)} ${esc(s.entry)} <span class="muted">${esc(s.slug)}</span>`, changed(s.file)));
-  html += `</div><div class="menu-group"><div class="menu-title">craftsman</div>`;
+  if (D.project) {
+    html += `<div class="menu-group"><div class="menu-title">Artifacts</div>`;
+    files.filter(f => names[f.kind]).forEach(f => html += item("file", f.id, names[f.kind], changed(f)));
+    const specs = files.filter(f => f.kind === "spec");
+    html += item("specs", undefined, "Specs", `<span class="count">${specs.length}</span>`);
+    specs.forEach(f => html += item("file", f.id, "&nbsp;&nbsp;" + esc(frontmatter(f.raw).title || f.rel), changed(f)));
+    html += `</div><div class="menu-group"><div class="menu-title">Sessions</div>`;
+    sortedSessions().forEach(s => html += item("file", s.file.id, `${ico(s.state)} ${esc(s.entry)} <span class="muted">${esc(s.slug)}</span>`, changed(s.file)));
+    html += `</div>`;
+  }
+  html += `<div class="menu-group"><div class="menu-title">craftsman</div>`;
   const on = D.library.filter(e => e.enabled).length;
   html += item("library", undefined, "Library", `<span class="count">${on}/${D.library.length}</span>`);
   html += item("commands", undefined, "Commands") + item("manage", undefined, "Manage") + `</div>`;
@@ -429,6 +434,9 @@ function renderMenu() {
 
 // ---------------------------------------------------------------- centre views
 function viewNow() {
+  if (!D.project) return `<h1>No project</h1><div class="sub">Every project was taken off the dashboard.</div>` +
+    `<p>Add one by running this in Claude CLI from inside the project:</p><div>${copyCmd("/craftsman:dashboard on")}</div>` +
+    `<p class="muted">Library, Commands and Manage keep working in the meantime.</p>`;
   let html = `<h1>Now</h1><div class="sub">${esc(D.project.path)}</div>`;
   const active = sortedSessions().filter(s => s.state === "active");
   if (!active.length) html += `<div class="muted">No craftsman run is active in this project.</div>`;
@@ -668,7 +676,7 @@ async function removeProject(path) {
   toast(`removed ${projectLabel(path)} from the dashboard`);
   project = out.projects[out.projects.length - 1] || "";
   history.replaceState(null, "", project ? "?project=" + encodeURIComponent(project) : location.pathname);
-  current = { type: "now" }; reload();
+  current = { type: "now" }; await reload();
 }
 let live = false;
 function connect() {

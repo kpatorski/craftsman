@@ -154,8 +154,6 @@ class Handler(BaseHTTPRequestHandler):
                                        projects=[str(p) for p in self.hub.projects]))
         if url.path == "/api/data":
             project = self.project_for(url.query)
-            if project is None:
-                return self.send(404, dict(error="no project registered"))
             return self.send(200, data.build(project, self.hub.content, self.hub.projects))
         if url.path == "/api/events":
             return self.stream()
