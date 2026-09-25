@@ -165,6 +165,10 @@ when the entry-point protocol finishes (the session file's **State:** becomes `d
 produced. The session file itself is part of the report but is not announced on every update — it changes on almost
 every turn.
 
+**When the live dashboard runs for this project** (`/craftsman:dashboard on` — see `MANAGEMENT.md`, "Dashboard"),
+the script sees it, skips the page and prints only the `md:` line per file: the dashboard already shows every write,
+so an `html:` link would only add noise. Show the `md:` lines exactly as printed, same as above.
+
 The markdown files remain the source of truth; the page is regenerated from them each time and is a snapshot.
 `/craftsman:report` runs the same script on demand, without `--doc`, and prints just the report's link.
 

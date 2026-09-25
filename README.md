@@ -107,12 +107,25 @@ default everyone must adopt: install it, fork it, or write your own from scratch
 | `/craftsman:rename <old-id> <new-id>`                | Rename, updating every reference.                                                                                                                     |
 | `/craftsman:merge`                                   | Find single-use entries and offer to fold them into their one parent.                                                                                 |
 | `/craftsman:statusline-setup`                        | Wire the command → batch → protocol → directive indicator into Claude Code's status line (one-time setup).                                            |
-| `/craftsman:dashboard`                               | Local HTML dashboard of everything installed — commands, bundles, protocols, directives, searchable, with copy-pasteable enable/disable commands.     |
+| `/craftsman:dashboard [on\|off\|status]`             | Live dashboard in the browser, served locally — session stacks, artifacts and specs as they change, installed content with enable/disable switches.   |
 | `/craftsman:report [project dir]`                    | Analysis artifacts and session(s) of a project as one searchable HTML report. Also generated when a run finishes.                                     |
 | `/craftsman:help`                                    | This table, from inside a session.                                                                                                                    |
 
 Each entry-point command also triggers from plain conversation ("add a use case", "analyze these requirements", "digest
 these requirements") — see each skill's own `description` for its exact trigger phrases.
+
+### The live dashboard
+
+`/craftsman:dashboard on` (or just `/craftsman:dashboard`) starts a small local web server and prints its address,
+`http://localhost:4747`. Open it once and keep it on a second screen: it shows the session's stack collapsed to the
+step running now, the artifacts and specs as they are written, and everything installed, with working
+enable/disable switches — and it refreshes by itself as files change. Run it from another project and that project
+joins the same page. `/craftsman:dashboard status` tells whether it runs; `/craftsman:dashboard off` stops it. It
+also stops by itself after 8 hours with no page open.
+
+Nothing needs installing beyond `python3`, which craftsman's scripts already use. On WSL 2 the address opens as is
+in a Windows browser. The server is optional: without it, every file a run writes is still announced with its full
+`md:` path and an `html:` link to the static report; with it running, only the `md:` path is printed.
 
 ## For workshop authors
 

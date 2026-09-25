@@ -1,40 +1,36 @@
 ---
 name: dashboard
 description: >
-  Opens a local, self-contained, dark-theme HTML dashboard of everything installed under ~/.claude/craftsman/ --
-  the command list, and every bundle/protocol/directive with its description and enabled/disabled state, filterable by a
-  search box. Read-only: each row shows the exact enable/disable command to copy, it never toggles anything
-  itself. Trigger: "/craftsman:dashboard", "show me the dashboard", "browse the bundles", "what's installed,
-  visually".
-allowed-tools: [Read, Bash]
+  Starts the live craftsman dashboard -- a local web page, meant to stay open on a second screen, that shows the
+  current project's session stacks, artifacts and specs as they change, plus everything installed under
+  ~/.claude/craftsman/ with working enable/disable switches and the command list. Refreshes by itself. Trigger:
+  "/craftsman:dashboard", "dashboard on", "dashboard off", "open the dashboard", "stop the dashboard".
+argument-hint: "[on|off|status]"
+allowed-tools: [Bash]
 ---
 
 # dashboard
 
-Renders `scripts/render_dashboard.py`'s output and hands it over — see `MANAGEMENT.md`, "Dashboard" for what the
-script does and why toggling from the page only ever copies a command instead of writing anything. This skill
-does not load `MANAGEMENT.md` in full — it doesn't mutate `~/.claude/craftsman/`, only reads it, the same posture
-as `statusline-setup`.
+Runs `scripts/dashboard_server.py` — see `MANAGEMENT.md`, "Dashboard" for what the server does, what it may write,
+and why install/update stay commands for Claude CLI. This skill does not load `MANAGEMENT.md` in full.
 
 ## Run this
 
-1. Resolve the content root per `EXECUTION.md`, "Where the content lives" (`~/.claude/craftsman/`). If it doesn't
-   exist yet, say so and offer to install the default starter workshop — the same first-run handling as any other
-   entry point.
-2. Run `scripts/render_dashboard.py <content-root> --output <output-path>`. Default `<output-path>` is
-   `~/.claude/craftsman-dashboard.html` — a stable location sitting next to (not inside) the content tree's own
-   git repo, so re-running this skill always refreshes the same file instead of littering a new one per run. Ask
-   before writing somewhere else if the developer names a different path.
-3. Print the `file://` link the script outputs plainly in the chat — the primary, portable way to hand it over,
-   same convention as `render_diff.py` (`core.md`, `shows`). `--open` is an optional convenience on top of it,
-   never a substitute for printing the link.
+1. `$ARGUMENTS` is `off` (or `stop`) → run `scripts/dashboard_server.py off` and relay its line. `status` → run
+   `scripts/dashboard_server.py status` and relay it. Empty or `on` (or `start`) → continue.
+2. Resolve the target project: the git top level of the current directory (`git rev-parse --show-toplevel`), or
+   the current directory when it is not a git repository.
+3. Run `scripts/dashboard_server.py on --project <target project>`. It starts the server in the background, or —
+   when one is already running — adds this project to it; either way it prints the URL.
+4. Print the URL exactly as the script printed it, on its own line. Nothing else is needed: the page follows every
+   later change on its own, so this skill never has to be run again for the same project.
 
 ## Notes
 
-- The page is a snapshot of what's on disk at generation time, not a live view. It cannot regenerate itself —
-  re-run this skill after installing, enabling, or disabling anything; a browser refresh alone replays the same
-  file.
-- Every id/title/description on the page comes from that entry's own file, never from the index row — the index
-  is a lookup table, the file is the single source of truth, same rule this content tree applies everywhere else.
-- The search box is plain client-side JS filtering an already-rendered list — no network call, no re-invocation
-  of this skill, works offline.
+- If `~/.claude/craftsman/` does not exist, the page still starts and shows the project; the Library view is empty.
+  Offer `/craftsman:install <workshop URL>` as with any first run.
+- The server is detached from this Claude session: closing the session does not stop it. It stops on `off`, or by
+  itself after 8 hours with no page open.
+- While it runs for a project, the per-write report (`EXECUTION.md`, "Report") prints only the `md:` path of each
+  file written — the page already shows it.
+- On WSL 2 the URL opens as is in a Windows browser — `localhost` is forwarded to WSL.

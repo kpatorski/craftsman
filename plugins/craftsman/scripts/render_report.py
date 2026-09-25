@@ -260,6 +260,17 @@ def open_in_browser(path):
         print(f"Don't know how to auto-open on {system} -- open {path} manually.", file=sys.stderr)
 
 
+def dashboard_shows(project):
+    """True when a live dashboard server (dashboard_server.py) is running and already shows this project -- the page
+    follows every write by itself, so an `html:` link per file would only be noise in the transcript."""
+    try:
+        from dashboard_server import running
+        state = running()
+    except Exception:  # never let the dashboard check break the report
+        return False
+    return bool(state) and str(project) in state.get("projects", [])
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("project_dir", nargs="?", default=".")
@@ -274,6 +285,10 @@ def main():
     if missing:
         print(f"Not a file: {', '.join(missing)}", file=sys.stderr)
         sys.exit(2)
+    if extra and dashboard_shows(project):
+        for d in extra:
+            print(f"md:   {d}")
+        return
     docs = discover(project, extra)
     if not docs:
         print(f"No craftsman artifacts found in {project} (looked for {', '.join(ANALYSIS_FILES)}, specs/, "

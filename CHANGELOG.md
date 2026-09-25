@@ -3,6 +3,25 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.5.0
+
+- Feature: `/craftsman:dashboard` is now live. It starts a small local web server (`scripts/dashboard_server.py`,
+  stdlib only) and prints `http://localhost:4747` — a page to keep open on a second screen. Left: a menu of the
+  project's artifacts, specs and sessions, plus the installed content, the commands and versions. Centre: the chosen
+  file, in a view built for its shape (slice progress for `event-model.md`, one line per rule, a checklist per spec,
+  decisions newest first per session). Right: every session's stack, collapsed to the step running now, unfolding
+  level by level, with its parked gaps. The page follows every change on disk by itself; nothing needs re-running.
+  Starting it from another project adds that project to the same server (a switcher appears). `on` (default),
+  `off` and `status` as arguments. On WSL 2 the URL opens as is in a Windows browser.
+- While the dashboard runs for a project, a run's per-write announcement prints only the `md:` path of each file —
+  no `html:` link, the page already shows it. Without the server nothing changes: `md:` and `html:` as before.
+- Feature: the enable/disable switches on the page really write. `scripts/set_enabled.py` now carries the whole of
+  "Enable / disable" — id resolution, bundle cascade, `requires` in both directions, the commit — and both the page
+  and `/craftsman:enable` / `/craftsman:disable` call it. A toggle that would change other bundles asks first.
+  Install, update, uninstall, rename and merge stay commands for Claude CLI: they need the agent's judgement.
+- The static `render_dashboard.py` page is no longer what the skill opens; the script stays for machines where a
+  local server is not wanted.
+
 ## 0.4.0
 
 - Feature: the report is no longer produced only when a run ends. Every time a step writes or updates an artifact

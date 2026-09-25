@@ -14,8 +14,8 @@ allowed-tools: [Read, Edit, Bash]
 
 1. **Load [MANAGEMENT.md](../../MANAGEMENT.md)** — resolving the id, "Enable / disable" (including the bundle
    cascade and `requires` resolution), and the versioning step at the end.
-2. Find `$ARGUMENTS`'s row in its Disabled table — the appropriate top-level index, or the bundle's own `bundle.md`
-   if it lives inside one. If it is already in Enabled, say so and stop.
-3. If `$ARGUMENTS` is a bundle id, follow MANAGEMENT.md's cascade and `requires` resolution. Otherwise, move the
-   single row to the Enabled table.
-4. Commit per MANAGEMENT.md.
+2. Run `scripts/set_enabled.py ~/.claude/craftsman enable $ARGUMENTS` — it resolves the id, cascades a bundle to
+   its members, resolves `requires`, moves the rows and commits (MANAGEMENT.md, "Enable / disable").
+3. Exit 3 means other bundles would change too: put its message to the developer as a question (default yes), and
+   on yes re-run with `--yes`. Exit 2 is a stop — an unknown id, or a requirement that is not installed; say so.
+4. Relay what it printed, including the note that a bundle toggle overwrites members toggled individually.

@@ -223,20 +223,20 @@ changes — `enabled-by-default` is what a fresh install starts from, not the li
 never moves its row either — `enabled-by-default` governs only the first install of a given id, never a later
 content update to it.
 
-**Always move the row with `scripts/toggle_table_row.py <file> <id> <enable|disable>`, never by hand-editing the
-table with a string-match tool.** Every row move changes the column widths of a correctly-padded table (see the
-user's `markdown-tables.md` rule, which this content follows throughout), so a hand-edit needs to reproduce the
-whole table's padding correctly on every single change — slow, and it fails outright the moment the file has
-drifted from whatever copy is still in context. The script re-reads the file fresh every time, finds the id's
-current table itself, moves it, renumbers, and repads both tables — including converting a table that becomes
-empty into this content tree's established one-line prose ("Empty — nothing has been switched off yet."/"Empty —
-nothing in this category is enabled yet.") instead of leaving a bare header, and converting an empty section's
-prose back into a real table the moment something moves into it. It works unmodified on every shape in this tree —
-a category section in `directives/index.md`/`protocols/index.md`, a `bundle.md`'s `## Protocols`/`## Directives`
-tables, and `bundles/index.md`'s differently-shaped (5-column, bare-id-not-linked) table. One caveat: a moved row
-is always appended at the end of its destination table, same as a fresh `install` appends — round-tripping a row
-out and back does not restore its original position in the list, only its membership. `git diff` the result before
-committing, same as any other mutation.
+**Always toggle with `scripts/set_enabled.py <content-root> enable|disable <id>`** — the whole of this section as one
+script, called by the `enable`/`disable` skills and by the dashboard's switches alike, so the two cannot disagree. It
+resolves the id, applies the bundle cascade and `requires` resolution below, moves every row, and commits (see
+"Versioning"). When the toggle would also change other bundles it changes nothing and exits 3 with the question to
+put to the developer; re-run with `--yes` on agreement. An unknown id, or a requirement that is not installed at
+all, exits 2.
+
+Rows themselves move through `scripts/toggle_table_row.py <file> <id> <enable|disable>`, never by hand-editing the
+table with a string-match tool. Every row move changes the column widths of a correctly-padded table, so a hand-edit
+needs to reproduce the whole table's padding on every change — slow, and it fails outright the moment the file has
+drifted from whatever copy is still in context. The script re-reads the file fresh every time, moves the row,
+renumbers, and repads both tables, including converting a table that becomes empty into this content tree's
+one-line prose ("Empty — nothing has been switched off yet.") and back. A moved row is always appended at the end of
+its destination table: round-tripping a row restores its membership, not its position in the list.
 
 **Enabling or disabling a bundle** moves its row in `bundles/index.md`, and cascades: every member id moves to the
 same table too, in the same command — including one the developer had toggled individually before this bundle-level
@@ -269,22 +269,24 @@ the change as a diff before writing — the same discipline as any other change 
 
 ## Dashboard
 
-`scripts/render_dashboard.py` renders a single, self-contained, local HTML file — the command list, and every
-bundle/protocol/directive currently installed, with its enabled/disabled state and its own file's description
-(never the index row's, which is only ever a lookup — see the script's own docstring). A search box filters the
-page client-side; nothing about it makes a network request. The `dashboard` skill runs it and prints the
-`file://` link, the same handoff convention every other locally-rendered HTML file in this plugin uses (`core.md`,
-`shows`).
+`scripts/dashboard_server.py` is a small local web server (stdlib only), started by the `dashboard` skill, serving
+one page meant to stay open in a browser on a second screen. It shows the projects it was started from — their
+session stacks (the Call stack of every session file, collapsed to the current step), artifacts, specs and session
+logs — and the installed content with its enabled/disabled state, the command list, and the plugin's and sources'
+versions. It polls the files it shows once a second and pushes a change to the page, which re-reads only then: no
+re-running a script, no reload.
 
-**This is read-only by construction, not by restraint.** A static HTML file opened in a browser has no access to
-write back to the machine it was generated on — there is no mechanism by which a click in the page could run
-`craftsman enable`/`disable` for real. Each entry's row instead shows the exact command
-(`/craftsman:enable <id>` / `/craftsman:disable <id>`) in a click-to-select field, ready to paste into Claude
-Code — a deliberate choice, not a missing feature: making the toggle actually write would need a background local
-HTTP server the dashboard's JS could call, a new kind of component this plugin does not otherwise run, and one
-that would have to decide on its own whether a filesystem-mutating request from a browser tab needs confirmation.
-The copy-paste command gets most of the value (no hand-typing an id, no memorizing which of enable/disable
-applies) without introducing that.
+**What the page may write: enable/disable, and nothing else.** A switch calls `set_enabled.py` (see "Enable /
+disable"), so a click does exactly what `/craftsman:enable` / `/craftsman:disable` would, including the commit and
+the question when other bundles would change too. Install, update, uninstall, rename and merge need the agent's
+judgement — duplicate detection, three-way update conflicts, reverse-merge proposals — which a server cannot give,
+so the page offers them as commands to copy into Claude CLI.
 
-The page is a snapshot, not a live view — re-run the `dashboard` skill to regenerate it after installing,
-enabling, or disabling anything; a browser refresh alone replays the same file.
+It binds `127.0.0.1` only and refuses a write that does not come from its own page (Host check plus a custom
+header, which another site cannot send without a CORS preflight the server never answers). One server serves every
+project it was started from; starting it from another project adds that project. A server left running by an
+older plugin version is replaced on the next start. It exits by itself after 8 hours with no page open. State:
+`~/.claude/craftsman-dashboard.json`; log: `~/.claude/craftsman-dashboard.log`.
+
+`scripts/render_dashboard.py` still renders the old static, read-only snapshot of the installed content to a
+single HTML file — kept for a machine where a local server is not wanted; the skill no longer uses it.
