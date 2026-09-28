@@ -107,7 +107,7 @@ default everyone must adopt: install it, fork it, or write your own from scratch
 | `/craftsman:rename <old-id> <new-id>`                | Rename, updating every reference.                                                                                                                     |
 | `/craftsman:merge`                                   | Find single-use entries and offer to fold them into their one parent.                                                                                 |
 | `/craftsman:statusline-setup`                        | Wire the command → batch → protocol → directive indicator into Claude Code's status line (one-time setup).                                            |
-| `/craftsman:dashboard [on\|off\|status]`             | Live dashboard in the browser, served locally — session stacks, artifacts and specs as they change, installed content with enable/disable switches.   |
+| `/craftsman:dashboard [on\|off\|status\|remove]`     | Live dashboard in the browser, served locally — session stacks, artifacts and specs as they change, installed content with enable/disable switches.   |
 | `/craftsman:report [project dir]`                    | Analysis artifacts and session(s) of a project as one searchable HTML report. Also generated when a run finishes.                                     |
 | `/craftsman:help`                                    | This table, from inside a session.                                                                                                                    |
 

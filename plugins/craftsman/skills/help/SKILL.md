@@ -35,9 +35,10 @@ Management commands:
   /craftsman:merge                                  find single-use entries worth folding into their one caller
   /craftsman:statusline-setup                       wire the command -> batch -> protocol -> directive indicator
                                                     into Claude Code's status line (one-time setup)
-  /craftsman:dashboard [on|off|status]              live dashboard in the browser -- sessions, artifacts, specs,
+  /craftsman:dashboard [on|off|status|remove]       live dashboard in the browser -- sessions, artifacts, specs,
                                                     installed content with enable/disable switches; refreshes itself.
-                                                    `on` (the default) starts a local server and prints its URL;
+                                                    `on` (the default) starts a local server for the current folder
+                                                    and every craftsman project below it, and prints its URL;
                                                     `off` stops it; `remove [dir]` takes a project off
                                                     the page (its files stay)
   /craftsman:report [project-dir]                   render a project's analysis artifacts and session(s) as one HTML

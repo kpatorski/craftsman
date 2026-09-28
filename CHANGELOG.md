@@ -3,6 +3,11 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.5.5
+
+- Docs: `/craftsman:help` and the README's command table now list `remove` in the dashboard's arguments, and help
+  says the dashboard covers the current folder and every craftsman project below it.
+
 ## 0.5.4
 
 - Fix: the dashboard showed nothing for a repository whose craftsman work lives in sub-folders (`tasks/0017-…/`,
