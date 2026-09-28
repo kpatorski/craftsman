@@ -3,6 +3,7 @@ pre-rendered HTML -- the page parses the raw text for its structured views and f
 installed content (every bundle/protocol/directive, its state, its own file rendered). `dashboard_server.py` serves
 it; `watched_paths` lists what to poll for changes. Stdlib only, like every other script here."""
 import json
+import os
 import pathlib
 import re
 
@@ -11,6 +12,31 @@ from render_dashboard import collect_entries, help_block
 
 PLUGIN_ROOT = pathlib.Path(__file__).resolve().parent.parent
 ARTIFACTS = ("business-rules.md", "open-questions.md", "event-model.md")
+
+
+SKIP_DIRS = {"node_modules", "build", "target", "dist", "out", "venv", "__pycache__", "vendor"}
+DISCOVERY_DEPTH = 5
+
+
+def is_project(path):
+    """A directory craftsman has worked in: it holds a session folder or one of the artifacts."""
+    return (path / ".claude" / "sessions").is_dir() or any((path / n).is_file() for n in ARTIFACTS)
+
+
+def discover_projects(root):
+    """Every craftsman project at or below `root` -- a repository often holds one task per sub-folder, each run with
+    its own `.claude/sessions/`. Hidden and build folders are skipped; a root with none shows as itself."""
+    found = []
+    base_depth = len(root.parts)
+    for current, dirs, _files in os.walk(root):
+        path = pathlib.Path(current)
+        if is_project(path):
+            found.append(path)
+        if len(path.parts) - base_depth >= DISCOVERY_DEPTH:
+            dirs[:] = []
+        else:
+            dirs[:] = sorted(d for d in dirs if not d.startswith(".") and d not in SKIP_DIRS)
+    return found or [root]
 
 
 def split_sections(text):

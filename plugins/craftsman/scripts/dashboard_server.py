@@ -42,6 +42,7 @@ LOG = pathlib.Path.home() / ".claude" / "craftsman-dashboard.log"
 PAGE = HERE / "dashboard_page.html"
 IDLE_EXIT_SECONDS = 8 * 3600
 POLL_SECONDS = 1.0
+RESCAN_EVERY = 10  # polls between looks for projects newly created inside a root
 
 
 def plugin_version():
@@ -54,11 +55,15 @@ def plugin_version():
 # ---- the running server ----------------------------------------------------------------------------------------
 
 class Hub:
-    """Shared state: the registered projects, and a change counter the watcher bumps and page streams wait on."""
+    """Shared state: the registered roots (`projects` -- where the dashboard was started from), the craftsman projects
+    found inside them, and a change counter the watcher bumps and page streams wait on."""
 
     def __init__(self, content, projects, port):
         self.content = content
         self.projects = list(dict.fromkeys(projects))
+        self.hidden = set()
+        self.found = []
+        self.rescan()
         self.port = port
         self.lock = threading.Condition()
         self.version = 0
@@ -66,20 +71,37 @@ class Hub:
         self.clients = 0
         self.last_client = time.time()
 
+    def rescan(self):
+        """Re-discover the projects inside every root; True when the list changed."""
+        found = list(dict.fromkeys(p for root in self.projects for p in data.discover_projects(root)))
+        changed = found != self.found
+        self.found = found
+        return changed
+
+    def project_list(self):
+        return [p for p in self.found if p not in self.hidden]
+
     def add_project(self, project):
         with self.lock:
+            self.hidden -= {p for p in self.hidden if p == project or project in p.parents}
             if project not in self.projects:
                 self.projects.append(project)
-                self.version += 1
-                self.changed = [str(project)]
-                self.lock.notify_all()
+            self.rescan()
+            self.version += 1
+            self.changed = [str(project)]
+            self.lock.notify_all()
         self.save()
 
     def remove_project(self, project):
+        """A root is forgotten with everything found inside it; a project found inside a root is hidden."""
         with self.lock:
-            if project not in self.projects:
+            if project in self.projects:
+                self.projects.remove(project)
+                self.rescan()
+            elif project in self.found:
+                self.hidden.add(project)
+            else:
                 return False
-            self.projects.remove(project)
             self.version += 1
             self.changed = [str(project)]
             self.lock.notify_all()
@@ -92,7 +114,7 @@ class Hub:
 
     def snapshot(self):
         stamps = {}
-        for path in data.watched_paths(list(self.projects), self.content):
+        for path in data.watched_paths(self.project_list(), self.content):
             try:
                 stamps[str(path)] = path.stat().st_mtime
             except OSError:
@@ -101,10 +123,16 @@ class Hub:
 
     def watch(self, server):
         previous = self.snapshot()
+        ticks = 0
         while True:
             time.sleep(POLL_SECONDS)
+            ticks += 1
+            with self.lock:
+                new_projects = ticks % RESCAN_EVERY == 0 and self.rescan()
             current = self.snapshot()
             changed = sorted(k for k in current.keys() | previous.keys() if current.get(k) != previous.get(k))
+            if new_projects:
+                changed.append("(projects)")
             previous = current
             with self.lock:
                 if changed:
@@ -138,10 +166,19 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(raw)
 
     def project_for(self, query):
+        """The project asked for, else the one with the most recent session activity, else the last found."""
         wanted = urllib.parse.parse_qs(query).get("project", [""])[0]
-        projects = self.hub.projects
+        projects = self.hub.project_list()
         match = [p for p in projects if str(p) == wanted]
-        return match[0] if match else (projects[-1] if projects else None)
+        if match or not projects:
+            return match[0] if match else None
+
+        def activity(p):
+            try:
+                return max(f.stat().st_mtime for f in (p / ".claude" / "sessions").glob("*.md"))
+            except (OSError, ValueError):
+                return 0
+        return max(reversed(projects), key=activity)
 
     def do_GET(self):
         if not self.allowed_host():
@@ -151,10 +188,11 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, PAGE.read_text().replace("/*MD_CSS*/", MD_CSS), "text/html")
         if url.path == "/api/ping":
             return self.send(200, dict(ok=True, pid=os.getpid(), version=plugin_version(),
-                                       projects=[str(p) for p in self.hub.projects]))
+                                       projects=[str(p) for p in self.hub.projects],
+                                       found=[str(p) for p in self.hub.project_list()]))
         if url.path == "/api/data":
             project = self.project_for(url.query)
-            return self.send(200, data.build(project, self.hub.content, self.hub.projects))
+            return self.send(200, data.build(project, self.hub.content, self.hub.project_list()))
         if url.path == "/api/events":
             return self.stream()
         return self.send(404, dict(error="not found"))
@@ -198,12 +236,12 @@ class Handler(BaseHTTPRequestHandler):
             if not project.is_dir():
                 return self.send(400, dict(error=f"not a directory: {project}"))
             self.hub.add_project(project)
-            return self.send(200, dict(ok=True, projects=[str(p) for p in self.hub.projects]))
+            return self.send(200, dict(ok=True, projects=[str(p) for p in self.hub.project_list()]))
         if url.path == "/api/projects/remove":
             project = pathlib.Path(body.get("path", "")).expanduser().resolve()
             if not self.hub.remove_project(project):
                 return self.send(404, dict(error=f"not on the dashboard: {project}"))
-            return self.send(200, dict(ok=True, projects=[str(p) for p in self.hub.projects]))
+            return self.send(200, dict(ok=True, projects=[str(p) for p in self.hub.project_list()]))
         if url.path == "/api/toggle":
             action, entry_id = body.get("action"), str(body.get("id", ""))
             if action not in ("enable", "disable") or not entry_id:
@@ -356,8 +394,12 @@ def main():
         print("no dashboard server running")
         return
     print(f"craftsman dashboard: http://localhost:{state['port']}  (plugin {state['version']}, pid {state['pid']})")
-    for p in state.get("projects", []):
-        print(f"  project: {p}")
+    ping = request(state["port"], "/api/ping")
+    for root in ping.get("projects", []):
+        print(f"  started from: {root}")
+        inside = [p for p in ping.get("found", []) if p != root and p.startswith(root.rstrip("/") + "/")]
+        for p in inside:
+            print(f"    project: {p[len(root.rstrip('/')) + 1:]}")
 
 
 if __name__ == "__main__":

@@ -282,6 +282,14 @@ the question when other bundles would change too. Install, update, uninstall, re
 judgement — duplicate detection, three-way update conflicts, reverse-merge proposals — which a server cannot give,
 so the page offers them as commands to copy into Claude CLI.
 
+**Projects are found, not only registered.** The folder the dashboard is started from is a root: every craftsman
+project at or below it — a folder holding `.claude/sessions/` or one of the artifacts, up to five levels down,
+hidden and build folders skipped — appears in the page's project switcher, and a task folder created later shows up
+within about ten seconds. A repository with one task per sub-folder (`tasks/0017-…/`) therefore needs starting only
+once, from its root. The page opens on the project with the most recent session activity. The × on a project found
+inside a root hides that one project until the server restarts; on the root itself, it forgets the root and
+everything found in it.
+
 It binds `127.0.0.1` only and refuses a write that does not come from its own page (Host check plus a custom
 header, which another site cannot send without a CORS preflight the server never answers). One server serves every
 project it was started from; starting it from another project adds that project. A server left running by an

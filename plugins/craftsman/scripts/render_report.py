@@ -268,7 +268,10 @@ def dashboard_shows(project):
         state = running()
     except Exception:  # never let the dashboard check break the report
         return False
-    return bool(state) and str(project) in state.get("projects", [])
+    if not state:
+        return False
+    roots = [pathlib.Path(r) for r in state.get("projects", [])]
+    return any(project == r or r in project.parents for r in roots)
 
 
 def main():

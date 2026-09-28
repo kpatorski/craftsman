@@ -20,8 +20,9 @@ and why install/update stay commands for Claude CLI. This skill does not load `M
 1. `$ARGUMENTS` is `off` (or `stop`) → run `scripts/dashboard_server.py off` and relay its line. `status` → run
    `scripts/dashboard_server.py status` and relay it. `remove [<dir>]` → run `scripts/dashboard_server.py remove
    --project <dir, or the target project from step 2>` and relay its line. Empty or `on` (or `start`) → continue.
-2. Resolve the target project: the git top level of the current directory (`git rev-parse --show-toplevel`), or
-   the current directory when it is not a git repository.
+2. The target project is the current directory — where craftsman itself writes its sessions and artifacts — never
+   widened to the repository's top level: a task living in `tasks/0017-…/` of a larger repository is that folder.
+   Started from a folder above several such tasks, the server finds each of them on its own (see Notes).
 3. Run `scripts/dashboard_server.py on --project <target project>`. It starts the server in the background, or —
    when one is already running — adds this project to it; either way it prints the URL.
 4. Print the URL exactly as the script printed it, on its own line. Nothing else is needed: the page follows every
@@ -33,6 +34,8 @@ and why install/update stay commands for Claude CLI. This skill does not load `M
   Offer `/craftsman:install <workshop URL>` as with any first run.
 - The server is detached from this Claude session: closing the session does not stop it. It stops on `off`, or by
   itself after 8 hours with no page open.
+- Starting from a repository's root is enough: every craftsman project inside it (each task sub-folder with its own
+  `.claude/sessions/`) is found and listed in the page's project switcher, new ones within about ten seconds.
 - `remove` only makes the dashboard forget a project — nothing in the project is touched. The page has the same
   action: the × next to the project's name.
 - While it runs for a project, the per-write report (`EXECUTION.md`, "Report") prints only the `md:` path of each

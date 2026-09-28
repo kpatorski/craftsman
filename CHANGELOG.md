@@ -3,6 +3,18 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.5.4
+
+- Fix: the dashboard showed nothing for a repository whose craftsman work lives in sub-folders (`tasks/0017-…/`,
+  each with its own `.claude/sessions/`), because it looked only in the folder it was started from — the
+  repository's root. It now finds every craftsman project below that folder (up to five levels, hidden and build
+  folders skipped), lists them in the project switcher, picks up new ones within about ten seconds, and opens on
+  the one with the most recent session activity. `status` lists what was found under each root. The per-write
+  `md:`-only announcement applies to those projects too.
+- Fix: `/craftsman:dashboard` took the git repository's top level as the project, even when Claude was started in
+  a task folder below it. It now takes the current directory — the same folder a craftsman run writes its sessions
+  and artifacts to.
+
 ## 0.5.3
 
 - Fix: taking the last project off the dashboard left its name and × on the page, and a periodic redraw brought the
