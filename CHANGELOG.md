@@ -3,6 +3,15 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.5.6
+
+- Fix: a session's Parked list only ever grew — items stayed there after they were taken up or settled, because
+  nothing said when an item leaves it. Parked now holds only open items. An item leaves it as soon as it becomes an
+  ordinary step of the run, its own task (the new session says where it came from), a question in
+  `open-questions.md`, or irrelevant (one line in the checkpoint log says why). A decision a later step of the same
+  run will take is no longer parked. Before a run ends, every remaining item is reviewed, and the final checkpoint
+  says what is still parked.
+
 ## 0.5.5
 
 - Docs: `/craftsman:help` and the README's command table now list `remove` in the dashboard's arguments, and help

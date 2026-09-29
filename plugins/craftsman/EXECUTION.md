@@ -140,12 +140,28 @@ Written in English regardless of conversation language. Holds:
   what lets a specific field be found or extracted without re-reading the whole log, and is what makes "picked up
   faithfully by a different developer" (see Directives in effect, above) something the next session can actually
   check with a grep on **Actor:**, not just assume.
-- **Parked** — items deferred per `defer-discovered-gaps` (or an equivalent workshop directive), each to become
-  its own later task.
+- **Parked** — the open items deferred per `defer-discovered-gaps` (or an equivalent workshop directive): work
+  outside this task, each to become its own later task. Only open ones — this is a to-do list, not a history. A
+  decision this same run will take at a later step ("to be settled in `choose-stack`") is not parked: it belongs to
+  that step's line in the Call stack. An item leaves Parked the moment it stops being open, and is never kept as a
+  separate kind of record:
+  - taken up in this run → it becomes an ordinary step in the Call stack, and its checkpoints go to the log;
+  - taken up as its own task → it is removed here when that run starts; the new session's **Statement:** says
+    where it came from ("parked in `<session file>`"), and **Related sessions:** in both files link them;
+  - a question for the business rather than work → it moves to `open-questions.md` when the entry point writes one,
+    otherwise it stays parked, worded as the question;
+  - no longer relevant → removed, with one line in the Checkpoint log saying why, so a removal is a decision on
+    record, not a silent loss.
 - **Next** — one labeled line: **Next:** followed by the line a future session resumes from.
 
 Keep it current in the same turn as the event: a step starts or finishes, a checkpoint is answered, something is parked.
 It must never lag the conversation.
+
+**Review Parked when a step finishes and before the run ends.** When a step finishes, drop any parked item that step
+has just settled, per the list above. Before **State:** becomes `done`, go through every item still in Parked and
+settle each one the same way, or keep it — kept items are real follow-ups, and the entry point's final checkpoint
+lists them in one line ("Still parked: <titles>, or none"). A run never ends with an item that was actually done
+still sitting in Parked.
 
 ## Report
 
