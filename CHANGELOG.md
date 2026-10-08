@@ -3,6 +3,15 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.8.0
+
+- New: a checkpoint that offers discrete alternatives asks through `AskUserQuestion`; open questions stay plain
+  text. A picked answer is logged exactly as chosen, and what the developer judges (draft, list, diff) is shown in
+  the message before the question, never inside an option.
+- New hook: after a session file is written, anything that broke the shape `EXECUTION.md` defines is reported back
+  with its line number — a Call stack line without a status, a skipped level, checkpoint entries out of order, an
+  answer without an actor, a missing section. Session files in the older format are left alone.
+
 ## 0.7.0
 
 - New: independent directive review (`EXECUTION.md`, "Independent directive review"). A protocol that checks a

@@ -132,11 +132,12 @@ in a Windows browser. The server is optional: without it, every file a run write
 
 ### Guard rails
 
-Two rules are enforced by hooks rather than left to the model, and both switch on with the plugin. During a run, a
+Some rules are enforced by hooks rather than left to the model, and they switch on with the plugin. During a run, a
 `git commit` is refused until you have replied since the last commit and that answer is in the session's checkpoint
 log — so no commit happens without your say-so, even when the model forgets to ask. And when a long conversation is
 compacted, the run's directives and the current step's protocol are put back in front of the model, so it does not
-carry on from a summary of its own rules. Outside a craftsman run neither hook does anything. Details:
+carry on from a summary of its own rules. A third hook checks each write to a session file and reports what broke
+its format. Outside a craftsman run none of them does anything. Details:
 [`MANAGEMENT.md`](plugins/craftsman/MANAGEMENT.md), "Hooks".
 
 The check of finished code against the directives is done by separate, read-only reviewers that see only the change

@@ -320,5 +320,12 @@ no setup. Every hook is a no-op unless the working folder holds an open craftsma
   instruction to read them again before the next step — see `EXECUTION.md`, "Resuming", "After a compaction". It
   names files rather than pasting them, so the injected text stays short and can never be a stale copy.
 
-Both read session files through `scripts/_session.py`, which builds on `render_status.py`'s parser. Tests:
+- **Session file check** — `scripts/session_check.py`, on `PostToolUse` for `Write|Edit` of a
+  `.claude/sessions/*.md` file. Checks what `EXECUTION.md` states outright: the sections, **State:**, the Call stack
+  grammar (`<id> (<status>)`, two spaces per level, no skipped level, nothing `active` in a `done` run), the
+  Checkpoint log (numbered in order, **Asked:** on every entry, **Actor:** wherever there is an **Answer:**) and
+  the **Next:** line. Each problem comes back with its line number as additional context; the hook never blocks and
+  never edits. A file without a `**State:**` label predates this format and is left alone.
+
+The first two read session files through `scripts/_session.py`, which builds on `render_status.py`'s parser. Tests:
 `python3 -m unittest discover -s tests` from the repository root.
