@@ -3,6 +3,17 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.9.0
+
+- New: delegated read-only preparation (`EXECUTION.md`, same name). Reading that splits into independent parts —
+  the sections of a large input, a project's build and configuration files — may go to read-only helpers running
+  in parallel: the new plugin agent `craftsman:researcher` (Read, Grep, Glob). Every item comes back with its source
+  and the exact words it rests on, the run checks the quotes and the coverage, and each step's checkpoint and
+  writes stay in the run. Nothing that waits for the developer is ever delegated.
+- New: resuming says what changed. `scripts/changed_since.py` lists commits and files changed, added or deleted since
+  the session file was last written, committed or not, with craftsman artifacts called out; a resumed run reads the
+  changed files again instead of continuing from what it remembers.
+
 ## 0.8.0
 
 - New: a checkpoint that offers discrete alternatives asks through `AskUserQuestion`; open questions stay plain

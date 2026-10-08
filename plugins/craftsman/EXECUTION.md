@@ -206,6 +206,12 @@ On invocation:
 - If several unfinished session files exist for this entry and none is named, list them (slug, task, current step,
   `Next`) and ask which to resume.
 - Do not restart a protocol from the top unless asked.
+- Before continuing, run `scripts/changed_since.py <target project> <session file>`. It lists the commits made and
+  the files changed, added or deleted since the session file was last written — committed or not. The run knows the
+  project only as it was then. Say what changed in one or two lines when stating where things stand, read again
+  every changed file the current step depends on, and if a craftsman artifact changed (`business-rules.md`,
+  `event-model.md`, a spec), say so and ask whether what was built on it still stands — never continue from the
+  remembered version. "Nothing changed" needs no mention.
 
 **After a compaction.** Compacting the conversation keeps a summary but drops the text of every directive and
 protocol read so far — the run would carry on from a summary of its own rules. While a run is open, the plugin's
@@ -243,6 +249,38 @@ edit anything.
 At the checkpoint, the directive check reads: fixed (directive, file:line, one line each), disputed (the same, with
 why — the developer decides), and unchecked if anything is. When the `Agent` tool is not available in this session,
 do the check yourself and say so: "directive check done in the writing session, not independently".
+
+## Delegated read-only preparation
+
+A run does everything in one conversation, one step after another. Two kinds of work do not need to be done that
+way: reading that splits into independent parts, and reading whose raw output is large but whose result is small.
+Such work may go to read-only helpers that run side by side and hand back only what they found — the run is faster,
+and its context is not filled with material it will never look at again.
+
+**What may be delegated** — all of these must hold: it only reads; it contains no decision that belongs to the
+developer; its parts do not depend on each other's results; and it is sizeable — several parts, or one part that
+takes more than a handful of reads. A protocol may also say outright that a step is delegated this way.
+
+**What never is**: a checkpoint, or anything that waits for or stands in for the developer's answer; any write — to
+an artifact, the session file, or code; a step of the TDD cycle; and anything small enough to do directly, where a
+helper only adds cost.
+
+1. **Split by independent part** — a section of the input, a module, a set of files — and keep the parts in their
+   original order.
+2. **Start the helpers** with the `Agent` tool, `subagent_type: "craftsman:researcher"` (Read, Grep, Glob only), all
+   in one turn so they run in parallel, at most eight at a time. A helper knows nothing of this run. Its prompt must
+   carry: the part — as a file and line range, or a folder — and what to find in it; the full paths of the protocol
+   and directives whose rules govern the result; and the answer's shape — one line per item, each with its source
+   location and the exact words it rests on.
+3. **Check what comes back before using it.** Every part must report `COVERED`. A `PARTIAL`, a `FAILED` line or a
+   helper that did not return is a gap: run that part once more, then do it directly. Check that each quote exists
+   where it is said to (`Grep`) — an item whose quote is not in the source is dropped and counted. Never treat a
+   part that was not read as a part with nothing in it.
+4. **Carry on as if the run had done the reading itself.** The results are material for the step, in input order:
+   the step's own rules, its writes and its checkpoint follow unchanged, here, in the run. Note the delegation on
+   the step's Call stack line (`active — 6 sections read in parallel`).
+
+Without the `Agent` tool, do the work directly, part by part.
 
 ## Checkpoint protocol
 

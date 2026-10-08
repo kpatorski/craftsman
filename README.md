@@ -145,6 +145,10 @@ and the rules — never by the session that wrote the code, which tends to overl
 comes with a `file:line`; what the run disputes is left for you to decide. Details:
 [`EXECUTION.md`](plugins/craftsman/EXECUTION.md), "Independent directive review".
 
+Large read-only work — pulling candidate rules out of a long requirements document, section by section — is split
+between read-only helpers that run in parallel and return each item with the words it came from. What they bring
+back is only material: every question to you, and every file written, still happens in the run itself.
+
 ## For workshop authors
 
 Write directives and protocols against [`core.md`](plugins/craftsman/core.md)'s format — the three-question test, the
