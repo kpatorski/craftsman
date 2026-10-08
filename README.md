@@ -139,6 +139,11 @@ compacted, the run's directives and the current step's protocol are put back in 
 carry on from a summary of its own rules. Outside a craftsman run neither hook does anything. Details:
 [`MANAGEMENT.md`](plugins/craftsman/MANAGEMENT.md), "Hooks".
 
+The check of finished code against the directives is done by separate, read-only reviewers that see only the change
+and the rules — never by the session that wrote the code, which tends to overlook the same rules twice. Every finding
+comes with a `file:line`; what the run disputes is left for you to decide. Details:
+[`EXECUTION.md`](plugins/craftsman/EXECUTION.md), "Independent directive review".
+
 ## For workshop authors
 
 Write directives and protocols against [`core.md`](plugins/craftsman/core.md)'s format — the three-question test, the

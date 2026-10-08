@@ -3,6 +3,17 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.7.0
+
+- New: independent directive review (`EXECUTION.md`, "Independent directive review"). A protocol that checks a
+  change against the directives no longer does it in the session that wrote the change. It hands the diff and the
+  directive files to fresh read-only reviewers: the new plugin agent `craftsman:directive-reviewer`, limited to
+  Read, Grep and Glob. Groups of up to six directives run in parallel. Every finding cites `file:line` and the rule
+  it breaks; the run verifies each one, fixes what holds, and shows fixed, disputed and unchecked findings at the
+  checkpoint.
+- Used by `finish-loop` and `refactor-production` in `craftsman-workshop` from `bundles/tdd` onwards. With an older
+  plugin, or without the `Agent` tool, the run does the check itself and says so.
+
 ## 0.6.0
 
 - New: the plugin ships hooks, loaded automatically with it (`hooks/hooks.json`). Outside an open craftsman run they

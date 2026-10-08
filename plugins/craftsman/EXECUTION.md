@@ -214,6 +214,36 @@ directive in **Directives in effect**, with full paths. Read each of them again 
 continue from the current step — this is not a new resume, so do not ask again where to continue. Without the hook
 (a session where it did not fire), do the same from the session file.
 
+## Independent directive review
+
+A protocol that checks a change against the directives (e.g. `finish-loop`, `refactor-production`) runs that check
+here, not in the session that wrote the change. A writer grading its own work keeps its own reasoning and its own
+blind spots: the directives it skipped while writing are the ones it skips while checking — which is exactly how
+this failed live. So the check goes to reviewers that start fresh, see only the change and the rules, and cannot
+edit anything.
+
+1. **Collect the criteria.** Every enabled directive whose `applies-when` matches the change, resolved to its file
+   (`directives/<id>/directive.md` or `bundles/*/directives/<id>/directive.md` under the content root) — not only
+   those already loaded this run. A composing directive (`composes`) counts as its components.
+2. **Write the change down.** The diff of the change being checked — `git diff HEAD -- <paths>` in the target
+   project, or the protocol's narrower scope — into a file in the system temp folder, plus the list of new files
+   (a new file is read in full, not through the diff).
+3. **Start the reviewers.** Use the `Agent` tool with `subagent_type: "craftsman:directive-reviewer"` — a read-only
+   agent (Read, Grep, Glob) shipped with the plugin. One reviewer per group of at most six directives, all groups
+   started in the same turn so they run in parallel. Each prompt carries the diff file's path, the new files'
+   paths and its group's directive paths, and nothing about how the code came to be: the reviewer is meant to know
+   only the change and the rules.
+4. **Verify every finding.** A reviewer reports all it sees, not a filtered list. Open each `VIOLATION` at its
+   `file:line` and check it against the quoted rule. Fix what holds; keep what does not as disputed, with one line
+   saying why. Re-run the suite after fixing.
+5. **Account for the whole set.** Every directive must come back as `CLEAN`, `NOT APPLICABLE` or with findings. A
+   missing directive, an `UNREADABLE` line or a reviewer that failed is a gap — re-run that group once; if it fails
+   again, say at the checkpoint which directives went unchecked. Never report a gap as clean.
+
+At the checkpoint, the directive check reads: fixed (directive, file:line, one line each), disputed (the same, with
+why — the developer decides), and unchecked if anything is. When the `Agent` tool is not available in this session,
+do the check yourself and say so: "directive check done in the writing session, not independently".
+
 ## Checkpoint protocol
 
 A `checkpoint` is where execution stops and talks to the developer — full field reference in `core.md`.
