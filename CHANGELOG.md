@@ -3,6 +3,17 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.6.0
+
+- New: the plugin ships hooks, loaded automatically with it (`hooks/hooks.json`). Outside an open craftsman run they
+  do nothing.
+  - Commit gate: during a run, `git commit` is denied until the developer has replied since the last commit and the
+    Checkpoint log records that answer. Until now this was only an instruction the model could skip.
+  - Reload after compaction: when the conversation is compacted during a run, the session file, the current step's
+    protocol and every directive in effect are listed with full paths to be read again before the next step.
+    Compaction used to drop them silently.
+- See `MANAGEMENT.md`, "Hooks". The first tests in the repository cover both: `python3 -m unittest discover -s tests`.
+
 ## 0.5.6
 
 - Fix: a session's Parked list only ever grew — items stayed there after they were taken up or settled, because

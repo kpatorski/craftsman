@@ -207,6 +207,13 @@ On invocation:
   `Next`) and ask which to resume.
 - Do not restart a protocol from the top unless asked.
 
+**After a compaction.** Compacting the conversation keeps a summary but drops the text of every directive and
+protocol read so far — the run would carry on from a summary of its own rules. While a run is open, the plugin's
+`SessionStart` hook (see `MANAGEMENT.md`, "Hooks") lists the session file, the current step's protocol and every
+directive in **Directives in effect**, with full paths. Read each of them again in full before the next step, then
+continue from the current step — this is not a new resume, so do not ask again where to continue. Without the hook
+(a session where it did not fire), do the same from the session file.
+
 ## Checkpoint protocol
 
 A `checkpoint` is where execution stops and talks to the developer — full field reference in `core.md`.
@@ -216,7 +223,9 @@ A `checkpoint` is where execution stops and talks to the developer — full fiel
 - `when: <condition>` — only stop if the condition holds; otherwise the step is internal and execution continues. No
   condition means always stop.
 - `blocking: true` — take no further step, write nothing, without an answer. Every checkpoint before a large or
-  hard-to-reverse move (including any git commit) is blocking.
+  hard-to-reverse move (including any git commit) is blocking. For a commit this is enforced, not only asked: the
+  plugin's commit gate (`MANAGEMENT.md`, "Hooks") denies `git commit` while a run is `active` until the developer has
+  replied since the last commit and the Checkpoint log records that answer.
 - `shows: [...]` — render these before asking: whatever the protocol names (a diff, a file list, a stub list).
 - After the answer: record step + question + who answered + answer + resulting decision in the session's
   checkpoint log, then act on it. "Adjust" means redo the current step in the new direction, not carry on.

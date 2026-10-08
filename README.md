@@ -130,6 +130,15 @@ Nothing needs installing beyond `python3`, which craftsman's scripts already use
 in a Windows browser. The server is optional: without it, every file a run writes is still announced with its full
 `md:` path and an `html:` link to the static report; with it running, only the `md:` path is printed.
 
+### Guard rails
+
+Two rules are enforced by hooks rather than left to the model, and both switch on with the plugin. During a run, a
+`git commit` is refused until you have replied since the last commit and that answer is in the session's checkpoint
+log — so no commit happens without your say-so, even when the model forgets to ask. And when a long conversation is
+compacted, the run's directives and the current step's protocol are put back in front of the model, so it does not
+carry on from a summary of its own rules. Outside a craftsman run neither hook does anything. Details:
+[`MANAGEMENT.md`](plugins/craftsman/MANAGEMENT.md), "Hooks".
+
 ## For workshop authors
 
 Write directives and protocols against [`core.md`](plugins/craftsman/core.md)'s format — the three-question test, the

@@ -298,3 +298,27 @@ older plugin version is replaced on the next start. It exits by itself after 8 h
 
 `scripts/render_dashboard.py` still renders the old static, read-only snapshot of the installed content to a
 single HTML file — kept for a machine where a local server is not wanted; the skill no longer uses it.
+
+## Hooks
+
+Instructions in these files guide the model; they cannot guarantee it follows them, and the rules that matter most
+were the ones broken live. The plugin therefore ships `hooks/hooks.json`, which Claude Code loads with the plugin —
+no setup. Every hook is a no-op unless the working folder holds an open craftsman run (a session file whose State is
+`active` or `blocked`), and a hook that fails internally objects to nothing: it never blocks unrelated work.
+
+- **Commit gate** — `scripts/commit_gate.py`. `UserPromptSubmit` and `PostToolUse` on `AskUserQuestion` record that the
+  developer has spoken; the model cannot produce either event, which is what makes it a real signal. `PreToolUse` on
+  `Bash` recognises a commit (`git commit`, `git -C <dir> commit`, `cd <dir> && git commit`, with options) and denies it
+  while a run is in progress (State `active` — a `blocked` run is paused, and must not hold up unrelated commits) unless
+  (1) the developer has spoken since the repository's last commit — in whole seconds, a tie denies — and (2) the newest
+  session file's Checkpoint log ends with an entry carrying an **Answer:**. The deny reason says which condition failed
+  and what to do. An explicit request from the developer to commit is a reply like any other. State:
+  `${CLAUDE_PLUGIN_DATA}/human-turns.json`, one timestamp per Claude session, entries older than 14 days dropped.
+- **Reload after compaction** — `scripts/reload_after_compact.py`, on `SessionStart` with source `compact`. Adds to
+  the context the open run's session file, current step, Next line, and the full path of the current step's
+  protocol and of every directive in **Directives in effect** (or says which could not be found), with the
+  instruction to read them again before the next step — see `EXECUTION.md`, "Resuming", "After a compaction". It
+  names files rather than pasting them, so the injected text stays short and can never be a stale copy.
+
+Both read session files through `scripts/_session.py`, which builds on `render_status.py`'s parser. Tests:
+`python3 -m unittest discover -s tests` from the repository root.
