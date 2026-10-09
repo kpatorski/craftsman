@@ -2,11 +2,15 @@
 name: search
 description: >
   Answers "do we already have something about X?" — searches `~/.claude/craftsman/directives/index.md`,
-  `protocols/index.md` and `bundles/index.md` (plus every bundle's own member tables) by id, title and description, and
-  returns candidates with links and enabled/disabled status. Trigger: "/craftsman:search", "do we have a directive
+  `protocols/index.md` and `bundles/index.md` (plus every bundle's own member tables) by id, title and description,
+  and returns candidates with links and enabled/disabled status. Trigger: "/craftsman:search", "do we have a directive
   for...", "is there already a protocol that...", "is there a bundle for...", "check before I write a new one".
 argument-hint: "<topic>"
-allowed-tools: [Read, Grep]
+allowed-tools: [Read, Grep, Glob]
+disallowed-tools: [Write, Edit, NotebookEdit, Bash]
+context: fork
+agent: Explore
+background: false
 ---
 
 # search
@@ -23,7 +27,7 @@ duplicate-detection requirement.
    phrase) across `~/.claude/craftsman/directives/index.md`, `~/.claude/craftsman/protocols/index.md`,
    `~/.claude/craftsman/bundles/index.md`, and `~/.claude/craftsman/bundles/*/bundle.md` gets the same coverage —
    every `Id`, `Title`, and row — for a fraction of the cost. If `~/.claude/craftsman/` does not exist yet, `Grep`
-   simply finds nothing there; check for the directory separately to give the right message (see Notes).
+   simply finds nothing there; check for the directory with `Glob` to give the right message (see Notes).
 2. From the grep hits, collect candidate ids (a hit on a table row's `Id`/`Title` cell is enough to shortlist it).
 3. Only `Read` a candidate's own file when the grep hit alone doesn't decide it — a row whose `Id`/`Title` didn't
    match but might be relevant by `description`, or more than one plausible candidate that needs ranking. This is
@@ -34,5 +38,7 @@ duplicate-detection requirement.
 
 ## Notes
 
-- Read-only. Never modifies an index or a content file.
+- Read-only. Never modifies an index or a content file. It runs in its own context (`context: fork`), so the grep
+  hits and the files it opens stay out of the conversation that asked — only the matches come back — and the tools
+  that write are taken away there (`disallowed-tools`), not merely left unapproved.
 - If `~/.claude/craftsman/` does not exist yet, say so — nothing is installed to search.

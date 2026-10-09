@@ -3,17 +3,19 @@ name: domain-design
 description: >
   Turns a requirements input into reviewed specs and working code, one use case at a time — event storming (or
   whatever the installed workshop's own analysis method is) run in a HUMAN <-> AI loop, one confirmed building block
-  at a time, instead of a guessed backlog. Executes the `domain-design` entry-point protocol. Progress is persisted
-  to a per-task `domain-design-session-<slug>.md` under `.claude/sessions/` in the project. Trigger:
-  "/craftsman:domain-design", "analyze these requirements", "run event storming on this", "turn this into specs",
-  "resume the domain design session".
+  at a time, instead of a guessed backlog. Use it when the input covers several use cases that still have to be found
+  and ordered. Not for one task that is already defined, or one existing spec (that is `implement`), and not for
+  extracting business rules alone, with no model and no code (that is `analyse`). Executes the `domain-design`
+  entry-point protocol. Progress is persisted to a per-task `domain-design-session-<slug>.md` under
+  `.claude/sessions/` in the project. Trigger: "/craftsman:domain-design", "model these requirements", "run event
+  storming on this", "turn this into specs", "resume the domain design session".
 argument-hint: "<input file, URL, or inline text> [session=<path to session file>]"
 allowed-tools: [Read, Write, Edit, Bash, Glob, Grep, WebFetch, AskUserQuestion]
 ---
 
 # domain-design
 
-Turns a raw requirements input into `specs/NNN-slug.md` files a human then hands to `implement`.
+Turns a raw requirements input into `specs/NNN-slug.md` files and working code, one use case at a time.
 
 ## Run this
 

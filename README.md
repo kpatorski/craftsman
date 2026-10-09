@@ -111,7 +111,7 @@ default everyone must adopt: install it, fork it, or write your own from scratch
 | `/craftsman:report [project dir]`                    | Analysis artifacts and session(s) of a project as one searchable HTML report. Also generated when a run finishes.                                     |
 | `/craftsman:help`                                    | This table, from inside a session.                                                                                                                    |
 
-Each entry-point command also triggers from plain conversation ("add a use case", "analyze these requirements", "digest
+Each entry-point command also triggers from plain conversation ("add a use case", "model these requirements", "digest
 these requirements") — see each skill's own `description` for its exact trigger phrases.
 
 ### The live dashboard

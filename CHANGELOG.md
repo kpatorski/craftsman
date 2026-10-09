@@ -3,6 +3,14 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.11.0
+
+- `/craftsman:search` runs in its own context (`context: fork`, read-only `Explore` agent, result in the same turn):
+  the grep hits and the files it opens no longer land in the conversation that asked, only the matches do. Its
+  tool list is now a restriction (`disallowed-tools`), not just pre-approval. Needs Claude Code 2.1.218 or later.
+- The three entry-point commands say when not to use them, each naming the command to use instead. The trigger
+  "analyze these requirements" on `domain-design` collided with `analyse` and is now "model these requirements".
+
 ## 0.10.1
 
 - Fixed: the session file check after a `Bash` command also finds the file when its path sits in a shell variable.
