@@ -4,6 +4,7 @@ no longer has the shape EXECUTION.md defines.
 Run: python3 -m unittest discover -s tests
 """
 import json
+import os
 import pathlib
 import shutil
 import subprocess
@@ -137,6 +138,49 @@ class SessionCheckTest(unittest.TestCase):
         self.assertIn("finish-loop", context)
         self.assertIn("**Actor:**", context)
         self.assertRegex(context, r"line \d+")
+
+    def check_after_bash(self, command, cwd=None):
+        payload = {"hook_event_name": "PostToolUse", "tool_name": "Bash", "cwd": str(cwd or self.tmp),
+                   "tool_input": {"command": command}, "session_id": "s1"}
+        done = subprocess.run([sys.executable, str(SCRIPTS / "session_check.py")], input=json.dumps(payload),
+                              capture_output=True, text=True, timeout=30)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        if not done.stdout.strip():
+            return None
+        return json.loads(done.stdout)["hookSpecificOutput"]["additionalContext"]
+
+    def broken_session(self, name="implement-session-book-a-desk.md"):
+        path = self.sessions / name
+        path.write_text(GOOD.replace("finish-loop (pending)", "finish-loop (todo)"))
+        return path
+
+    def test_a_session_file_broken_by_a_shell_command_is_reported(self):
+        self.broken_session()
+        context = self.check_after_bash("python3 fix.py .claude/sessions/implement-session-book-a-desk.md")
+        self.assertIn("implement-session-book-a-desk.md", context)
+        self.assertIn("todo", context)
+
+    def test_a_shell_command_run_from_elsewhere_is_followed_into_the_project(self):
+        self.broken_session()
+        elsewhere = pathlib.Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, elsewhere)
+        for command in (f"cd {self.tmp} && sed -i '' s/a/b/ .claude/sessions/implement-session-book-a-desk.md",
+                        f"echo x >> {self.sessions}/implement-session-book-a-desk.md"):
+            self.assertIn("todo", self.check_after_bash(command, cwd=elsewhere) or "", command)
+
+    def test_a_shell_command_that_does_not_name_the_sessions_folder_is_not_checked(self):
+        self.broken_session()
+        self.assertIsNone(self.check_after_bash("mvn -q test"))
+
+    def test_a_session_file_not_written_lately_is_not_reported_after_a_shell_command(self):
+        path = self.broken_session()
+        long_ago = path.stat().st_mtime - 3600
+        os.utime(path, (long_ago, long_ago))
+        self.assertIsNone(self.check_after_bash("ls .claude/sessions/"))
+
+    def test_a_well_formed_session_file_says_nothing_after_a_shell_command(self):
+        (self.sessions / "implement-session-book-a-desk.md").write_text(GOOD)
+        self.assertIsNone(self.check_after_bash("cat .claude/sessions/implement-session-book-a-desk.md"))
 
 
 if __name__ == "__main__":

@@ -311,17 +311,19 @@ prompt template asks for content "as drafted" (`draft-spec`) or a full list (`co
 ("confirmed/rejected-busy/rejected-blocked" is not acceptance criteria, it's a filing label for them). A developer
 who has to ask "what does that abbreviation mean" is reading a checkpoint that failed at its one job.
 
-Then ask in the developer's language. **When the choice is between discrete alternatives** — commit or more
-changes; accept, adjust or drop; option (a) or (b) — **ask through `AskUserQuestion`**, one option per alternative,
-each with a one-line description of what choosing it does. An answer picked from a list is exact: it goes into the
-Checkpoint log as chosen, with nothing to interpret, and it is a reply the commit gate can see (`MANAGEMENT.md`,
-"Hooks"). The tool's own "Other" covers "adjust" and anything the options miss, so never add such an option
-yourself. Everything the developer needs in order to choose — the draft, the list, the diff link, the lead-in —
-goes in the message before the call, in full; the question itself stays one short sentence, and nothing to be
-judged is squeezed into an option's description. **When the question is open** — "complete? right names?",
-"what is missing?" — ask it as plain text: a short, direct question, free-form answer. If `AskUserQuestion` is not
-available in this session, use a numbered list of the options instead. Do not stack the next step's work "just in
-case" while waiting.
+Then ask in the developer's language. **When the choice is between discrete alternatives** — commit or more changes;
+accept, adjust or drop; option (a) or (b) — **ask through `AskUserQuestion`**, one option per alternative, each with a
+one-line description of what choosing it does. An answer picked from a list is exact: it goes into the Checkpoint log
+as chosen, with nothing to interpret, and it is a reply the commit gate can see (`MANAGEMENT.md`, "Hooks"). The tool's
+own "Other" covers "adjust" and anything the options miss, so never add such an option yourself. Everything the
+developer needs in order to choose — the draft, the list, the diff link, the lead-in — goes in the message before the
+call, in full; the question itself stays one short sentence, and nothing to be judged is squeezed into an option's
+description. **When the question is open** — "complete? right names?", "what is missing?" — ask it as plain text: a
+short, direct question, free-form answer. **A single proposal to confirm or change** — "I'll work in `<path>`. Right
+place?", "Move on to the production code?" — is an open question too: `AskUserQuestion` needs at least two real
+alternatives, "adjust" is not one of them, and a second option invented to fill the list is noise. If
+`AskUserQuestion` is not available in this session, use a numbered list of the options instead. Do not stack the next
+step's work "just in case" while waiting.
 
 When the lead-in or the `prompt` covers more than one distinct point — several facts, several decisions bundled
 into one ask, a status update touching more than one thing — put each point on its own line, not packed into one

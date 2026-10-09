@@ -3,6 +3,14 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.9.1
+
+- Fixed: a checkpoint that puts one proposal up to confirm or change ("Right place?", "Move on?") is asked as plain
+  text. `AskUserQuestion` needs at least two real alternatives and the rule forbids adding "adjust" as one, so such
+  a checkpoint had no valid form; `EXECUTION.md`, "Checkpoint protocol" now says so.
+- Fixed: the session file check also runs after a `Bash` command that names a `.claude/sessions` path. A session
+  file rewritten by a script or `sed` used to skip the check, which only followed `Write` and `Edit`.
+
 ## 0.9.0
 
 - New: delegated read-only preparation (`EXECUTION.md`, same name). Reading that splits into independent parts —
