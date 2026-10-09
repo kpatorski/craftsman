@@ -222,11 +222,10 @@ continue from the current step — this is not a new resume, so do not ask again
 
 ## Independent directive review
 
-A protocol that checks a change against the directives (e.g. `finish-loop`, `refactor-production`) runs that check
-here, not in the session that wrote the change. A writer grading its own work keeps its own reasoning and its own
-blind spots: the directives it skipped while writing are the ones it skips while checking — which is exactly how
-this failed live. So the check goes to reviewers that start fresh, see only the change and the rules, and cannot
-edit anything.
+A protocol that checks a change against the directives (e.g. `finish-loop`) runs that check here, not in the session
+that wrote the change. A writer grading its own work keeps its own reasoning and its own blind spots: the directives
+it skipped while writing are the ones it skips while checking — which is exactly how this failed live. So the check
+goes to reviewers that start fresh, see only the change and the rules, and cannot edit anything.
 
 1. **Collect the criteria.** Every enabled directive whose `applies-when` matches the change, resolved to its file
    (`directives/<id>/directive.md` or `bundles/*/directives/<id>/directive.md` under the content root) — not only
@@ -239,16 +238,34 @@ edit anything.
    started in the same turn so they run in parallel. Each prompt carries the diff file's path, the new files'
    paths and its group's directive paths, and nothing about how the code came to be: the reviewer is meant to know
    only the change and the rules.
-4. **Verify every finding.** A reviewer reports all it sees, not a filtered list. Open each `VIOLATION` at its
-   `file:line` and check it against the quoted rule. Fix what holds; keep what does not as disputed, with one line
-   saying why. Re-run the suite after fixing.
-5. **Account for the whole set.** Every directive must come back as `CLEAN`, `NOT APPLICABLE` or with findings. A
+4. **Verify every finding.** A reviewer reports all it sees, not a filtered list. Open each `VIOLATION` and each
+   `CONVENTION` at its `file:line` and check it against the quoted rule; for a `CONVENTION`, open the existing line
+   it points to as well. Then sort what holds:
+   - **already settled** — the Checkpoint log of this run records the developer's decision on this very point (the
+     same directive on the same code, chosen or left as is at an earlier checkpoint). Not fixed and not asked
+     again. The reviewer is never told about earlier decisions — it stays fresh; the run does this sorting.
+   - **`VIOLATION` that holds** — fix it.
+   - **`CONVENTION` that holds** — the change breaks the rule the same way the project's existing code does, and
+     the directive's `precedence` lets the project's convention win. Never fixed silently and never dropped
+     silently: following the directive here makes the new code differ from the old, so it is the developer's call.
+   - **does not hold** — disputed, with one line saying why.
+5. **Check the fixes, once.** A fix is new code nobody has reviewed, and fixes break rules too (a guard added to
+   satisfy one directive throws the exception another forbids). After fixing, re-run the suite, write the diff of
+   the fixes alone, and start one more reviewer on the files the fixes touched, with the directives that produced
+   findings plus any enabled directive whose `applies-when` matches what the fixes added. Verify and fix as in
+   step 4. This round runs once: whatever its own fixes change is named at the checkpoint as not reviewed, not
+   sent round again.
+6. **Account for the whole set.** Every directive must come back as `CLEAN`, `NOT APPLICABLE` or with findings. A
    missing directive, an `UNREADABLE` line or a reviewer that failed is a gap — re-run that group once; if it fails
    again, say at the checkpoint which directives went unchecked. Never report a gap as clean.
 
-At the checkpoint, the directive check reads: fixed (directive, file:line, one line each), disputed (the same, with
-why — the developer decides), and unchecked if anything is. When the `Agent` tool is not available in this session,
-do the check yourself and say so: "directive check done in the writing session, not independently".
+At the checkpoint, the directive check reads, one line each with directive and `file:line`: **fixed**; **project
+convention** (what the directive asks, where the existing code does the same — the developer decides: follow the
+directive in the new code, or keep it consistent); **disputed**, with why; **already settled**, with the checkpoint
+that settled it; and **unchecked** if anything is. When there is something under project convention, ask about it
+at this checkpoint, through `AskUserQuestion` when the items are few enough to list. When the `Agent` tool is not
+available in this session, do the check yourself and say so: "directive check done in the writing session, not
+independently".
 
 ## Delegated read-only preparation
 

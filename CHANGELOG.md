@@ -3,6 +3,20 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.10.0
+
+Independent directive review, after its first real run (`EXECUTION.md`, same name):
+
+- New verdict `CONVENTION`: the change breaks a rule the same way the project's existing code does, and the
+  directive yields to the project's convention. The reviewer points to the existing line; the run neither fixes
+  nor drops such a finding, it puts it to the developer as its own group at the checkpoint.
+- A finding the developer already decided at an earlier checkpoint of the run is listed as already settled, not
+  raised again. The run sorts these out from the Checkpoint log; the reviewer is still told nothing.
+- Fixes made after a review are reviewed once: one more reviewer, on the files the fixes touched. Whatever that
+  round's own fixes change is named at the checkpoint as not reviewed.
+- With workshop content from the same date, the TDD loop reviews once, in `finish-loop`, over the whole diff;
+  `refactor-production` no longer runs its own review of the same production code.
+
 ## 0.9.1
 
 - Fixed: a checkpoint that puts one proposal up to confirm or change ("Right place?", "Move on?") is asked as plain

@@ -30,6 +30,11 @@ Report — do not filter by importance or by how sure you are; a later step veri
 - every changed line that breaks a rule of one of the given directives;
 - a rule broken by the change as a whole (a new class with no test, a dependency the directive forbids).
 
+When a changed line breaks a rule in the same way the project's existing, unchanged code already does, and the
+directive's `precedence` says the project's convention wins, report it as `CONVENTION`, not `VIOLATION`, and point
+to one existing line that does the same. Look for that line before you decide — in the sibling classes and tests
+of the changed ones. No such line, or a `precedence` that does not yield to the project: it is a `VIOLATION`.
+
 Do not report:
 
 - code the diff did not change — it was there before; it is not this change's problem;
@@ -40,9 +45,11 @@ Answer with these lines only, no other prose — one line per finding, then one 
 then one line per file you could not read:
 
     VIOLATION | <directive id> | <file>:<line> | "<the rule, quoted from the directive>" | <what the line does> | <the smallest change that satisfies the rule>
+    CONVENTION | <directive id> | <file>:<line> | "<the rule, quoted from the directive>" | <what the line does> | <existing file>:<line> that does the same
     CLEAN | <directive id> | <one phrase: what you checked it against>
     NOT APPLICABLE | <directive id> | <why its applies-when does not match this change>
     UNREADABLE | <path> | <the error>
 
-Every directive you were given appears in exactly one CLEAN or NOT APPLICABLE line, or in at least one VIOLATION
-line. A finding without a file:line and a quoted rule is not a finding — leave it out.
+Every directive you were given appears in exactly one CLEAN or NOT APPLICABLE line, or in at least one VIOLATION or
+CONVENTION line. A finding without a file:line and a quoted rule is not a finding — leave it out; so is a
+CONVENTION without the existing line.
