@@ -182,6 +182,20 @@ class SessionCheckTest(unittest.TestCase):
         (self.sessions / "implement-session-book-a-desk.md").write_text(GOOD)
         self.assertIsNone(self.check_after_bash("cat .claude/sessions/implement-session-book-a-desk.md"))
 
+    def test_a_path_held_in_a_shell_variable_falls_back_to_the_project_folder(self):
+        self.broken_session()
+        context = self.check_after_bash('F="$ROOT/.claude/sessions/implement-session-book-a-desk.md"; echo x >> "$F"')
+        self.assertIn("todo", context or "")
+
+    def test_a_variable_assigned_in_the_command_is_followed(self):
+        self.broken_session()
+        elsewhere = pathlib.Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, elsewhere)
+        command = f'P={self.tmp} && echo x >> "$P/.claude/sessions/implement-session-book-a-desk.md"'
+        self.assertIn("todo", self.check_after_bash(command, cwd=elsewhere) or "")
+        command = f'P="{self.tmp}"; touch ${{P}}/.claude/sessions/implement-session-book-a-desk.md'
+        self.assertIn("todo", self.check_after_bash(command, cwd=elsewhere) or "")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -8,7 +8,8 @@ sections, State, the Call stack grammar, the Checkpoint log's numbering and labe
 its line, as additional context for the model to fix. It never blocks and never edits.
 
 A shell command does not say which file it wrote, so after Bash the check covers the session files the command
-could have reached -- it must name a `.claude/sessions` path -- that were written in the last two minutes.
+could have reached -- it must name a `.claude/sessions` path -- that were written in the last two minutes. Where
+the path hides behind a variable the command does not set itself, the folders the command runs in are checked.
 
 A file without a `**State:**` label predates the current format; it is left alone rather than reported line by line
 -- rewriting an old run's record to satisfy a checker would destroy what it is for.
@@ -27,6 +28,7 @@ ENTRY_RE = re.compile(r"^### (\d+)\. `([^`]+)`")
 STATE_RE = re.compile(r"\*\*State:\*\*\s*`([^`]*)`")
 SESSIONS_RE = re.compile(r"([^\s'\"=;&|()<>]*)\.claude/sessions\b")
 CD_RE = re.compile(r"(?:^|[;&|(\n]\s*)cd\s+([^\s;&|]+)")
+ASSIGN_RE = re.compile(r"(?:^|[;&|(\n\s])([A-Za-z_]\w*)=(\"[^\"$`]*\"|'[^']*'|[^\s;&|$`\"']+)")
 RECENT_SECONDS = 120
 
 
@@ -108,14 +110,27 @@ def is_session_file(path):
     return path.suffix == ".md" and path.parent.name == "sessions" and path.parent.parent.name == ".claude"
 
 
+def expanded(command):
+    """The command with the shell variables it assigns itself (`NAME=literal`) written out where they are used."""
+    for name, value in ASSIGN_RE.findall(command):
+        value = value.strip("'\"")
+        command = re.sub(r"\$\{" + name + r"\}|\$" + name + r"\b", lambda _: value, command)
+    return command
+
+
 def written_by(command, cwd):
-    """Session files a shell command could have written: in a `.claude/sessions` folder it names, changed just now."""
+    """Session files a shell command could have written: in a `.claude/sessions` folder it names, changed just now.
+
+    A path that cannot be worked out from the text (a variable set elsewhere, a command substitution) falls back to
+    the folders the command runs in.
+    """
+    command = expanded(command)
     mentions = SESSIONS_RE.findall(command)
     if not mentions:
         return []
     bases = [cwd] + [cwd / pathlib.Path(folder.strip("'\"")).expanduser() for folder in CD_RE.findall(command)]
     folders = {(base / pathlib.Path(prefix).expanduser() / ".claude" / "sessions").resolve()
-               for base in bases for prefix in mentions}
+               for base in bases for prefix in mentions + [""]}
     newest = time.time() - RECENT_SECONDS
     return sorted(path for folder in folders if folder.is_dir() for path in folder.glob("*.md")
                   if path.stat().st_mtime >= newest)

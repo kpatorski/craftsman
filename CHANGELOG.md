@@ -3,6 +3,12 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.10.1
+
+- Fixed: the session file check after a `Bash` command also finds the file when its path sits in a shell variable.
+  A variable the command assigns itself is followed; any other path that cannot be read from the command's text
+  falls back to the `.claude/sessions` folder of the directories the command runs in.
+
 ## 0.10.0
 
 Independent directive review, after its first real run (`EXECUTION.md`, same name):
