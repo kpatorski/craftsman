@@ -3,6 +3,12 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.11.1
+
+- Fixed: `/craftsman:search` no longer takes `Bash` away from itself. Where Claude Code searches through the shell
+  rather than a `Grep` tool, that left the skill reading all ten index files in full. Writing is still impossible:
+  `Write` and `Edit` stay removed, and the skill runs in the read-only `Explore` agent.
+
 ## 0.11.0
 
 - `/craftsman:search` runs in its own context (`context: fork`, read-only `Explore` agent, result in the same turn):

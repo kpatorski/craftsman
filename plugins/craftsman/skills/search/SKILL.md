@@ -6,8 +6,8 @@ description: >
   and returns candidates with links and enabled/disabled status. Trigger: "/craftsman:search", "do we have a directive
   for...", "is there already a protocol that...", "is there a bundle for...", "check before I write a new one".
 argument-hint: "<topic>"
-allowed-tools: [Read, Grep, Glob]
-disallowed-tools: [Write, Edit, NotebookEdit, Bash]
+allowed-tools: [Read, Grep, Glob, Bash]
+disallowed-tools: [Write, Edit, NotebookEdit]
 context: fork
 agent: Explore
 background: false
@@ -23,11 +23,12 @@ duplicate-detection requirement.
 1. **`Grep`, not `Read`, for the first pass** — the candidate set lives across up to ten files (the three top-level
    indexes plus every `bundles/*/bundle.md`, since bundle membership is positional per `core.md` and only visible by
    opening each one), and reading all of them in full on every search is the slow, expensive way to answer "does
-   this exist". One `Grep` call, case-insensitive, for `$ARGUMENTS` (and its individual significant words if it's a
+   this exist". One `Grep` call (where the session has no `Grep` tool, the same search as `grep -rni` through
+   `Bash`), case-insensitive, for `$ARGUMENTS` (and its individual significant words if it's a
    phrase) across `~/.claude/craftsman/directives/index.md`, `~/.claude/craftsman/protocols/index.md`,
    `~/.claude/craftsman/bundles/index.md`, and `~/.claude/craftsman/bundles/*/bundle.md` gets the same coverage —
    every `Id`, `Title`, and row — for a fraction of the cost. If `~/.claude/craftsman/` does not exist yet, `Grep`
-   simply finds nothing there; check for the directory with `Glob` to give the right message (see Notes).
+   simply finds nothing there; check for the directory with `Glob` or `ls` to give the right message (see Notes).
 2. From the grep hits, collect candidate ids (a hit on a table row's `Id`/`Title` cell is enough to shortlist it).
 3. Only `Read` a candidate's own file when the grep hit alone doesn't decide it — a row whose `Id`/`Title` didn't
    match but might be relevant by `description`, or more than one plausible candidate that needs ranking. This is
