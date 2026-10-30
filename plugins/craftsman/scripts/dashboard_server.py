@@ -8,6 +8,7 @@ Usage:
     dashboard_server.py off|stop
     dashboard_server.py remove [--project <dir>]
     dashboard_server.py status
+    dashboard_server.py review --source <PR URL | target:source> [--project <repository>]
 
 `start` runs the server in the background, detached from the calling shell, and prints its URL. If one is already
 running, it adds the project to it instead of starting a second one -- one server, every project it was started
@@ -424,9 +425,22 @@ def start(project, content, port):
     sys.exit(f"the dashboard server did not come up -- see {LOG}")
 
 
+def start_review(port, project, source):
+    """Start the review of `source` on the running server, or resume it when it is in progress; returns its URL."""
+    review_id = reviews.review_id_for(source)
+    try:
+        request(port, "/api/review/start", dict(project=str(project), source=source))
+    except urllib.error.HTTPError as refusal:
+        if refusal.code != 409:
+            raise
+        request(port, "/api/review/resume", dict(project=str(project), id=review_id))
+    return f"http://localhost:{port}/?project={project}&review={review_id}"
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("command", choices=["on", "off", "start", "stop", "status", "remove", "serve"])
+    ap.add_argument("command", choices=["on", "off", "start", "stop", "status", "remove", "serve", "review"])
+    ap.add_argument("--source", help="for `review`: a pull request URL, or <target>:<source>")
     ap.add_argument("--project", action="append", default=[])
     ap.add_argument("--content", default=str(pathlib.Path.home() / ".claude" / "craftsman"))
     ap.add_argument("--port", type=int, default=4747)
@@ -439,6 +453,13 @@ def main():
         return serve(content, projects, args.port)
     if args.command == "start":
         return start(projects[-1], content, args.port)
+    if args.command == "review":
+        start(projects[-1], content, args.port)
+        try:
+            print(f"review: {start_review(running()['port'], projects[-1], args.source)}")
+        except (review_state.Refused, urllib.error.HTTPError) as refusal:
+            sys.exit(f"the review did not start: {getattr(refusal, 'reason', refusal)}")
+        return
     state = running()
     if args.command == "remove":
         if not state:

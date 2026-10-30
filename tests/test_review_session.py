@@ -63,7 +63,7 @@ class ReviewSessionTest(unittest.TestCase):
     def test_the_review_starts_with_the_command_and_its_source(self):
         self.started()
 
-        self.assertEqual(self.received(), ["/craftsman:pr-review https://github.com/org/booking/pull/123"])
+        self.assertEqual(self.received(), ["/craftsman:pr-review --headless https://github.com/org/booking/pull/123"])
 
     def test_the_session_runs_headless_with_a_fixed_tool_list(self):
         self.started()
