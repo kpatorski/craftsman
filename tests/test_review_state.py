@@ -39,7 +39,7 @@ class ReviewStateTest(unittest.TestCase):
 
     def run_state(self, *args, payload=None, by=None, expect_ok=True):
         command = [sys.executable, str(SCRIPT), str(self.review), *args] + (["--by", by] if by else [])
-        done = subprocess.run(command, input=None if payload is None else json.dumps(payload),
+        done = subprocess.run(command, input="" if payload is None else json.dumps(payload),
                               capture_output=True, text=True, timeout=30)
         if expect_ok:
             self.assertEqual(done.returncode, 0, done.stderr)
@@ -182,10 +182,15 @@ class ReviewStateTest(unittest.TestCase):
                                                            "origin": "requested", "body": "It retries.",
                                                            "status": "ready"})
 
-    def test_a_handled_inbox_message_is_remembered(self):
+    def test_a_handled_inbox_message_is_remembered_without_waiting_for_input(self):
         self.opened()
 
-        self.run_state("handled", "m3")
+        with subprocess.Popen([sys.executable, str(SCRIPT), str(self.review), "handled", "m3"], text=True,
+                              stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as caller:
+            try:
+                self.assertEqual(caller.wait(timeout=10), 0, caller.stderr.read())
+            finally:
+                caller.kill()
 
         self.assertEqual(self.state()["handled"], ["m3"])
 

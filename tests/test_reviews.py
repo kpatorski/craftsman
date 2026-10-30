@@ -4,6 +4,7 @@ reach the review's session -- see REVIEW.md.
 Run: python3 -m unittest discover -s tests
 """
 import json
+import os
 import pathlib
 import shutil
 import sys
@@ -95,6 +96,12 @@ class ReviewsTest(unittest.TestCase):
         with self.assertRaises(review_state.Refused):
             reviews.review_dir(self.project, "pr-999")
 
+    def test_a_review_is_named_after_its_pull_request_or_its_branches(self):
+        self.assertEqual(reviews.review_id_for("https://github.com/org/booking/pull/130"), "pr-130")
+        self.assertEqual(reviews.review_id_for("main:feature/cancel-reservation"), "main..feature-cancel-reservation")
+        with self.assertRaises(review_state.Refused):
+            reviews.review_id_for("not a source")
+
     def test_the_diff_of_the_reviewed_head_is_served(self):
         self.assertIn("+class A {}", reviews.diff_text(self.project, "pr-123"))
 
@@ -104,6 +111,10 @@ class ReviewEndpointsTest(ReviewsTest):
 
     def setUp(self):
         super().setUp()
+        fake = pathlib.Path(__file__).resolve().parent / "fake_claude.py"
+        os.environ["CRAFTSMAN_CLAUDE"] = f"{sys.executable} {fake}"
+        os.environ.update(FAKE_CLAUDE_LOG=str(self.project / "fake.log"), CRAFTSMAN_SCRIPTS=str(SCRIPTS),
+                          FAKE_REVIEW_DIR=str(self.project / ".claude" / "reviews" / "main..feature-x"))
         self.server = dashboard_server.ThreadingHTTPServer(("127.0.0.1", 0), dashboard_server.Handler)
         self.port = self.server.server_address[1]
         dashboard_server.Handler.hub = dashboard_server.Hub(pathlib.Path(tempfile.mkdtemp()), [self.project],
@@ -111,6 +122,7 @@ class ReviewEndpointsTest(ReviewsTest):
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
 
     def tearDown(self):
+        dashboard_server.Handler.hub.stop_sessions()
         self.server.shutdown()
         self.server.server_close()
         super().tearDown()
@@ -148,6 +160,24 @@ class ReviewEndpointsTest(ReviewsTest):
 
         self.assertEqual(status, 409)
         self.assertIn("cannot set sent", body["error"])
+
+    def test_the_page_starts_a_review_session_and_stops_it(self):
+        fresh = "main:feature/x"
+        status, body = self.call("/api/review/start", {"project": str(self.project), "source": fresh})
+        self.assertEqual((status, body["id"]), (200, "main..feature-x"))
+        self.assertTrue(dashboard_server.Handler.hub.session(self.project, "main..feature-x").running())
+
+        status, _ = self.call("/api/review/stop", {"project": str(self.project), "id": "main..feature-x"})
+
+        self.assertEqual(status, 200)
+        self.assertFalse(dashboard_server.Handler.hub.session(self.project, "main..feature-x").running())
+
+    def test_a_review_already_in_progress_is_not_started_again(self):
+        status, body = self.call("/api/review/start", {"project": str(self.project),
+                                                       "source": "https://github.com/org/booking/pull/123"})
+
+        self.assertEqual(status, 409)
+        self.assertIn("in progress", body["error"])
 
     def test_a_project_not_on_the_dashboard_is_refused(self):
         elsewhere = tempfile.mkdtemp()

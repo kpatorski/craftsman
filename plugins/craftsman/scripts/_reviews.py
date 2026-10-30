@@ -12,6 +12,21 @@ MESSAGE_FIELDS = {"answer": ("checkpoint", "option"), "explain": ("about",), "re
                   "message": ("text",), "close": ()}
 
 
+PULL_REQUEST = re.compile(r"^https://github\.com/[^/]+/[^/]+/pull/(\d+)/?$")
+BRANCHES = re.compile(r"^([^\s:]+):([^\s:]+)$")
+
+
+def review_id_for(source):
+    """`pr-<number>` for a pull request URL, `<target>..<source>` with `/` replaced by `-` for two branches."""
+    pull = PULL_REQUEST.match(source or "")
+    if pull:
+        return f"pr-{pull.group(1)}"
+    branches = BRANCHES.match(source or "")
+    if branches:
+        return f"{branches.group(1)}..{branches.group(2)}".replace("/", "-")
+    raise review_state.Refused(f"not a pull request URL or <target>:<source>: {source!r}")
+
+
 def reviews_root(project):
     return pathlib.Path(project) / ".claude" / "reviews"
 

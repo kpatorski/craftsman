@@ -204,6 +204,7 @@ def handled(state, payload, by, message_id):
     return state, None
 
 
+NO_PAYLOAD = ("handled",)
 COMMANDS = {"set": set_fields, "add-finding": add_finding, "add-explanation": add_explanation, "answer": answer}
 COMMANDS_WITH_ID = {"update-finding": update_finding, "set-status": set_status, "mark-sent": mark_sent,
                     "add-replies": add_replies, "update-explanation": update_explanation,
@@ -243,7 +244,7 @@ def main(argv):
     if command == "show":
         print(json.dumps(read(review), indent=2, ensure_ascii=False))
         return 0
-    raw = sys.stdin.read() if not sys.stdin.isatty() else ""
+    raw = sys.stdin.read() if command not in NO_PAYLOAD and not sys.stdin.isatty() else ""
     try:
         result = change(review, command, json.loads(raw) if raw.strip() else None, by, rest[0] if rest else None)
     except Refused as refusal:

@@ -35,6 +35,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import _dashboard_data as data  # noqa: E402
+import _review_session  # noqa: E402
 import _reviews as reviews  # noqa: E402
 import review_state  # noqa: E402
 from _markdown import MD_CSS  # noqa: E402
@@ -73,6 +74,19 @@ class Hub:
         self.changed = []
         self.clients = 0
         self.last_client = time.time()
+        self.sessions = {}
+
+    def session(self, project, review_id):
+        """The Claude session of one review, created on first use; one per review for the server's lifetime."""
+        with self.lock:
+            key = (str(project), review_id)
+            if key not in self.sessions:
+                self.sessions[key] = _review_session.ReviewSession(project, review_id)
+            return self.sessions[key]
+
+    def stop_sessions(self):
+        for runner in list(self.sessions.values()):
+            runner.stop()
 
     def rescan(self):
         """Re-discover the projects inside every root; True when the list changed."""
@@ -214,16 +228,36 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(404, dict(error=f"not on the dashboard: {project}"))
         review_id = str(body.get("id", ""))
         try:
+            if path == "/api/review/start":
+                review_id = reviews.review_id_for(body.get("source"))
+                if (reviews.reviews_root(project) / review_id / "review.json").exists():
+                    raise review_state.Refused(f"{review_id} is in progress; resume it instead")
+                self.hub.session(project, review_id).start(body["source"])
+                return self.send(200, dict(ok=True, id=review_id))
+            if path == "/api/review/stop":
+                if not reviews.ID.match(review_id):
+                    raise review_state.Refused(f"not a review id: {review_id!r}")
+                self.hub.session(project, review_id).stop()
+                return self.send(200, dict(ok=True))
+            reviews.review_dir(project, review_id)
+            runner = self.hub.session(project, review_id)
             if path == "/api/review":
-                return self.send(200, reviews.read_review(project, review_id))
+                return self.send(200, dict(reviews.read_review(project, review_id), running=runner.running()))
+            if path == "/api/review/resume":
+                if not runner.running():
+                    runner.resume()
+                return self.send(200, dict(ok=True))
             if path == "/api/review/diff":
                 return self.send(200, reviews.diff_text(project, review_id), "text/plain")
             if path == "/api/review/change":
                 reviews.developer_change(project, review_id, body.get("action"), body)
+                runner.deliver()
                 return self.send(200, dict(ok=True))
             if path == "/api/review/message":
                 message = {key: value for key, value in body.items() if key not in ("project", "id")}
-                return self.send(200, dict(ok=True, id=reviews.add_message(project, review_id, message)))
+                message_id = reviews.add_message(project, review_id, message)
+                runner.deliver()
+                return self.send(200, dict(ok=True, id=message_id))
         except review_state.Refused as refusal:
             return self.send(409, dict(error=str(refusal)))
         return self.send(404, dict(error="not found"))
@@ -314,6 +348,7 @@ def serve(content, projects, port):
     try:
         server.serve_forever()
     finally:
+        hub.stop_sessions()
         state = read_state()
         if state and state.get("pid") == os.getpid():
             STATE.unlink(missing_ok=True)
