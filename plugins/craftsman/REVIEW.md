@@ -9,12 +9,13 @@ about the developer's requests from the inbox, which the dashboard server passes
 `<project>/.claude/reviews/<review-id>/`, where `<project>` is the checked-out repository and `<review-id>` is
 `pr-<number>` for a pull request, or `<target>..<source>` (slashes replaced by `-`) for two branches.
 
-| File            | Written by                | Holds                                                           |
-|-----------------|---------------------------|-----------------------------------------------------------------|
-| `review.json`   | `scripts/review_state.py` | everything the page shows; the single source of the state       |
-| `inbox.jsonl`   | the dashboard server      | messages from the page to the agent, one JSON per line          |
-| `session.jsonl` | the dashboard server      | the review's Claude session as it runs, one stream event a line |
-| `diff/`         | `scripts/review_state.py` | the diff of every refresh, `<head-sha>.diff`                    |
+| File             | Written by                | Holds                                                           |
+|------------------|---------------------------|-----------------------------------------------------------------|
+| `review.json`    | `scripts/review_state.py` | everything the page shows; the single source of the state       |
+| `inbox.jsonl`    | the dashboard server      | messages from the page to the agent, one JSON per line          |
+| `session.jsonl`  | the dashboard server      | the review's Claude session as it runs, one stream event a line |
+| `session.stderr` | the dashboard server      | what the review's Claude process wrote to stderr                |
+| `diff/`          | `scripts/review_state.py` | the diff of every refresh, `<head-sha>.diff`                    |
 
 Nobody edits `review.json` by hand, the agent included. Every change goes through `review_state.py`, which takes a
 lock, checks the change, and writes the file atomically. The agent and the page change the same file at the same
