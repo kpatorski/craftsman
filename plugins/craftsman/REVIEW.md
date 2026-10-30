@@ -30,6 +30,7 @@ time; this is what keeps either of them from losing the other's change.
 - `base` and `head` — the commit shas the review was made against.
 - `refreshed` — when `base`/`head` were last read.
 - `closed` — when the developer closed the review, or null while it is open.
+- `language` — the language the comments are written in, settled when the review is opened.
 - `session` — the id of the Claude session the dashboard server runs for this review. `claude --resume <id>` opens
   the same conversation in the CLI.
 
