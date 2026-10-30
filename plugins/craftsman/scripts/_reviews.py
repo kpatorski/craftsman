@@ -6,6 +6,7 @@ import pathlib
 import re
 
 import review_state
+from _markdown import render_markdown
 
 ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 MESSAGE_FIELDS = {"answer": ("checkpoint", "option"), "explain": ("about",), "refresh": (), "ask": ("text", "about"),
@@ -57,7 +58,52 @@ def list_reviews(projects):
 
 def read_review(project, review_id):
     review = review_dir(project, review_id)
-    return {"state": review_state.read(review), "pending": len(pending_messages(review))}
+    state = review_state.read(review)
+    return {"state": state, "pending": len(pending_messages(review)), "html": rendered(state),
+            "console": console_lines(review)}
+
+
+def rendered(state):
+    """Every markdown text of the review as HTML, keyed the way the page looks it up."""
+    texts = {"scope": state.get("scope"), "requirements": state.get("requirements"),
+             "boundaries": (state.get("structure") or {}).get("boundaries")}
+    for found in state.get("findings", []):
+        for field in ("description", "comment"):
+            texts[f"finding:{found['id']}:{field}"] = found.get(field)
+    for explanation in state.get("explanations", []):
+        texts[f"explanation:{explanation['id']}"] = explanation.get("body")
+    for group in state.get("map", []):
+        texts[f"group:{group['id']}"] = group.get("summary")
+    return {key: render_markdown(text, lambda url: None) for key, text in texts.items() if text}
+
+
+def console_lines(review, limit=400):
+    """The session's stream as the console shows it: what the developer said, what the agent said and did, what was
+    refused, and where each turn ended. The last `limit` lines."""
+    path = pathlib.Path(review) / "session.jsonl"
+    lines = []
+    for raw in (path.read_text().splitlines() if path.exists() else []):
+        try:
+            event = json.loads(raw)
+        except ValueError:
+            continue
+        kind = event.get("type")
+        if kind == "user" and isinstance(event.get("message", {}).get("content"), str):
+            lines.append({"kind": "you", "text": event["message"]["content"]})
+        elif kind == "assistant":
+            for block in event.get("message", {}).get("content", []):
+                if block.get("type") == "text" and block.get("text", "").strip():
+                    lines.append({"kind": "text", "text": block["text"]})
+                elif block.get("type") == "tool_use":
+                    detail = block.get("input", {})
+                    shown = detail.get("command") or detail.get("file_path") or detail.get("description") or ""
+                    lines.append({"kind": "tool", "text": f"{block.get('name')} {shown}".strip()})
+        elif kind == "system" and event.get("subtype") == "permission_denied":
+            lines.append({"kind": "denied", "text": event.get("tool_name", "a tool")})
+        elif kind == "result":
+            cost = event.get("total_cost_usd")
+            lines.append({"kind": "turn", "text": "turn ended" + (f" · ${cost:.4f}" if cost is not None else "")})
+    return lines[-limit:]
 
 
 def diff_text(project, review_id):

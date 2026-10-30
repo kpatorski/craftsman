@@ -69,7 +69,7 @@ class ReviewSessionTest(unittest.TestCase):
         self.started()
 
         argv = self.logged()[0]["argv"]
-        for flag in ("-p", "--verbose", "--permission-mode", "dontAsk", "--allowedTools"):
+        for flag in ("-p", "--verbose", "--replay-user-messages", "--permission-mode", "dontAsk", "--allowedTools"):
             self.assertIn(flag, argv)
         self.assertEqual(argv[argv.index("--input-format") + 1], "stream-json")
         self.assertEqual(argv[argv.index("--output-format") + 1], "stream-json")
