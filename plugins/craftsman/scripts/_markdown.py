@@ -2,7 +2,7 @@
 markdown for directive/protocol/bundle files and the analysis artifacts (headings, tables, lists, fenced and
 indented code, blockquotes, inline code/bold/italic/links, frontmatter shown as a muted block). Not a general
 markdown engine, deliberately -- stdlib only, like the other scripts. `MD_CSS` styles what it emits (scope it with
-a `.md` class on the container); it expects the pages' shared CSS variables (--panel, --border, --blue, ...)."""
+a `.md` class on the container); it expects the variables of the shared palette, `_theme.THEME_CSS`."""
 import html
 import re
 
@@ -155,14 +155,15 @@ MD_CSS = '''
   .md h1, .md h2, .md h3, .md h4 { color: var(--heading); border: 0; margin: 1.3rem 0 .5rem; }
   .md h1 { font-size: 1.25rem; } .md h2 { font-size: 1.05rem; color: var(--blue); } .md h3, .md h4 { font-size: .95rem; }
   .md p { margin: .5rem 0; }
-  .md code { background: #1a1a1a; border-radius: 3px; padding: .05rem .3rem; color: var(--green);
+  .md code { background: var(--code-bg); border-radius: 3px; padding: .05rem .3rem; color: var(--green);
     font-family: "SF Mono", Menlo, Consolas, monospace; font-size: .8rem; }
-  .md pre { background: #1a1a1a; border: 1px solid var(--border); border-radius: 6px; padding: .7rem .9rem; overflow-x: auto; }
+  .md pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: .7rem .9rem; overflow-x: auto; }
   .md pre code { background: none; padding: 0; color: var(--text); }
   .md pre.fm { color: var(--muted); }
   .md table { border-collapse: collapse; margin: .7rem 0; display: block; overflow-x: auto; }
   .md th, .md td { border: 1px solid var(--border); padding: .3rem .6rem; text-align: left; vertical-align: top; }
-  .md th { background: #2a2d2e; color: var(--heading); }
+  .md th { background: var(--panel2); color: var(--heading); }
   .md blockquote { border-left: 3px solid var(--blue); margin: .6rem 0; padding: .1rem .9rem; color: var(--muted); }
   .md ul, .md ol { padding-left: 1.4rem; margin: .4rem 0; } .md li { margin: .2rem 0; }
   .md a { color: var(--blue); } .md .ref { color: var(--muted); }

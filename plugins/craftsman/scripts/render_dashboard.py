@@ -32,6 +32,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from _frontmatter import parse_frontmatter, split_frontmatter  # noqa: E402
 from _markdown import MD_CSS, render_markdown  # noqa: E402
+from _theme import THEME_CSS  # noqa: E402
 
 PLUGIN_ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -303,10 +304,7 @@ PAGE_SHELL = """<!DOCTYPE html>
 <meta charset="utf-8">
 <title>__TITLE__</title>
 <style>
-  :root {
-    --bg: #1e1e1e; --panel: #252526; --border: #333; --text: #d4d4d4; --heading: #f0f0f0;
-    --green: #4ec9b0; --blue: #9cdcfe; --muted: #808080;
-  }
+  /*THEME_CSS*/
   * { box-sizing: border-box; }
   body {
     background: var(--bg); color: var(--text); margin: 0; padding: 2rem 2rem 4rem;
@@ -316,7 +314,7 @@ PAGE_SHELL = """<!DOCTYPE html>
   .subtitle { color: var(--muted); font-size: .85rem; margin: 0 0 1.5rem; }
   #search {
     width: 100%; max-width: 32rem; padding: .6rem .8rem; margin: 2rem 0 0;
-    background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 6px;
+    background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm);
     font-size: .95rem;
   }
   #search:focus { outline: none; border-color: var(--blue); }
@@ -327,7 +325,7 @@ PAGE_SHELL = """<!DOCTYPE html>
   h3.category { color: var(--green); font-size: .9rem; text-transform: uppercase; letter-spacing: .04em;
     margin: 1.5rem 0 .6rem; }
   .list { display: flex; flex-direction: column; gap: .35rem; }
-  details.entry { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; }
+  details.entry { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); }
   details.entry.enabled { border-left: 3px solid var(--green); }
   details.entry.disabled { border-left: 3px solid var(--muted); }
   details.entry.hidden { display: none; }
@@ -335,26 +333,26 @@ PAGE_SHELL = """<!DOCTYPE html>
   summary::-webkit-details-marker { display: none; }
   summary::before { content: "\\25B8"; color: var(--muted); font-size: .75rem; }
   details[open] > summary::before { content: "\\25BE"; }
-  summary:hover { background: #2a2d2e; }
+  summary:hover { background: var(--hover); }
   .kind { font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); width: 4.6rem; flex: none; }
-  .id { color: var(--blue); font-family: "SF Mono", Menlo, Consolas, monospace; font-size: .85rem; flex: none; }
+  .id { color: var(--blue); font-family: var(--mono); font-size: .85rem; flex: none; }
   .title { color: var(--text); font-size: .88rem; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .count { color: var(--muted); font-size: .75rem; flex: none; }
-  .badge { font-size: .62rem; padding: .1rem .5rem; border-radius: 999px; letter-spacing: .03em; flex: none; }
-  .badge.on { color: var(--green); border: 1px solid var(--green); background: rgba(78,201,176,.12); }
-  .badge.off { color: var(--muted); border: 1px solid #555; background: rgba(128,128,128,.1); }
+  .badge { font-size: .62rem; padding: .1rem .5rem; border-radius: var(--pill); letter-spacing: .03em; flex: none; }
+  .badge.on { color: var(--green); border: 1px solid var(--green-dim); background: var(--green-bg); }
+  .badge.off { color: var(--muted); border: 1px solid var(--border); background: var(--panel2); }
   .body { padding: .2rem .9rem .8rem 1.9rem; border-top: 1px solid var(--border); }
   .desc { font-size: .85rem; line-height: 1.5; margin: .7rem 0 .5rem; }
   .requires { font-size: .75rem; color: var(--muted); margin-bottom: .5rem; }
   .row { display: flex; align-items: center; gap: .8rem; }
   .cmd {
-    flex: 1; min-width: 0; background: #1a1a1a; color: var(--green); border: 1px solid var(--border); border-radius: 4px;
-    padding: .3rem .5rem; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: .78rem;
+    flex: 1; min-width: 0; background: var(--code-bg); color: var(--green); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: .3rem .5rem; font-family: var(--mono); font-size: .78rem;
   }
   .members { display: flex; flex-direction: column; gap: .3rem; margin-top: .8rem; }
   .muted { color: var(--muted); }
-  pre.help { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 1rem;
-    overflow-x: auto; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: .82rem; line-height: 1.5; }
+  pre.help { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem;
+    overflow-x: auto; font-family: var(--mono); font-size: .82rem; line-height: 1.5; }
   .wrap { max-width: 1700px; margin: 0 auto; }
   .layout { max-width: 1100px; margin: 0 auto; }
   .layout.with-panel {
@@ -482,7 +480,8 @@ def build_page(root):
         + section_html("Directives", directives, group_by_category=True)
     )
 
-    page = PAGE_SHELL.replace("</style>", MD_CSS + "</style>", 1)
+    page = PAGE_SHELL.replace("/*THEME_CSS*/", THEME_CSS, 1)
+    page = page.replace("</style>", MD_CSS + "</style>", 1)
     page = page.replace("__TITLE__", "craftsman dashboard")
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     page = page.replace("__SUBTITLE__", html.escape(f"content root: {root}  \u00b7  generated {stamp} (a snapshot -- re-run /craftsman:dashboard to refresh)"))
