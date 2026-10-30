@@ -1,0 +1,100 @@
+"""The review side of the dashboard: listing a project's reviews, the changes the page makes as the developer, and
+the inbox through which the page's requests reach the review's session -- see REVIEW.md."""
+import datetime
+import json
+import pathlib
+import re
+
+import review_state
+
+ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+MESSAGE_FIELDS = {"answer": ("checkpoint", "option"), "explain": ("about",), "refresh": (), "ask": ("text", "about"),
+                  "message": ("text",), "close": ()}
+
+
+def reviews_root(project):
+    return pathlib.Path(project) / ".claude" / "reviews"
+
+
+def review_dir(project, review_id):
+    review = reviews_root(project) / review_id
+    if not ID.match(review_id or "") or not (review / "review.json").is_file():
+        raise review_state.Refused(f"no review {review_id!r} in {project}")
+    return review
+
+
+def list_reviews(projects):
+    listed = []
+    for project in projects:
+        for state_file in sorted(reviews_root(project).glob("*/review.json")):
+            try:
+                state = json.loads(state_file.read_text())
+            except (OSError, ValueError):
+                continue
+            counts = {}
+            for found in state.get("findings", []):
+                counts[found["status"]] = counts.get(found["status"], 0) + 1
+            listed.append({"id": state_file.parent.name, "project": str(project), "source": state.get("source"),
+                           "head": state.get("head"), "closed": state.get("closed"), "findings": counts,
+                           "checkpoint": bool(state.get("checkpoint") and not state["checkpoint"].get("answer"))})
+    return listed
+
+
+def read_review(project, review_id):
+    review = review_dir(project, review_id)
+    return {"state": review_state.read(review), "pending": len(pending_messages(review))}
+
+
+def diff_text(project, review_id):
+    review = review_dir(project, review_id)
+    return (review / "diff" / f"{review_state.read(review)['head']}.diff").read_text()
+
+
+def developer_change(project, review_id, action, body):
+    """A change the page makes as the developer: `edit`, `status` or `answer`. Raises Refused."""
+    review = review_dir(project, review_id)
+    if action == "edit":
+        return review_state.change(review, "update-finding", body.get("fields") or {}, "developer", body.get("finding"))
+    if action == "status":
+        return review_state.change(review, "set-status", {"status": body.get("status")}, "developer",
+                                   body.get("finding"))
+    if action == "answer":
+        checkpoint = review_state.read(review).get("checkpoint") or {}
+        review_state.change(review, "answer", {"option": body.get("option"), "note": body.get("note")}, "developer")
+        return add_message(project, review_id, {"type": "answer", "checkpoint": checkpoint.get("id"),
+                                                "option": body.get("option"), "note": body.get("note")})
+    raise review_state.Refused(f"unknown change {action!r}")
+
+
+def add_message(project, review_id, message):
+    """Append one request for the review's session to its inbox; returns the message id. Raises Refused."""
+    review = review_dir(project, review_id)
+    kind = message.get("type")
+    if kind not in MESSAGE_FIELDS:
+        raise review_state.Refused(f"unknown message type {kind!r}")
+    missing = [field for field in MESSAGE_FIELDS[kind] if not message.get(field)]
+    if missing:
+        raise review_state.Refused(f"a {kind} message needs {', '.join(missing)}")
+    with review_state.locked(review):
+        inbox = review / "inbox.jsonl"
+        count = len(inbox.read_text().splitlines()) if inbox.exists() else 0
+        line = {"id": f"m{count + 1}", "at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+                **{key: value for key, value in message.items() if key != "id"}}
+        with inbox.open("a") as out:
+            out.write(json.dumps(line, ensure_ascii=False) + "\n")
+    return line["id"]
+
+
+def pending_messages(review):
+    inbox = pathlib.Path(review) / "inbox.jsonl"
+    if not inbox.exists():
+        return []
+    handled = set(review_state.read(review).get("handled", []))
+    messages = [json.loads(line) for line in inbox.read_text().splitlines() if line.strip()]
+    return [message for message in messages if message["id"] not in handled]
+
+
+def watched(project):
+    """The review files whose change should refresh the page."""
+    root = reviews_root(project)
+    return [root] + sorted(root.glob("*")) + sorted(root.glob("*/review.json")) + sorted(root.glob("*/session.jsonl"))

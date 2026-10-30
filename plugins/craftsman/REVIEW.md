@@ -117,7 +117,7 @@ not yet in `handled`, it passes those first.
 
 | `type`    | Carries                        | The agent                                              |
 |-----------|--------------------------------|--------------------------------------------------------|
-| `answer`  | `checkpoint`, `option`, `note` | records it as the checkpoint's answer and goes on      |
+| `answer`  | `checkpoint`, `option`, `note` | goes on; the server has recorded the answer already    |
 | `explain` | `about`                        | adds a `requested` explanation and writes it           |
 | `refresh` | —                              | reads the PR or branches again, re-checks the findings |
 | `ask`     | `text`, `about`                | answers in a new explanation about the same thing      |
