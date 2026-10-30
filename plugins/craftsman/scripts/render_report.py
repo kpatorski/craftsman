@@ -35,6 +35,7 @@ from datetime import datetime
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from _markdown import MD_CSS, render_markdown  # noqa: E402
+from _theme import THEME_CSS  # noqa: E402
 
 ANALYSIS_FILES = ["business-rules.md", "open-questions.md", "event-model.md"]
 STATE_RE = re.compile(r"\*\*State:\*\*\s*`(\w+)`")
@@ -134,10 +135,7 @@ PAGE_SHELL = """<!DOCTYPE html>
 <meta charset="utf-8">
 <title>__TITLE__</title>
 <style>
-  :root {
-    --bg: #1e1e1e; --panel: #252526; --border: #333; --text: #d4d4d4; --heading: #f0f0f0;
-    --green: #4ec9b0; --blue: #9cdcfe; --muted: #808080;
-  }
+  /*THEME_CSS*/
   * { box-sizing: border-box; }
   body { background: var(--bg); color: var(--text); margin: 0; font-family: -apple-system, "Segoe UI", sans-serif; }
   .layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); min-height: 100vh; }
@@ -149,7 +147,7 @@ PAGE_SHELL = """<!DOCTYPE html>
   .subtitle { color: var(--muted); font-size: .75rem; margin: .2rem 0 1rem; line-height: 1.4; }
   #search {
     width: 100%; padding: .5rem .7rem; margin-bottom: .4rem; background: var(--bg); color: var(--text);
-    border: 1px solid var(--border); border-radius: 6px; font-size: .88rem;
+    border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: .88rem;
   }
   #search:focus { outline: none; border-color: var(--blue); }
   #count { color: var(--muted); font-size: .72rem; min-height: 1rem; margin-bottom: .6rem; }
@@ -157,20 +155,22 @@ PAGE_SHELL = """<!DOCTYPE html>
     color: var(--green); font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; margin: 1.1rem 0 .3rem;
   }
   .navlink {
-    display: block; padding: .4rem .6rem; border-radius: 5px; border-left: 3px solid transparent; text-decoration: none;
+    display: block; padding: .4rem .6rem; border-radius: var(--radius-sm); border-left: 3px solid transparent;
+    text-decoration: none;
     color: var(--text); margin-bottom: 2px;
   }
-  .navlink:hover { background: #2a2d2e; }
-  .navlink.active { background: #2f3336; border-left-color: var(--green); }
+  .navlink:hover { background: var(--hover); }
+  .navlink.active { background: var(--panel2); border-left-color: var(--green); }
   .navlink.hidden, .navgroup.hidden { display: none; }
   .navtitle { display: block; font-size: .86rem; }
-  .navpath { display: block; color: var(--muted); font-size: .68rem; font-family: "SF Mono", Menlo, Consolas, monospace; }
-  .state { float: right; font-size: .62rem; padding: .05rem .45rem; border-radius: 999px; border: 1px solid var(--muted); color: var(--muted); }
-  .state.active { color: var(--green); border-color: var(--green); }
-  .state.blocked { color: #d7ba7d; border-color: #d7ba7d; }
+  .navpath { display: block; color: var(--muted); font-size: .68rem; font-family: var(--mono); }
+  .state { float: right; font-size: .62rem; padding: .05rem .45rem; border-radius: var(--pill);
+    border: 1px solid var(--muted); color: var(--muted); }
+  .state.active { color: var(--green); border-color: var(--green-dim); background: var(--green-bg); }
+  .state.blocked { color: var(--amber); border-color: var(--amber-dim); background: var(--amber-bg); }
   main { padding: 2rem 2.5rem 5rem; min-width: 0; }
   article.doc { max-width: 900px; margin: 0 auto; font-size: .92rem; }
-  .docpath { color: var(--muted); font-size: .75rem; font-family: "SF Mono", Menlo, Consolas, monospace; margin-bottom: 1rem; }
+  .docpath { color: var(--muted); font-size: .75rem; font-family: var(--mono); margin-bottom: 1rem; }
   .empty { color: var(--muted); max-width: 900px; margin: 0 auto; }
   @media (max-width: 900px) {
     .layout { grid-template-columns: 1fr; }
@@ -239,7 +239,8 @@ route();
 
 
 def build_page(project, docs):
-    page = PAGE_SHELL.replace("</style>", MD_CSS + "</style>", 1)
+    page = PAGE_SHELL.replace("/*THEME_CSS*/", THEME_CSS, 1)
+    page = page.replace("</style>", MD_CSS + "</style>", 1)
     page = page.replace("__TITLE__", html.escape(f"{project.name} — craftsman report"))
     page = page.replace("__PROJECT__", html.escape(project.name))
     page = page.replace("__STAMP__", datetime.now().strftime("%Y-%m-%d %H:%M"))

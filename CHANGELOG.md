@@ -3,6 +3,12 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.11.2
+
+- Every craftsman page — the dashboard, reports, diffs and the library page — takes its colours from one shared
+  palette: an almost-black background, slightly lighter rounded cards, and indigo, mint, orange, pink and violet
+  accents. Nothing changes in what the pages show.
+
 ## 0.11.1
 
 - Fixed: `/craftsman:search` no longer takes `Bash` away from itself. Where Claude Code searches through the shell

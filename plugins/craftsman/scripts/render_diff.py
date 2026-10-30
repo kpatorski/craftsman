@@ -31,6 +31,9 @@ import platform
 import subprocess
 import sys
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from _theme import THEME_CSS  # noqa: E402
+
 
 def render_diff_lines(diff_text):
     out = []
@@ -59,17 +62,18 @@ def build_page(title, note, sections):
 <head>
 <meta charset="utf-8">
 <title>{html.escape(title)}</title>
-<style>
-  body {{ background: #1e1e1e; color: #d4d4d4; font-family: -apple-system, "Segoe UI", sans-serif; margin: 2rem; }}
-  h1 {{ color: #f0f0f0; font-size: 1.3rem; }}
-  h2 {{ color: #9cdcfe; font-size: 1.05rem; margin-top: 2rem; border-bottom: 1px solid #333; padding-bottom: .3rem; }}
-  pre {{ background: #252526; border: 1px solid #333; border-radius: 6px; padding: 1rem; overflow-x: auto;
-         font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 0.85rem; line-height: 1.5; }}
-  .hdr {{ color: #808080; display: block; }}
-  .hunk {{ color: #c586c0; display: block; }}
-  .add {{ color: #4ec9b0; display: block; background: #14301f; }}
-  .del {{ color: #f48771; display: block; background: #3a1d1d; }}
-  .note {{ color: #808080; font-size: 0.85rem; }}
+<style>{THEME_CSS}
+  body {{ background: var(--bg); color: var(--text); font-family: -apple-system, "Segoe UI", sans-serif; margin: 2rem; }}
+  h1 {{ color: var(--heading); font-size: 1.3rem; }}
+  h2 {{ color: var(--blue); font-size: 1.05rem; margin-top: 2rem; border-bottom: 1px solid var(--border);
+        padding-bottom: .3rem; }}
+  pre {{ background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem;
+         overflow-x: auto; font-family: var(--mono); font-size: 0.85rem; line-height: 1.5; }}
+  .hdr {{ color: var(--muted); display: block; }}
+  .hunk {{ color: var(--violet); display: block; }}
+  .add {{ color: var(--green); display: block; background: var(--green-bg); }}
+  .del {{ color: var(--red); display: block; background: var(--red-bg); }}
+  .note {{ color: var(--muted); font-size: 0.85rem; }}
 </style>
 </head>
 <body>

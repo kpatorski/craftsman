@@ -36,6 +36,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import _dashboard_data as data  # noqa: E402
 from _markdown import MD_CSS  # noqa: E402
+from _theme import THEME_CSS  # noqa: E402
 
 STATE = pathlib.Path.home() / ".claude" / "craftsman-dashboard.json"
 LOG = pathlib.Path.home() / ".claude" / "craftsman-dashboard.log"
@@ -185,7 +186,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(403, dict(error="unknown host"))
         url = urllib.parse.urlsplit(self.path)
         if url.path == "/":
-            return self.send(200, PAGE.read_text().replace("/*MD_CSS*/", MD_CSS), "text/html")
+            page = PAGE.read_text().replace("/*THEME_CSS*/", THEME_CSS).replace("/*MD_CSS*/", MD_CSS)
+            return self.send(200, page, "text/html")
         if url.path == "/api/ping":
             return self.send(200, dict(ok=True, pid=os.getpid(), version=plugin_version(),
                                        projects=[str(p) for p in self.hub.projects],
