@@ -223,9 +223,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def review_request(self, body, path):
         """Every review endpoint: the project must be on the dashboard; a refused change answers 409 with why."""
-        project = pathlib.Path(body.get("project") or "").expanduser().resolve()
-        if project not in self.hub.project_list():
-            return self.send(404, dict(error=f"not on the dashboard: {project}"))
+        wanted = pathlib.Path(body.get("project") or "").expanduser().resolve()
+        project = next((p for p in self.hub.project_list() if p.resolve() == wanted), None)
+        if project is None:
+            return self.send(404, dict(error=f"not on the dashboard: {wanted}"))
         review_id = str(body.get("id", ""))
         try:
             if path == "/api/review/start":

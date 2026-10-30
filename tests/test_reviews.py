@@ -102,6 +102,31 @@ class ReviewsTest(unittest.TestCase):
         with self.assertRaises(review_state.Refused):
             reviews.review_id_for("not a source")
 
+    def test_the_console_shows_what_was_said_done_and_refused(self):
+        events = [{"type": "system", "subtype": "init", "session_id": "s"},
+                  {"type": "user", "message": {"role": "user", "content": "Why the retry?"}},
+                  {"type": "assistant", "message": {"content": [
+                      {"type": "text", "text": "Because the provider..."},
+                      {"type": "tool_use", "name": "Bash", "input": {"command": "git log -1"}}]}},
+                  {"type": "user", "message": {"content": [{"type": "tool_result", "content": "abc"}]}},
+                  {"type": "system", "subtype": "permission_denied", "tool_name": "Write"},
+                  {"type": "result", "subtype": "success", "total_cost_usd": 0.0123}]
+        (self.review / "session.jsonl").write_text("".join(json.dumps(e) + "\n" for e in events) + "not json\n")
+
+        lines = reviews.console_lines(self.review)
+
+        self.assertEqual([(line["kind"], line["text"]) for line in lines], [
+            ("you", "Why the retry?"), ("text", "Because the provider..."), ("tool", "Bash git log -1"),
+            ("denied", "Write"), ("turn", "turn ended · $0.0123")])
+
+    def test_markdown_in_the_review_reaches_the_page_rendered(self):
+        review_state.change(self.review, "update-finding", {"comment": "Use `ReservationId`."}, item_id="f1")
+
+        html = reviews.read_review(self.project, "pr-123")["html"]
+
+        self.assertIn("<code>ReservationId</code>", html["finding:f1:comment"])
+        self.assertIn("Cancels a reservation.", html["scope"])
+
     def test_the_diff_of_the_reviewed_head_is_served(self):
         self.assertIn("+class A {}", reviews.diff_text(self.project, "pr-123"))
 
@@ -178,6 +203,19 @@ class ReviewEndpointsTest(ReviewsTest):
 
         self.assertEqual(status, 409)
         self.assertIn("in progress", body["error"])
+
+    def test_a_project_registered_through_a_symlink_is_found(self):
+        link = pathlib.Path(tempfile.mkdtemp()) / "link"
+        link.symlink_to(self.project)
+        hub = dashboard_server.Handler.hub
+        hub.add_project(link)
+        hub.remove_project(self.project)
+        self.assertEqual(hub.project_list(), [link])
+
+        status, _ = self.call(f"/api/review?project={link}&id=pr-123")
+
+        self.assertEqual(status, 200)
+        shutil.rmtree(link.parent)
 
     def test_a_project_not_on_the_dashboard_is_refused(self):
         elsewhere = tempfile.mkdtemp()

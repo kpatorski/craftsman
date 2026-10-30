@@ -95,6 +95,7 @@ class ReviewSession:
         self.review.mkdir(parents=True, exist_ok=True)
         self.delivered = set()
         argv = self.command + ["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
+                               "--replay-user-messages",
                                "--permission-mode", "dontAsk", "--allowedTools", *ALLOWED_TOOLS] + extra
         errors = (self.review / "session.stderr").open("a")
         self.process = subprocess.Popen(argv, cwd=self.project, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
