@@ -99,7 +99,7 @@ default everyone must adopt: install it, fork it, or write your own from scratch
 | `/craftsman:analyse <input>`                         | Raw requirements → Given/When/Then business rules. No domain modelling.                                                                               |
 | `/craftsman:domain-design <input>`                   | Event storming (or whatever the workshop's own method is) → specs and working code, one use case at a time.                                           |
 | `/craftsman:implement <task or spec>`                | Drives one task test-first, checkpoint by checkpoint.                                                                                                 |
-| `/craftsman:pr-review <PR URL or target:source>`     | Reviews a pull request on a review page in the dashboard: findings as proposed PR comments the developer edits, picks and sends.                      |
+| `/craftsman:pr-review <PR URL or target:source>`     | Reviews a pull request on its own page: findings as proposed PR comments the developer edits, picks and sends.                                        |
 | `/craftsman:search <topic>`                          | "Do we already have something about X?" — across all three indexes.                                                                                   |
 | `/craftsman:list [directives\|protocols\|bundles]`   | What's installed, enabled and disabled.                                                                                                               |
 | `/craftsman:enable <id>` / `/craftsman:disable <id>` | Toggle a directive, protocol, or bundle — ids are unique across all three, so the kind resolves by lookup. Toggling a bundle cascades to its members. |
@@ -175,18 +175,20 @@ see [`MANAGEMENT.md`](plugins/craftsman/MANAGEMENT.md) for exactly what it check
 ### Reviewing a pull request
 
 `/craftsman:pr-review https://github.com/org/repo/pull/123`, run from inside a checkout of that repository, starts the
-review and prints the address of its page in the dashboard; `main:feature/x` reviews what one local branch adds on top
-of another. The review reads the PR's description and the tickets it links, maps the change into use cases and
-contexts, reads the business rules in its tests, and only then reviews the code, use case by use case from the entry
-point down, against the enabled directives. Every finding is a proposed PR comment: edit it, delete it, or mark it to
-send, and send the marked ones to GitHub whenever you like — nothing is posted before that.
+review and prints the address of its page; `main:feature/x` reviews what one local branch adds on top of another. The
+review reads the PR's description and the tickets it links, maps the change into use cases and contexts, reads the
+business rules in its tests, and only then reviews the code, use case by use case from the entry point down, against the
+enabled directives. Every finding is a proposed PR comment: edit it, delete it, or mark it to send, and send the marked
+ones to GitHub whenever you like — nothing is posted before that.
 
-The page is also the review's console. The review's Claude session runs on the dashboard server, so its questions,
-its progress and your messages to it all stay on the page; "Continue in CLI" hands the same conversation over to
-`claude --resume`. Each review keeps its state in `.claude/reviews/<review-id>/` of the repository and reads the code
-from its own `git worktree`, so your checkout is never touched and several reviews can run at once. A review needs the
-`code-review` bundle of the workshop and `gh` logged in to the PR's repository; the state it keeps is described in
-[`REVIEW.md`](plugins/craftsman/REVIEW.md).
+Reviews have their own page, `/review` on the dashboard server, apart from the dashboard: the reviews and the sections
+of the open one on the left — overview, structure, rules from the tests, PR map, explanations, findings by category,
+sent — one section in the middle, and the review's console on the right, as wide as you drag it. The review's Claude
+session runs on the dashboard server, so its questions, its progress and your messages to it all stay on the page;
+"Continue in CLI" hands the same conversation over to `claude --resume`. Each review keeps its state in
+`.claude/reviews/<review-id>/` of the repository and reads the code from its own `git worktree`, so your checkout is
+never touched and several reviews can run at once. A review needs the `code-review` bundle of the workshop and `gh`
+logged in to the PR's repository; the state it keeps is described in [`REVIEW.md`](plugins/craftsman/REVIEW.md).
 
 ### Releasing a change to this repo
 

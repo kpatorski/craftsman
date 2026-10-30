@@ -3,9 +3,9 @@ name: pr-review
 description: >
   Reviews a pull request, or what one branch adds on top of another, in a HUMAN <-> AI loop: what the PR is for, the
   structure of the change, the business rules in its tests, then the code use case by use case — every finding a
-  proposed PR comment the developer edits, picks and sends from a review page in the dashboard. The page is the
-  console: the review's Claude session runs on the dashboard server, so the developer never switches between the page
-  and the CLI. Several reviews can run at once. Not for writing code (that is `implement`). Trigger:
+  proposed PR comment the developer edits, picks and sends from the review page the dashboard server serves. The
+  page is the console: the review's Claude session runs on the dashboard server, so the developer never switches
+  between the page and the CLI. Several reviews can run at once. Not for writing code (that is `implement`). Trigger:
   "/craftsman:pr-review", "review this PR", "review pull request", "review main:feature-x", "resume the review".
 argument-hint: "<GitHub pull request URL | target:source>"
 allowed-tools: [Read, Write, Edit, Bash, Glob, Grep, Agent, Skill]

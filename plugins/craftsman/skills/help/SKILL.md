@@ -24,7 +24,7 @@ Entry points:
   /craftsman:domain-design <input>    event storming -> specs and working code, one use case at a time
   /craftsman:implement <task/spec>    drive one task test-first, checkpoint by checkpoint
   /craftsman:pr-review <PR URL | target:source>
-                                      review a pull request on a page in the dashboard; findings are proposed
+                                      review a pull request on its own page; findings are proposed
                                       comments you edit, pick and send
 
 Management commands:
