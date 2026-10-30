@@ -38,6 +38,7 @@ import _dashboard_data as data  # noqa: E402
 import _review_session  # noqa: E402
 import _reviews as reviews  # noqa: E402
 import review_state  # noqa: E402
+import send_review  # noqa: E402
 from _markdown import MD_CSS  # noqa: E402
 from _theme import THEME_CSS  # noqa: E402
 
@@ -250,6 +251,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, dict(ok=True))
             if path == "/api/review/diff":
                 return self.send(200, reviews.diff_text(project, review_id), "text/plain")
+            if path == "/api/review/send":
+                return self.send(200, send_review.send(reviews.review_dir(project, review_id)))
             if path == "/api/review/change":
                 reviews.developer_change(project, review_id, body.get("action"), body)
                 runner.deliver()
