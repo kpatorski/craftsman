@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """The live craftsman dashboard: a small local HTTP server (stdlib only) serving one page that stays open in a
 browser -- the project's artifacts and session stacks, and the installed content -- refreshed by itself whenever a
-file changes on disk. See MANAGEMENT.md, "Dashboard".
+file changes on disk. See MANAGEMENT.md, "Dashboard". The same server serves the reviews' own page, `/review`, and
+runs each review's Claude session -- see REVIEW.md.
 
 Usage:
     dashboard_server.py on|start [--project <dir>] [--content ~/.claude/craftsman] [--port 4747]
     dashboard_server.py off|stop
     dashboard_server.py remove [--project <dir>]
     dashboard_server.py status
-    dashboard_server.py review --source <PR URL | target:source> [--project <repository>]
+    dashboard_server.py review --source <PR URL | target:source> [--project <repository>]   (prints its /review URL)
 
 `start` runs the server in the background, detached from the calling shell, and prints its URL. If one is already
 running, it adds the project to it instead of starting a second one -- one server, every project it was started
@@ -45,7 +46,7 @@ from _theme import THEME_CSS  # noqa: E402
 
 STATE = pathlib.Path.home() / ".claude" / "craftsman-dashboard.json"
 LOG = pathlib.Path.home() / ".claude" / "craftsman-dashboard.log"
-PAGE = HERE / "dashboard_page.html"
+PAGES = {"/": HERE / "dashboard_page.html", "/review": HERE / "review_page.html"}
 IDLE_EXIT_SECONDS = 8 * 3600
 POLL_SECONDS = 1.0
 RESCAN_EVERY = 10  # polls between looks for projects newly created inside a root
@@ -203,8 +204,8 @@ class Handler(BaseHTTPRequestHandler):
         if not self.allowed_host():
             return self.send(403, dict(error="unknown host"))
         url = urllib.parse.urlsplit(self.path)
-        if url.path == "/":
-            page = PAGE.read_text().replace("/*THEME_CSS*/", THEME_CSS).replace("/*MD_CSS*/", MD_CSS)
+        if url.path in PAGES:
+            page = PAGES[url.path].read_text().replace("/*THEME_CSS*/", THEME_CSS).replace("/*MD_CSS*/", MD_CSS)
             return self.send(200, page, "text/html")
         if url.path == "/api/ping":
             return self.send(200, dict(ok=True, pid=os.getpid(), version=plugin_version(),
@@ -216,7 +217,11 @@ class Handler(BaseHTTPRequestHandler):
         if url.path == "/api/events":
             return self.stream()
         if url.path == "/api/reviews":
-            return self.send(200, dict(reviews=reviews.list_reviews(self.hub.project_list())))
+            listed = reviews.list_reviews(self.hub.project_list())
+            for review in listed:
+                runner = self.hub.sessions.get((review["project"], review["id"]))
+                review["running"] = bool(runner and runner.running())
+            return self.send(200, dict(reviews=listed))
         if url.path in ("/api/review", "/api/review/diff"):
             query = urllib.parse.parse_qs(url.query)
             return self.review_request(dict(project=query.get("project", [""])[0], id=query.get("id", [""])[0]),
@@ -434,7 +439,7 @@ def start_review(port, project, source):
         if refusal.code != 409:
             raise
         request(port, "/api/review/resume", dict(project=str(project), id=review_id))
-    return f"http://localhost:{port}/?project={project}&review={review_id}"
+    return f"http://localhost:{port}/review?project={project}&review={review_id}"
 
 
 def main():

@@ -11,7 +11,7 @@ import unittest
 SCRIPTS = pathlib.Path(__file__).resolve().parent.parent / "plugins" / "craftsman" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-PAGES = ["dashboard_page.html", "render_dashboard.py", "render_diff.py", "render_report.py", "_markdown.py"]
+PAGES = ["dashboard_page.html", "review_page.html", "render_dashboard.py", "render_diff.py", "render_report.py", "_markdown.py"]
 COLOUR = re.compile(r"#[0-9a-fA-F]{3,8}\b|rgba?\(")
 
 

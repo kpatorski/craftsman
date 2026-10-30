@@ -10,6 +10,7 @@ import shutil
 import sys
 import tempfile
 import threading
+import time
 import unittest
 import urllib.error
 import urllib.request
@@ -176,10 +177,33 @@ class ReviewEndpointsTest(ReviewsTest):
         except urllib.error.HTTPError as error:
             return error.code, json.loads(error.read())
 
+    def page(self, path):
+        request = urllib.request.Request(f"http://127.0.0.1:{self.port}{path}",
+                                         headers={"Host": f"127.0.0.1:{self.port}"})
+        with urllib.request.urlopen(request, timeout=5) as response:
+            return response.read().decode()
+
+    def test_reviews_have_their_own_page_apart_from_the_dashboard(self):
+        review_page, dashboard_page = self.page("/review"), self.page("/")
+
+        self.assertIn("<title>craftsman review</title>", review_page)
+        self.assertIn("/api/review", review_page)
+        self.assertNotIn("/api/review", dashboard_page)
+
     def test_the_tests_never_touch_the_real_dashboard_state(self):
         dashboard_server.Handler.hub.add_project(self.project)
 
         self.assertTrue((self.project / "dashboard-state.json").exists())
+
+    def test_the_list_says_which_reviews_have_their_session_running(self):
+        self.call("/api/review/start", {"project": str(self.project), "source": "main:feature/x"})
+
+        deadline, running = time.time() + 10, {}
+        while len(running) < 2 and time.time() < deadline:
+            status, body = self.call("/api/reviews")
+            running = {review["id"]: review["running"] for review in body["reviews"]}
+
+        self.assertEqual((status, running), (200, {"main..feature-x": True, "pr-123": False}))
 
     def test_the_page_reads_a_review(self):
         status, body = self.call(f"/api/review?project={self.project}&id=pr-123")
@@ -235,7 +259,7 @@ class ReviewEndpointsTest(ReviewsTest):
     def test_the_cli_starts_a_review_and_prints_where_to_watch_it(self):
         printed = dashboard_server.start_review(self.port, self.project, "main:feature/x")
 
-        self.assertEqual(printed, f"http://localhost:{self.port}/?project={self.project}&review=main..feature-x")
+        self.assertEqual(printed, f"http://localhost:{self.port}/review?project={self.project}&review=main..feature-x")
         self.assertTrue(dashboard_server.Handler.hub.session(self.project, "main..feature-x").running())
 
     def test_the_cli_resumes_a_review_already_in_progress(self):

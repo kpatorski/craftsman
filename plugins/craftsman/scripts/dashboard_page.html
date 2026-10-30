@@ -168,67 +168,6 @@
     border: 1px solid var(--green); border-radius: var(--radius-sm); padding: 8px 14px; font-size: 13px; opacity: 0;
     transition: opacity .2s; pointer-events: none; max-width: 640px; }
   .toast.show { opacity: 1; }
-
-  /* ---- reviews ---- */
-  .rv-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 14px; }
-  .btn.primary { border-color: var(--green-dim); color: var(--green); }
-  .btn.danger { border-color: var(--red-dim); color: var(--red); }
-  .btn[disabled] { opacity: .45; cursor: default; }
-  .checkpoint { background: var(--amber-bg); border: 1px solid var(--amber-dim); border-radius: var(--radius); padding: 12px 14px;
-    margin: 0 0 16px; }
-  .checkpoint .q { color: var(--heading); margin-bottom: 8px; white-space: pre-wrap; }
-  .field { width: 100%; background: var(--panel2); border: 1px solid var(--border); border-radius: var(--radius-sm);
-    color: var(--text); padding: 6px 8px; font: inherit; }
-  textarea.field { min-height: 120px; font-family: var(--mono); font-size: 12.5px; }
-  .filterbar { display: flex; gap: 8px; align-items: center; background: var(--blue-bg); border: 1px solid var(--blue-dim);
-    border-radius: var(--radius-sm); padding: 5px 10px; margin: 0 0 12px; font-size: 13px; }
-  .graph { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px; }
-  .graph svg { display: block; width: 100%; height: auto; }
-  .graph .gnode rect { fill: var(--panel2); stroke: var(--border); rx: 8; }
-  .graph .gnode.uc rect { stroke: var(--blue-dim); } .graph .gnode.ctx rect { stroke: var(--violet); }
-  .graph .gnode text { fill: var(--text); font-size: 12px; pointer-events: none; }
-  .graph .gnode { cursor: pointer; }
-  .graph .gedge { stroke: var(--border); stroke-width: 1.5; fill: none; }
-  .graph .glink { stroke: var(--green); stroke-width: 1.8; fill: none; cursor: pointer; }
-  .graph .glink.doubt { stroke: var(--red); stroke-dasharray: 5 4; }
-  .graph .glabel { fill: var(--muted); font-size: 10.5px; font-family: var(--mono); }
-  .graph.hovering .gnode, .graph.hovering .gedge, .graph.hovering .glink, .graph.hovering .glabel { opacity: .25; }
-  .graph.hovering .hl { opacity: 1 !important; }
-  .graph .gnode.picked rect { fill: var(--blue-bg); stroke: var(--blue); }
-  .graph-info { margin-top: 6px; font-size: 13px; }
-  .finding { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); margin: 8px 0; padding: 10px 14px; }
-  .finding.to-send { border-color: var(--green-dim); }
-  .finding.deleted { opacity: .5; } .finding.sent { border-color: var(--blue-dim); }
-  .finding.maybe-resolved { border-style: dashed; }
-  .finding .fhead { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
-  .finding .ftitle { color: var(--heading); font-weight: 500; flex: 1; }
-  .finding .label { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-top: 8px; }
-  .finding .comment { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 2px 12px; }
-  .badge.violation { color: var(--red); border-color: var(--red-dim); }
-  .badge.new-convention { color: var(--violet); border-color: var(--violet-dim); }
-  .badge.scout { color: var(--green); border-color: var(--green-dim); }
-  .badge.out-of-scope { color: var(--amber); border-color: var(--amber-dim); }
-  .badge.to-send { color: var(--green); border-color: var(--green-dim); background: var(--green-bg); }
-  .badge.sent { color: var(--blue); border-color: var(--blue-dim); background: var(--blue-bg); }
-  .badge.deleted, .badge.merged { color: var(--muted); }
-  .badge.maybe-resolved { color: var(--amber); border-color: var(--amber-dim); }
-  .loc { font-family: var(--mono); font-size: 12px; }
-  .hunk { font-family: var(--mono); font-size: 12px; background: var(--code-bg); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); margin: 4px 0 8px; overflow-x: auto; }
-  .hunk div { white-space: pre; padding: 0 8px; }
-  .hunk .add { background: var(--green-bg); } .hunk .del { background: var(--red-bg); }
-  .hunk .at { color: var(--muted); } .hunk .here { outline: 1px solid var(--amber); }
-  .reply { border-left: 3px solid var(--blue-dim); padding: 2px 10px; margin: 4px 0; font-size: 13px; }
-  .console { display: flex; flex-direction: column; height: 100%; }
-  .console .lines { flex: 1; overflow-y: auto; font-size: 12.5px; padding: 0 2px; }
-  .console .ln { padding: 3px 4px; white-space: pre-wrap; word-break: break-word; }
-  .console .ln.you { color: var(--heading); border-left: 2px solid var(--blue); background: var(--blue-bg); margin-top: 8px; }
-  .console .ln.tool { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
-  .console .ln.denied { color: var(--red); font-family: var(--mono); font-size: 11.5px; }
-  .console .ln.turn { color: var(--muted); font-size: 11px; border-bottom: 1px dashed var(--border); padding-bottom: 6px; }
-  .console .say { display: flex; gap: 6px; padding-top: 8px; }
-  .console .say textarea { flex: 1; min-height: 54px; font-size: 13px; font-family: inherit; }
-  .side.console-side { display: flex; flex-direction: column; overflow: hidden; }
   /*MD_CSS*/
 </style>
 </head>
@@ -244,8 +183,7 @@
 const openKeys = new Set();        // every expanded <details> / tree node / card, kept across re-renders
 const seen = {};                   // file id -> mtime last looked at; a newer mtime shows a dot in the menu
 const flashKeys = new Set();
-const params = new URLSearchParams(location.search);
-let current = params.get("review") ? { type: "review", project: params.get("project"), id: params.get("review") } : { type: "now" };
+let current = { type: "now" };
 let libQuery = "";
 let project = new URLSearchParams(location.search).get("project") || "";
 let D, files, fileById, libById, sessions, loaded = false;
@@ -272,11 +210,7 @@ function ingest(data) {
 async function reload() {
   const r = await fetch("/api/data" + (project ? "?project=" + encodeURIComponent(project) : ""));
   if (!r.ok) { document.getElementById("centre").innerHTML = `<div class="view"><h1>No project</h1><div class="muted">Start the dashboard from a project: /craftsman:dashboard</div></div>`; return; }
-  ingest(await r.json());
-  const rl = await fetch("/api/reviews"); reviewsList = rl.ok ? (await rl.json()).reviews : [];
-  await loadReview();
-  if (!editing) render(); else { renderMenu(); renderSide(); }
-  flashKeys.clear();
+  ingest(await r.json()); render(); flashKeys.clear();
 }
 
 // ---------------------------------------------------------------- helpers
@@ -457,8 +391,6 @@ function renderCard(session) {
   return html + `</div>`;
 }
 function renderSide() {
-  if (current.type === "review") return renderConsole();
-  document.getElementById("side").classList.remove("console-side");
   document.getElementById("side").innerHTML =
     (D.project ? `<div class="side-title">Sessions · ${esc(projectLabel(D.project.path))}</div>` + sortedSessions().map(renderCard).join("")
       : `<div class="side-title">Sessions</div><div class="muted" style="padding:4px;font-size:12.5px">No project on the dashboard.</div>`);
@@ -489,15 +421,6 @@ function renderMenu() {
     sortedSessions().forEach(s => html += item("file", s.file.id, `${ico(s.state)} ${esc(s.entry)} <span class="muted">${esc(s.slug)}</span>`, changed(s.file)));
     html += `</div>`;
   }
-  html += `<div class="menu-group"><div class="menu-title">Reviews</div>` + item("new-review", undefined, "+ New review");
-  reviewsList.forEach(rv => {
-    const here = current.type === "review" && current.id === rv.id && current.project === rv.project ? " current" : "";
-    const where = D.projects.length > 1 ? ` <span class="muted">${esc(projectLabel(rv.project))}</span>` : "";
-    html += `<div class="menu-item${here}" data-review="${esc(rv.id)}" data-rproject="${esc(rv.project)}"><span class="grow">` +
-      `${ico(rv.closed ? "done" : rv.checkpoint ? "blocked" : "active")} ${esc(rv.id)}${where}</span>` +
-      `<span class="count">${(rv.findings["to-send"] || 0)}/${Object.values(rv.findings).reduce((a, b) => a + b, 0)}</span></div>`;
-  });
-  html += `</div>`;
   html += `<div class="menu-group"><div class="menu-title">craftsman</div>`;
   const on = D.library.filter(e => e.enabled).length;
   html += item("library", undefined, "Library", `<span class="count">${on}/${D.library.length}</span>`);
@@ -716,8 +639,6 @@ function render() {
   else if (current.type === "lib") { body = viewLib(current.id); crumb = "library / " + current.id; }
   else if (current.type === "library") { body = viewLibrary(); crumb = "library"; }
   else if (current.type === "specs") { body = viewSpecs(); crumb = "specs"; }
-  else if (current.type === "review") { body = viewReview(); crumb = "review / " + current.id; }
-  else if (current.type === "new-review") { body = viewNewReview(); crumb = "new review"; }
   else if (current.type === "commands") { body = `<h1>Commands</h1><pre class="help">${esc(D.help)}</pre>`; crumb = "commands"; }
   else { body = viewManage(); crumb = "manage"; }
   c.innerHTML = `<div class="topbar"><span class="crumb"><b>${esc(crumb)}</b></span>` +
@@ -727,271 +648,7 @@ function render() {
   const s = document.getElementById("libsearch");
   if (s && current.type === "library" && document.activeElement !== s && libQuery) { s.focus(); s.setSelectionRange(libQuery.length, libQuery.length); }
 }
-async function go(target) {
-  const otherReview = target.type !== "review" || current.type !== "review" || target.id !== current.id || target.project !== current.project;
-  current = target; document.getElementById("centre").scrollTop = 0;
-  if (otherReview) { R = null; diffText = null; rFilter = null; graphInfo = null; openContext = null; editing = null; shownHunks.clear(); }
-  if (current.type === "review") await loadReview();
-  render();
-}
-
-
-// ---------------------------------------------------------------- reviews
-let reviewsList = [], R = null, rFilter = null, graphInfo = null, openContext = null, editing = null, diffText = null;
-const shownHunks = new Set();
-const api = async (path, body) => {
-  const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json", "X-Craftsman": "1" },
-    body: JSON.stringify(body) });
-  const out = await r.json().catch(() => ({ error: "no answer from the server" }));
-  if (!r.ok) { toast(out.error || "failed"); return null; }
-  return out;
-};
-const reviewKey = () => ({ project: current.project, id: current.id });
-async function loadReview() {
-  if (current.type !== "review") { R = null; return; }
-  const r = await fetch(`/api/review?project=${encodeURIComponent(current.project)}&id=${encodeURIComponent(current.id)}`);
-  const fresh = r.ok ? await r.json() : null;
-  if (fresh && R && fresh.state.head !== R.state.head) diffText = null;
-  R = fresh;
-  if (R && diffText === null) {
-    const d = await fetch(`/api/review/diff?project=${encodeURIComponent(current.project)}&id=${encodeURIComponent(current.id)}`);
-    diffText = d.ok ? await d.text() : "";
-  }
-}
-function sourceLabel(src) {
-  if (!src) return "";
-  if (src.kind === "pull-request") return `PR #${src.number} · ${src.repository}`;
-  return `${src.target} ← ${src.source}` + (src["pull-request"] ? ` · PR #${src["pull-request"].number}` : " · no PR");
-}
-const short = sha => String(sha || "").slice(0, 8);
-
-function filesOf(kind, id) {
-  const st = R.state.structure || {};
-  const list = kind === "uc" ? st["use-cases"] : st.contexts;
-  return new Set(((list || []).find(x => x.id === id) || {}).files || []);
-}
-const inFilter = path => !rFilter || rFilter.files.has(path);
-
-function graphSvg() {
-  const st = R.state.structure || {};
-  const ucs = st["use-cases"] || [], ctxs = st.contexts || [], links = st.links || [];
-  if (!ucs.length && !ctxs.length) return "";
-  const compact = ucs.length + ctxs.length > 12;
-  const shownUc = compact ? ucs.filter(u => openContext && [...filesOf("ctx", openContext)].some(f => (u.files || []).includes(f))) : ucs;
-  const H = 34, W = 640, ucX = 10, ucW = 230, cX = compact && !shownUc.length ? 200 : 330, cW = 200;
-  const rows = Math.max(shownUc.length, ctxs.length, 1);
-  const height = rows * H + 20;
-  const yOf = (i, n) => 10 + (rows - n) * H / 2 + i * H;
-  const cY = Object.fromEntries(ctxs.map((c, i) => [c.id, yOf(i, ctxs.length)]));
-  let edges = "", links_ = "", nodes = "";
-  shownUc.forEach((u, i) => {
-    const y = yOf(i, shownUc.length);
-    ctxs.forEach(c => {
-      if ((u.files || []).some(f => (c.files || []).includes(f)))
-        edges += `<path class="gedge" data-a="uc:${esc(u.id)}" data-b="ctx:${esc(c.id)}" d="M${ucX + ucW},${y + 13} C${ucX + ucW + 50},${y + 13} ${cX - 50},${cY[c.id] + 13} ${cX},${cY[c.id] + 13}"/>`;
-    });
-    nodes += `<g class="gnode uc${rFilter && rFilter.key === "uc:" + u.id ? " picked" : ""}" data-gnode="uc:${esc(u.id)}"><rect x="${ucX}" y="${y}" width="${ucW}" height="26"/>` +
-      `<text x="${ucX + 10}" y="${y + 17}">${esc(u.name).slice(0, 34)}</text><title>${esc(u.name)} — ${esc(u.entry || "")}</title></g>`;
-  });
-  links.forEach((l, i) => {
-    if (!(l.from in cY) || !(l.to in cY)) return;
-    const y1 = cY[l.from] + 13, y2 = cY[l.to] + 13, bend = cX + cW + 40 + (i % 3) * 22;
-    links_ += `<path class="glink${l.doubt ? " doubt" : ""}" data-link="${i}" data-a="ctx:${esc(l.from)}" data-b="ctx:${esc(l.to)}" ` +
-      `d="M${cX + cW},${y1} C${bend},${y1} ${bend},${y2} ${cX + cW},${y2}"/>` +
-      `<text class="glabel" data-a="ctx:${esc(l.from)}" data-b="ctx:${esc(l.to)}" x="${bend - 8}" y="${(y1 + y2) / 2 + 4}">${esc(l.how)}</text>`;
-  });
-  ctxs.forEach(c => {
-    nodes += `<g class="gnode ctx${rFilter && rFilter.key === "ctx:" + c.id ? " picked" : ""}" data-gnode="ctx:${esc(c.id)}"><rect x="${cX}" y="${cY[c.id]}" width="${cW}" height="26"/>` +
-      `<text x="${cX + 10}" y="${cY[c.id] + 17}">${esc(c.name).slice(0, 28)}${compact ? (openContext === c.id ? " ▾" : " ▸") : ""}</text></g>`;
-  });
-  const info = graphInfo !== null && links[graphInfo] ? (l => `<div class="graph-info"><code>${esc(l.from)}</code> → <code>${esc(l.to)}</code> by <b>${esc(l.how)}</b>` +
-    (l.doubt ? ` — <span style="color:var(--red)">${inline(l.doubt)}</span>` : "") + `</div>`)(links[graphInfo]) : "";
-  return `<div class="graph" id="graph"><svg viewBox="0 0 ${W} ${height}">${edges}${links_}${nodes}</svg>${info}` +
-    (compact ? `<div class="muted" style="font-size:12px">${ucs.length} use cases — click a context to see its own</div>` : "") + `</div>`;
-}
-
-function hunkFor(path, line) {
-  if (!diffText) return `<div class="muted">no diff loaded</div>`;
-  const files_ = diffText.split(/^diff --git /m).slice(1);
-  const file = files_.find(f => f.split("\n")[0].endsWith(" b/" + path));
-  if (!file) return `<div class="muted">${esc(path)} is not in the diff — outside the change</div>`;
-  const hunks = file.split(/^(?=@@ )/m).slice(1);
-  for (const h of hunks) {
-    const m = h.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/);
-    if (!m) continue;
-    const start = +m[1], len = m[2] === undefined ? 1 : +m[2];
-    if (line < start || line >= start + len) continue;
-    let n = start - 1;
-    const raw = h.replace(/\n$/, "").split("\n").filter(l => !l.startsWith("\\"));
-    const rows = raw.map((l, i) => {
-      if (i === 0) return `<div class="at">${esc(l)}</div>`;
-      const cls = l[0] === "+" ? "add" : l[0] === "-" ? "del" : "";
-      if (l[0] !== "-") n++;
-      return `<div class="${cls}${l[0] !== "-" && n === line ? " here" : ""}">${esc(l)}</div>`;
-    });
-    return `<div class="hunk">${rows.join("")}</div>`;
-  }
-  return `<div class="muted">line ${line} of ${esc(path)} is not in a changed hunk</div>`;
-}
-
-function findingCard(f, merged) {
-  const H = R.html, open = editing === f.id, final = f.status === "sent";
-  const act = (label, attrs, cls = "") => `<button class="btn ${cls}" ${attrs}>${label}</button>`;
-  let actions = "";
-  if (!final) {
-    actions += f.status === "to-send" ? act("Unmark", `data-fstatus="proposed" data-fid="${f.id}"`)
-      : f.status !== "deleted" ? act("Mark to send", `data-fstatus="to-send" data-fid="${f.id}"`, "primary") : "";
-    actions += f.status === "deleted" ? act("Restore", `data-fstatus="proposed" data-fid="${f.id}"`)
-      : act("Delete", `data-fstatus="deleted" data-fid="${f.id}"`, "danger");
-    actions += open ? act("Save", `data-fsave="${f.id}"`, "primary") + act("Cancel", `data-fedit=""`) : act("Edit", `data-fedit="${f.id}"`);
-  }
-  actions += act("Explain", `data-explain="finding" data-eid="${f.id}"`);
-  const locs = f.locations.map((l, i) => {
-    const key = f.id + ":" + i;
-    return `<div class="loc">${i === 0 ? "▸" : "·"} <a data-hunk="${esc(key)}">${esc(l.path)}:${l.line}</a>` +
-      `${i > 0 ? ' <span class="muted">— gets “same as” the first</span>' : ""}</div>` + (shownHunks.has(key) ? hunkFor(l.path, l.line) : "");
-  }).join("");
-  const replies = (f.sent || []).flatMap(s => (s.replies || []).map(r =>
-    `<div class="reply"><span class="muted">${esc(r.author)} · ${esc(r.at)}</span><br>${inline(r.body)}</div>`)).join("");
-  const body = open
-    ? `<div class="label">title</div><input class="field" id="edit-title" value="${esc(f.title)}">` +
-      `<div class="label">description</div><textarea class="field" id="edit-description" style="min-height:60px">${esc(f.description)}</textarea>` +
-      `<div class="label">proposed comment (GitHub markdown)</div><textarea class="field" id="edit-comment">${esc(f.comment)}</textarea>`
-    : `<div class="md">${H["finding:" + f.id + ":description"] || ""}</div>` +
-      `<div class="label">proposed comment${f.edited.length ? " · edited by you" : ""}</div><div class="comment md">${H["finding:" + f.id + ":comment"] || ""}</div>`;
-  return `<div class="finding ${f.status}"><div class="fhead"><span class="id">${f.id}</span><span class="ftitle">${esc(f.title)}</span>` +
-    `<span class="badge ${f.kind}">${f.kind}${f.when ? " · " + f.when : ""}</span><span class="badge ${f.status}">${f.status}</span>` +
-    `${f.directive ? `<a class="id" data-lib="${esc(f.directive)}">${esc(f.directive)}</a>` : ""}</div>` +
-    body + `<div class="label">where</div>${locs}` +
-    (merged.length ? `<div class="label">merged into this</div><div class="muted" style="font-size:12.5px">${merged.map(m => m.id + " " + esc(m.title)).join(" · ")}</div>` : "") +
-    (replies ? `<div class="label">replies on GitHub</div>${replies}` : "") +
-    `<div class="rv-actions" style="margin:10px 0 0">${actions}</div></div>`;
-}
-
-function viewReview() {
-  if (!R) return `<h1>${esc(current.id)}</h1><div class="sub">Starting the review session… the console on the right shows what it does.</div>`;
-  const S = R.state, H = R.html;
-  const st = S.structure || {};
-  let html = `<h1>${esc(sourceLabel(S.source))}</h1><div class="sub">${esc(current.id)} · head <code>${short(S.head)}</code> · ` +
-    `<span class="badge ${R.running ? "active" : "off"}">${R.running ? "session running" : "session stopped"}</span>` +
-    `${S.closed ? ' <span class="badge done">closed</span>' : ""}${R.pending ? ` · ${R.pending} request(s) waiting` : ""}</div>`;
-  const toSend = S.findings.filter(f => f.status === "to-send").length;
-  html += `<div class="rv-actions">` +
-    (R.running ? `<button class="btn" data-rv="stop">Stop session</button><button class="btn" data-rv="cli">Continue in CLI</button>`
-               : `<button class="btn primary" data-rv="resume">${S.session ? "Resume session" : "Start session"}</button>`) +
-    `<button class="btn" data-rv="refresh">Refresh PR</button>` +
-    `<button class="btn primary" data-rv="send" ${toSend ? "" : "disabled"}>Send ${toSend} to GitHub</button>` +
-    `<button class="btn danger" data-rv="close">Close review</button></div>`;
-  if (S.checkpoint && !S.checkpoint.answer) {
-    html += `<div class="checkpoint"><div class="muted" style="font-size:12px">${esc(S.checkpoint.step)} is waiting for you</div>` +
-      `<div class="q">${inline(S.checkpoint.question)}</div><input class="field" id="cp-note" placeholder="note (optional)">` +
-      `<div class="rv-actions" style="margin:8px 0 0">${(S.checkpoint.options || []).map(o =>
-        `<button class="btn primary" data-answer="${esc(o)}">${esc(o)}</button>`).join("")}</div></div>`;
-  }
-  if (rFilter) html += `<div class="filterbar">Showing only <b>${esc(rFilter.name)}</b><span style="flex:1"></span><a data-clear-filter="1">show everything</a></div>`;
-  html += `<h2>What the PR is for</h2>` + (H.scope ? `<div class="md">${H.scope}</div>` : `<div class="muted">not read yet</div>`);
-  if (H.requirements || (S.tickets || []).length) html += `<div class="label muted" style="font-size:11px;text-transform:uppercase">requirements ${(S.tickets || []).map(esc).join(", ")}</div><div class="md">${H.requirements || ""}</div>`;
-  html += `<h2>Structure</h2>` + (graphSvg() || `<div class="muted">not mapped yet</div>`);
-  (st["use-cases"] || []).forEach(u => html += `<div class="list-row">${ico({ reviewed: "done", reviewing: "active" }[u.status] || "pending")}` +
-    `<span class="grow">${esc(u.name)}</span><code>${esc(u.entry || "")}</code></div>`);
-  if (H.boundaries) html += det("rv#boundaries", "block", `<span class="t">Boundaries</span>`, `<div class="md">${H.boundaries}</div>`);
-  if ((S.rules || []).length) html += `<h2>Rules from the tests · ${S.rules.length}</h2>` + S.rules.map(r =>
-    `<div class="list-row"><span class="grow">${inline(r.rule)}</span><code>${esc(r.test)}</code><span class="muted" style="font-size:12px">${inline(r.requirement || "no requirement")}</span></div>`).join("");
-  const groups = (S.map || []).filter(g => (g.files || []).some(inFilter));
-  if (groups.length) {
-    html += `<h2>PR map · ${groups.length} groups</h2>`;
-    groups.forEach(g => html += det("rv#group:" + g.id, "block", `<span class="t">${esc(g.name)}</span><span class="count">${g.files.length} file${g.files.length === 1 ? "" : "s"}</span>` +
-      `<span style="flex:1"></span><a data-explain="group" data-eid="${esc(g.id)}">explain</a>`,
-      `<div class="md">${H["group:" + g.id] || ""}</div>` + g.files.map(f =>
-        `<div class="loc">${esc(f)} <a data-explain="file" data-eid="${esc(f)}" style="font-size:11px">explain</a></div>`).join("")));
-  }
-  const exps = (S.explanations || []).filter(e => !rFilter || e.about.kind !== "file" || inFilter(e.about.id));
-  if (exps.length) {
-    html += `<h2>Explanations · ${exps.length}</h2>`;
-    const aboutName = a => a.kind === "group" ? ((S.map || []).find(g => g.id === a.id) || {}).name || a.id
-      : a.kind === "finding" ? ((S.findings.find(f => f.id === a.id) || {}).title || a.id) : a.id;
-    exps.forEach(e => html += det("rv#exp:" + e.id, "block", `<span class="t">${esc(aboutName(e.about))}</span><span class="muted">${esc(e.about.kind)}</span>` +
-      `<span class="badge ${e.status === "ready" ? "done" : "pending"}">${e.status === "ready" ? e.origin : "writing…"}</span>`,
-      `<div class="md">${H["explanation:" + e.id] || '<span class="muted">being written</span>'}</div>`));
-  }
-  const visible = S.findings.filter(f => f.status !== "merged" && f.locations.some(l => inFilter(l.path)));
-  const counts = {}; S.findings.forEach(f => counts[f.status] = (counts[f.status] || 0) + 1);
-  html += `<h2>Findings · ${visible.length}</h2><div class="sub">${Object.entries(counts).map(([k, n]) => `<span class="badge ${k}">${k} ${n}</span>`).join(" ")}</div>`;
-  const cats = {}; visible.forEach(f => (cats[f.category] ||= []).push(f));
-  Object.entries(cats).forEach(([cat, list]) => {
-    const key = "rv#cat:" + cat; if (!loadedCats.has(key)) { openKeys.add(key); loadedCats.add(key); }
-    html += det(key, "block", `<span class="t">${esc(cat)}</span><span class="count">${list.length}</span>`,
-      list.map(f => findingCard(f, S.findings.filter(m => m.status === "merged" && m["merged-into"] === f.id))).join(""));
-  });
-  return html;
-}
-const loadedCats = new Set();
-
-function viewNewReview() {
-  const projects = D.projects.length ? D.projects : [];
-  return `<h1>New review</h1><div class="sub">A pull request URL, or two branches of the repository as <code>target:source</code>.` +
-    ` The review runs in its own worktree; your checkout is not touched.</div>` +
-    `<div class="label muted" style="font-size:11px">REPOSITORY</div><select class="field" id="nr-project">${projects.map(p =>
-      `<option value="${esc(p)}"${p === project ? " selected" : ""}>${esc(p)}</option>`).join("")}</select>` +
-    `<div class="label muted" style="font-size:11px;margin-top:8px">PULL REQUEST OR BRANCHES</div>` +
-    `<input class="field" id="nr-source" placeholder="https://github.com/org/repo/pull/123  or  main:feature/x">` +
-    `<div class="rv-actions" style="margin-top:10px"><button class="btn primary" data-rv="start">Start review</button></div>` +
-    `<p class="muted" style="font-size:12.5px">The same from Claude CLI: ${copyCmd("/craftsman:pr-review <url | target:source>")}</p>`;
-}
-
-function renderConsole() {
-  const side = document.getElementById("side");
-  side.classList.add("console-side");
-  const lines = R ? R.console : [];
-  const box = document.getElementById("console-lines");
-  const atBottom = !box || box.scrollHeight - box.scrollTop - box.clientHeight < 40;
-  const draft = (document.getElementById("say") || {}).value || "";
-  side.innerHTML = `<div class="side-title">Console · ${esc(current.id)}</div><div class="console">` +
-    `<div class="lines" id="console-lines">${lines.map(l => `<div class="ln ${l.kind}">${l.kind === "text" || l.kind === "you" ? inline(l.text) : (l.kind === "denied" ? "refused · " : "") + esc(l.text)}</div>`).join("") ||
-      '<div class="muted">Nothing yet.</div>'}</div>` +
-    `<div class="say"><textarea class="field" id="say" placeholder="Write to the review's session…">${esc(draft)}</textarea>` +
-    `<button class="btn primary" data-rv="say">Send</button></div></div>`;
-  const nb = document.getElementById("console-lines");
-  if (atBottom) nb.scrollTop = nb.scrollHeight;
-}
-
-async function reviewAction(what) {
-  const k = reviewKey();
-  if (what === "start") {
-    const body = { project: document.getElementById("nr-project").value, source: document.getElementById("nr-source").value.trim() };
-    const out = await api("/api/review/start", body);
-    if (out) { project = body.project; go({ type: "review", project: body.project, id: out.id }); }
-    return;
-  }
-  if (what === "resume" || what === "stop") { if (await api("/api/review/" + what, k)) toast(what === "stop" ? "session stopped" : "session started"); return reload(); }
-  if (what === "cli") {
-    if (!(await api("/api/review/stop", k))) return;
-    toast("session stopped — run the command shown in the console panel");
-    await reload();
-    const cmd = `cd ${current.project} && claude --resume ${R.state.session}`;
-    document.getElementById("console-lines").insertAdjacentHTML("beforeend", `<div class="ln you">Continue in the CLI:${copyCmd(cmd)}</div>`);
-    return;
-  }
-  if (what === "refresh" || what === "close") {
-    if (what === "close" && !confirm("Close this review? The session ends; the review and its findings stay.")) return;
-    if (await api("/api/review/message", { ...k, type: what })) toast(what === "refresh" ? "asked the session to refresh" : "closing");
-    return;
-  }
-  if (what === "say") {
-    const text = document.getElementById("say").value.trim(); if (!text) return;
-    if (await api("/api/review/message", { ...k, type: "message", text })) { document.getElementById("say").value = ""; reload(); }
-    return;
-  }
-  if (what === "send") {
-    const marked = R.state.findings.filter(f => f.status === "to-send");
-    if (!confirm(`Send ${marked.length} finding(s) to ${sourceLabel(R.state.source)} as comments?\n\n` +
-      marked.map(f => `${f.id} ${f.title}`).join("\n") + `\n\nComments on GitHub cannot be taken back from here.`)) return;
-    toast("sending…");
-    const out = await api("/api/review/send", k);
-    if (out) toast(`sent ${out.sent.length}` + (out.errors.length ? ` · problems: ${out.errors.join("; ")}` : ""));
-    return reload();
-  }
-}
+function go(target) { current = target; document.getElementById("centre").scrollTop = 0; render(); }
 
 // ---------------------------------------------------------------- writes and live updates
 async function toggle(id, action, yes) {
@@ -1036,39 +693,6 @@ document.addEventListener("toggle", e => {
   e.target.open ? openKeys.add(k) : openKeys.delete(k);
 }, true);
 document.addEventListener("click", e => {
-  const g = e.target.closest("[data-gnode],[data-link]");
-  if (g) {
-    if (g.dataset.link !== undefined) { graphInfo = graphInfo === +g.dataset.link ? null : +g.dataset.link; return render(); }
-    const [kind, id] = g.dataset.gnode.split(/:(.*)/s);
-    const st = R.state.structure;
-    const name = ((kind === "uc" ? st["use-cases"] : st.contexts).find(x => x.id === id) || {}).name || id;
-    if (kind === "ctx" && (st["use-cases"] || []).length + (st.contexts || []).length > 12) openContext = openContext === id ? null : id;
-    rFilter = rFilter && rFilter.key === g.dataset.gnode ? null : { key: g.dataset.gnode, name, files: filesOf(kind, id) };
-    return render();
-  }
-  const r = e.target.closest("[data-review],[data-rv],[data-answer],[data-fstatus],[data-fedit],[data-fsave],[data-explain],[data-hunk],[data-clear-filter]");
-  if (r) {
-    e.preventDefault();
-    const k = reviewKey(), d = r.dataset;
-    if (d.review) return go({ type: "review", project: d.rproject, id: d.review });
-    if (d.rv) return reviewAction(d.rv);
-    if (d.clearFilter) { rFilter = null; return render(); }
-    if (d.hunk) { shownHunks.has(d.hunk) ? shownHunks.delete(d.hunk) : shownHunks.add(d.hunk); return render(); }
-    if (d.answer !== undefined) return api("/api/review/change", { ...k, action: "answer", option: d.answer,
-      note: document.getElementById("cp-note").value || null }).then(o => o && reload());
-    if (d.fstatus) return api("/api/review/change", { ...k, action: "status", finding: d.fid, status: d.fstatus }).then(o => o && reload());
-    if (d.fedit !== undefined) { editing = d.fedit || null; return render(); }
-    if (d.fsave) {
-      const f = R.state.findings.find(x => x.id === d.fsave), fields = {};
-      for (const name of ["title", "description", "comment"]) {
-        const v = document.getElementById("edit-" + name).value; if (v !== f[name]) fields[name] = v;
-      }
-      if (!Object.keys(fields).length) { editing = null; return render(); }
-      return api("/api/review/change", { ...k, action: "edit", finding: d.fsave, fields }).then(o => { if (o) { editing = null; reload(); } });
-    }
-    if (d.explain) return api("/api/review/message", { ...k, type: "explain", about: { kind: d.explain, id: d.eid } })
-      .then(o => o && toast("asked the session to explain " + d.eid));
-  }
   const t = e.target.closest("[data-remove-project],[data-switch],[data-copy],[data-toggle],[data-file],[data-lib],[data-nav],[data-goto]");
   if (!t) return;
   if (t.dataset.removeProject) {
@@ -1091,23 +715,6 @@ document.addEventListener("click", e => {
   if (t.dataset.lib) return libById[t.dataset.lib] ? go({ type: "lib", id: t.dataset.lib }) : toast(t.dataset.lib + " is not installed");
   if (t.dataset.goto) return go({ type: "lib", id: t.dataset.goto.replace(/^lib:/, "") });
   if (t.dataset.nav) return go(t.dataset.id ? { type: t.dataset.nav, id: t.dataset.id } : { type: t.dataset.nav });
-});
-document.addEventListener("mouseover", e => {
-  const graph = document.getElementById("graph"); if (!graph) return;
-  const n = e.target.closest("[data-gnode]");
-  graph.querySelectorAll(".hl").forEach(x => x.classList.remove("hl"));
-  if (!n) return graph.classList.remove("hovering");
-  const id = n.dataset.gnode; graph.classList.add("hovering"); n.classList.add("hl");
-  graph.querySelectorAll("[data-a],[data-b]").forEach(x => {
-    if (x.dataset.a === id || x.dataset.b === id) {
-      x.classList.add("hl");
-      const other = x.dataset.a === id ? x.dataset.b : x.dataset.a;
-      graph.querySelectorAll(`[data-gnode="${CSS.escape(other)}"]`).forEach(o => o.classList.add("hl"));
-    }
-  });
-});
-document.addEventListener("keydown", e => {
-  if (e.target.id === "say" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); reviewAction("say"); }
 });
 document.addEventListener("change", e => {
   if (e.target.id !== "projects") return;
