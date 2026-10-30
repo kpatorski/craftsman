@@ -8,6 +8,7 @@ import json
 import os
 import pathlib
 import shutil
+import subprocess
 import sys
 import tempfile
 import time
@@ -73,6 +74,25 @@ class ReviewSessionTest(unittest.TestCase):
             self.assertIn(flag, argv)
         self.assertEqual(argv[argv.index("--input-format") + 1], "stream-json")
         self.assertEqual(argv[argv.index("--output-format") + 1], "stream-json")
+
+    def test_the_session_may_write_only_its_own_session_files_by_absolute_path(self):
+        self.started()
+
+        argv = self.logged()[0]["argv"]
+        tools = argv[argv.index("--allowedTools") + 1:]
+        self.assertIn(f"Write(/{self.project}/.claude/sessions/**)", tools)
+        self.assertIn(f"Edit(/{self.project}/.claude/sessions/**)", tools)
+
+    def test_starting_a_review_keeps_its_files_out_of_git_status(self):
+        subprocess.run(["git", "init", "-q", str(self.project)], check=True)
+
+        self.started()
+        self.started_again = sessions.ReviewSession(self.project, "pr-124", command=self.command)
+        self.started_again.start("https://github.com/org/booking/pull/124")
+        self.started_again.stop()
+
+        excluded = (self.project / ".git" / "info" / "exclude").read_text().splitlines()
+        self.assertEqual(excluded.count(".claude/reviews/"), 1)
 
     def test_every_event_is_kept_for_the_console_and_the_session_id_in_the_state(self):
         self.started()

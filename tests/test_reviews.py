@@ -119,6 +119,16 @@ class ReviewsTest(unittest.TestCase):
             ("you", "Why the retry?"), ("text", "Because the provider..."), ("tool", "Bash git log -1"),
             ("denied", "Write"), ("turn", "turn ended · $0.0123")])
 
+    def test_a_long_tool_call_shows_as_its_first_line_shortened(self):
+        command = "python3 review_state.py pr-1 set <<'EOF'\n" + "{" + "x" * 400 + "}\nEOF"
+        event = {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Bash",
+                                                                "input": {"command": command}}]}}
+        (self.review / "session.jsonl").write_text(json.dumps(event) + "\n")
+
+        line = reviews.console_lines(self.review)[0]["text"]
+
+        self.assertEqual(line, "Bash python3 review_state.py pr-1 set <<'EOF' …")
+
     def test_markdown_in_the_review_reaches_the_page_rendered(self):
         review_state.change(self.review, "update-finding", {"comment": "Use `ReservationId`."}, item_id="f1")
 
@@ -136,6 +146,8 @@ class ReviewEndpointsTest(ReviewsTest):
 
     def setUp(self):
         super().setUp()
+        self.real_state = dashboard_server.STATE
+        dashboard_server.STATE = self.project / "dashboard-state.json"
         fake = pathlib.Path(__file__).resolve().parent / "fake_claude.py"
         os.environ["CRAFTSMAN_CLAUDE"] = f"{sys.executable} {fake}"
         os.environ.update(FAKE_CLAUDE_LOG=str(self.project / "fake.log"), CRAFTSMAN_SCRIPTS=str(SCRIPTS),
@@ -150,6 +162,7 @@ class ReviewEndpointsTest(ReviewsTest):
         dashboard_server.Handler.hub.stop_sessions()
         self.server.shutdown()
         self.server.server_close()
+        dashboard_server.STATE = self.real_state
         super().tearDown()
 
     def call(self, path, body=None):
@@ -162,6 +175,11 @@ class ReviewEndpointsTest(ReviewsTest):
                 return response.status, json.loads(response.read())
         except urllib.error.HTTPError as error:
             return error.code, json.loads(error.read())
+
+    def test_the_tests_never_touch_the_real_dashboard_state(self):
+        dashboard_server.Handler.hub.add_project(self.project)
+
+        self.assertTrue((self.project / "dashboard-state.json").exists())
 
     def test_the_page_reads_a_review(self):
         status, body = self.call(f"/api/review?project={self.project}&id=pr-123")

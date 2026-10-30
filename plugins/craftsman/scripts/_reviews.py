@@ -96,8 +96,11 @@ def console_lines(review, limit=400):
                     lines.append({"kind": "text", "text": block["text"]})
                 elif block.get("type") == "tool_use":
                     detail = block.get("input", {})
-                    shown = detail.get("command") or detail.get("file_path") or detail.get("description") or ""
-                    lines.append({"kind": "tool", "text": f"{block.get('name')} {shown}".strip()})
+                    shown = str(detail.get("command") or detail.get("file_path") or detail.get("description") or "")
+                    first = shown.strip().split("\n")[0]
+                    if first != shown.strip() or len(first) > 160:
+                        first = first[:160].rstrip() + " …"
+                    lines.append({"kind": "tool", "text": f"{block.get('name')} {first}".strip()})
         elif kind == "system" and event.get("subtype") == "permission_denied":
             lines.append({"kind": "denied", "text": event.get("tool_name", "a tool")})
         elif kind == "result":
