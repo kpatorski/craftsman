@@ -982,7 +982,15 @@ async function reviewAction(what) {
     if (await api("/api/review/message", { ...k, type: "message", text })) { document.getElementById("say").value = ""; reload(); }
     return;
   }
-  if (what === "send") return toast("sending to GitHub comes with the next part");
+  if (what === "send") {
+    const marked = R.state.findings.filter(f => f.status === "to-send");
+    if (!confirm(`Send ${marked.length} finding(s) to ${sourceLabel(R.state.source)} as comments?\n\n` +
+      marked.map(f => `${f.id} ${f.title}`).join("\n") + `\n\nComments on GitHub cannot be taken back from here.`)) return;
+    toast("sending…");
+    const out = await api("/api/review/send", k);
+    if (out) toast(`sent ${out.sent.length}` + (out.errors.length ? ` · problems: ${out.errors.join("; ")}` : ""));
+    return reload();
+  }
 }
 
 // ---------------------------------------------------------------- writes and live updates

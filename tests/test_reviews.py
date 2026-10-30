@@ -204,6 +204,16 @@ class ReviewEndpointsTest(ReviewsTest):
         self.assertEqual(status, 409)
         self.assertIn("in progress", body["error"])
 
+    def test_the_page_sends_what_is_marked_to_send(self):
+        review_state.change(self.review, "set-status", {"status": "to-send"}, "developer", "f1")
+        os.environ.update(CRAFTSMAN_GH=f"{sys.executable} {pathlib.Path(__file__).resolve().parent / 'fake_gh.py'}",
+                          FAKE_GH_LOG=str(self.project / "gh.log"), FAKE_GH_STATE=str(self.project / "gh.json"))
+
+        status, body = self.call("/api/review/send", {"project": str(self.project), "id": "pr-123"})
+
+        self.assertEqual((status, body["sent"]), (200, ["f1"]))
+        self.assertEqual(review_state.read(self.review)["findings"][0]["status"], "sent")
+
     def test_a_project_registered_through_a_symlink_is_found(self):
         link = pathlib.Path(tempfile.mkdtemp()) / "link"
         link.symlink_to(self.project)
