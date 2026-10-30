@@ -7,6 +7,7 @@ import os
 import pathlib
 import re
 
+import _reviews as reviews
 from _markdown import render_markdown
 from render_dashboard import collect_entries, help_block
 
@@ -19,8 +20,9 @@ DISCOVERY_DEPTH = 5
 
 
 def is_project(path):
-    """A directory craftsman has worked in: it holds a session folder or one of the artifacts."""
-    return (path / ".claude" / "sessions").is_dir() or any((path / n).is_file() for n in ARTIFACTS)
+    """A directory craftsman has worked in: it holds a session folder, a review, or one of the artifacts."""
+    return ((path / ".claude" / "sessions").is_dir() or (path / ".claude" / "reviews").is_dir()
+            or any((path / n).is_file() for n in ARTIFACTS))
 
 
 def discover_projects(root):
@@ -131,6 +133,7 @@ def watched_paths(projects, content):
     for project in projects:
         paths += project_paths(project)
         paths += [project, project / "specs", project / ".claude" / "sessions"]
+        paths += reviews.watched(project)
     if content.exists():
         paths += list(content.glob("*/index.md")) + list(content.glob("bundles/*/bundle.md"))
         paths += list(content.glob("*/*/*.md")) + list(content.glob("bundles/*/*/*/*.md"))

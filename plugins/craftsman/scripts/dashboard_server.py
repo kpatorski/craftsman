@@ -35,6 +35,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import _dashboard_data as data  # noqa: E402
+import _reviews as reviews  # noqa: E402
+import review_state  # noqa: E402
 from _markdown import MD_CSS  # noqa: E402
 from _theme import THEME_CSS  # noqa: E402
 
@@ -197,6 +199,33 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, data.build(project, self.hub.content, self.hub.project_list()))
         if url.path == "/api/events":
             return self.stream()
+        if url.path == "/api/reviews":
+            return self.send(200, dict(reviews=reviews.list_reviews(self.hub.project_list())))
+        if url.path in ("/api/review", "/api/review/diff"):
+            query = urllib.parse.parse_qs(url.query)
+            return self.review_request(dict(project=query.get("project", [""])[0], id=query.get("id", [""])[0]),
+                                       url.path)
+        return self.send(404, dict(error="not found"))
+
+    def review_request(self, body, path):
+        """Every review endpoint: the project must be on the dashboard; a refused change answers 409 with why."""
+        project = pathlib.Path(body.get("project") or "").expanduser().resolve()
+        if project not in self.hub.project_list():
+            return self.send(404, dict(error=f"not on the dashboard: {project}"))
+        review_id = str(body.get("id", ""))
+        try:
+            if path == "/api/review":
+                return self.send(200, reviews.read_review(project, review_id))
+            if path == "/api/review/diff":
+                return self.send(200, reviews.diff_text(project, review_id), "text/plain")
+            if path == "/api/review/change":
+                reviews.developer_change(project, review_id, body.get("action"), body)
+                return self.send(200, dict(ok=True))
+            if path == "/api/review/message":
+                message = {key: value for key, value in body.items() if key not in ("project", "id")}
+                return self.send(200, dict(ok=True, id=reviews.add_message(project, review_id, message)))
+        except review_state.Refused as refusal:
+            return self.send(409, dict(error=str(refusal)))
         return self.send(404, dict(error="not found"))
 
     def stream(self):
@@ -244,6 +273,8 @@ class Handler(BaseHTTPRequestHandler):
             if not self.hub.remove_project(project):
                 return self.send(404, dict(error=f"not on the dashboard: {project}"))
             return self.send(200, dict(ok=True, projects=[str(p) for p in self.hub.project_list()]))
+        if url.path.startswith("/api/review/"):
+            return self.review_request(body, url.path)
         if url.path == "/api/toggle":
             action, entry_id = body.get("action"), str(body.get("id", ""))
             if action not in ("enable", "disable") or not entry_id:
