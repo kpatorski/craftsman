@@ -40,7 +40,7 @@ class ReviewSession:
     def start(self, source):
         """A new review: the session opens it with the review command."""
         self.spawn([])
-        self.send(f"/craftsman:pr-review {source}")
+        self.send(f"/craftsman:pr-review --headless {source}")
 
     def resume(self):
         """The same conversation again, e.g. after the server restarted; what it has not handled is passed first."""

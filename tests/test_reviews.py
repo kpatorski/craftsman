@@ -214,6 +214,18 @@ class ReviewEndpointsTest(ReviewsTest):
         self.assertEqual((status, body["sent"]), (200, ["f1"]))
         self.assertEqual(review_state.read(self.review)["findings"][0]["status"], "sent")
 
+    def test_the_cli_starts_a_review_and_prints_where_to_watch_it(self):
+        printed = dashboard_server.start_review(self.port, self.project, "main:feature/x")
+
+        self.assertEqual(printed, f"http://localhost:{self.port}/?project={self.project}&review=main..feature-x")
+        self.assertTrue(dashboard_server.Handler.hub.session(self.project, "main..feature-x").running())
+
+    def test_the_cli_resumes_a_review_already_in_progress(self):
+        printed = dashboard_server.start_review(self.port, self.project, "https://github.com/org/booking/pull/123")
+
+        self.assertTrue(printed.endswith("&review=pr-123"))
+        self.assertTrue(dashboard_server.Handler.hub.session(self.project, "pr-123").running())
+
     def test_a_project_registered_through_a_symlink_is_found(self):
         link = pathlib.Path(tempfile.mkdtemp()) / "link"
         link.symlink_to(self.project)
