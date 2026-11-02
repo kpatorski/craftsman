@@ -78,6 +78,18 @@ class CheckoutTest(unittest.TestCase):
         self.assertTrue((cloned / ".git").is_dir())
         self.assertEqual(checkout.clone(PULL), cloned)
 
+    def test_a_clone_signs_in_to_github_through_gh_so_private_repositories_work(self):
+        origin = self.tmp / "github" / "org" / "booking.git"
+        git("clone", "-q", "--bare", str(self.repo), str(origin))
+        os.environ.update(CRAFTSMAN_CLONES=str(self.tmp / "clones"), CRAFTSMAN_GITHUB=f"file://{self.tmp / 'github'}")
+
+        cloned = checkout.clone(PULL)
+
+        helpers = subprocess.run(["git", "config", "--local", "--get-all", "credential.helper"], cwd=cloned,
+                                 capture_output=True, text=True).stdout.splitlines()
+        self.assertEqual(helpers[0], "")
+        self.assertTrue(helpers[1].startswith("!") and helpers[1].endswith("gh auth git-credential"), helpers)
+
     def test_two_branches_are_never_cloned(self):
         with self.assertRaises(review_state.Refused):
             checkout.clone("main:feature/x")
