@@ -9,6 +9,7 @@ outside the list comes back as a refusal the console shows, and the session goes
 import json
 import os
 import pathlib
+import shutil
 import subprocess
 import threading
 import time
@@ -18,9 +19,12 @@ import _reviews as reviews
 import review_state
 
 SCRIPTS = pathlib.Path(__file__).resolve().parent
-# A `Bash(<prefix>:*)` rule matches whole words of the command, so each script is named by its full path.
+# A `Bash(<prefix>:*)` rule matches whole words of the command, so each script is named by its full path, after
+# `python3` and after the interpreter's own full path -- the agent writes either.
+PYTHONS = list(dict.fromkeys(["python3"] + [path for path in [shutil.which("python3")] if path]))
 ALLOWED_TOOLS = ["Read", "Grep", "Glob", "Agent", "Skill", "TodoWrite", "Bash(git:*)", "Bash(gh:*)"] + [
-    f"Bash(python3 {script}:*)" for script in sorted(SCRIPTS.glob("*.py")) if not script.name.startswith("_")]
+    f"Bash({python} {script}:*)" for script in sorted(SCRIPTS.glob("*.py")) if not script.name.startswith("_")
+    for python in PYTHONS]
 
 
 def allowed_tools(checkout):

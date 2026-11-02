@@ -97,6 +97,7 @@ class ReviewSessionTest(unittest.TestCase):
         argv = self.logged()[0]["argv"]
         tools = argv[argv.index("--allowedTools") + 1:]
         self.assertIn(f"Bash(python3 {SCRIPTS}/review_state.py:*)", tools)
+        self.assertIn(f"Bash({shutil.which('python3')} {SCRIPTS}/review_state.py:*)", tools)
         self.assertNotIn(f"Bash(python3 {SCRIPTS}/:*)", tools)
 
     def test_the_session_may_write_only_its_own_session_files_by_absolute_path(self):
