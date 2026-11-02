@@ -17,6 +17,23 @@ written into the reviewed repository; `review.json` records the path of its chec
 | `session.jsonl`  | the dashboard server      | the review's Claude session as it runs, one stream event a line |
 | `session.stderr` | the dashboard server      | what the review's Claude process wrote to stderr                |
 | `diff/`          | `scripts/review_state.py` | the diff of every refresh, `<head-sha>.diff`                    |
+| `worktree/`      | the agent, the server     | a `git worktree` of the checkout at the reviewed commit         |
+
+### The checkout
+
+The review reads the repository from one of two places, chosen in the page's new-review wizard:
+
+- **The developer's checkout** — the top folder of a git repository on this machine, typed or picked with "Browse…"
+  (the server opens the system's folder dialog). For a pull request, a checkout whose remotes do not name the PR's
+  repository is accepted with a warning. Two branches are always reviewed in a checkout.
+- **A clone** — for a pull request only: a partial clone (`--filter=blob:none`) the server makes in
+  `/tmp/craftsman/repos/<owner>/<repo>/`. Only the files the worktree checks out are downloaded.
+
+Either way the code is read from the review's own `worktree/`, so the checkout's branch and uncommitted changes are
+never touched. Closing or archiving a review deletes its worktree, and its clone when no other open review reads from
+it. Resuming a review whose clone or worktree is gone — `/tmp` is emptied on restart — makes them again at the reviewed
+commit before its session starts; the page says "Restoring the repository…" meanwhile, and why if it fails. A missing
+checkout of the developer is never made again: the page says it is missing.
 
 Nobody edits `review.json` by hand, the agent included. Every change goes through `review_state.py`, which takes a
 lock, checks the change, and writes the file atomically. The agent and the page change the same file at the same
@@ -30,6 +47,7 @@ time; this is what keeps either of them from losing the other's change.
   or `{"kind": "branches", "target", "source", "pull-request": <the same object, or null>}`. `pull-request` is null
   when no PR exists for the source branch; sending is then disabled and the page says why. The page shows the PR's
   title as the review's title.
+- `checkout` — the path of the repository's checkout the review reads from and its session runs in.
 - `base` and `head` — the commit shas the review was made against.
 - `refreshed` — when `base`/`head` were last read.
 - `closed` — when the developer closed the review, or null while it is open.

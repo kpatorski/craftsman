@@ -99,7 +99,7 @@ default everyone must adopt: install it, fork it, or write your own from scratch
 | `/craftsman:analyse <input>`                         | Raw requirements → Given/When/Then business rules. No domain modelling.                                                                               |
 | `/craftsman:domain-design <input>`                   | Event storming (or whatever the workshop's own method is) → specs and working code, one use case at a time.                                           |
 | `/craftsman:implement <task or spec>`                | Drives one task test-first, checkpoint by checkpoint.                                                                                                 |
-| `/craftsman:pr-review <PR URL or target:source>`     | Reviews a pull request on its own page: findings as proposed PR comments the developer edits, picks and sends.                                        |
+| `/craftsman:pr-review [PR URL or target:source]`     | Reviews a pull request on its own page: findings as proposed PR comments the developer edits, picks and sends.                                        |
 | `/craftsman:search <topic>`                          | "Do we already have something about X?" — across all three indexes.                                                                                   |
 | `/craftsman:list [directives\|protocols\|bundles]`   | What's installed, enabled and disabled.                                                                                                               |
 | `/craftsman:enable <id>` / `/craftsman:disable <id>` | Toggle a directive, protocol, or bundle — ids are unique across all three, so the kind resolves by lookup. Toggling a bundle cascades to its members. |
@@ -174,13 +174,16 @@ see [`MANAGEMENT.md`](plugins/craftsman/MANAGEMENT.md) for exactly what it check
 
 ### Reviewing a pull request
 
-`/craftsman:pr-review https://github.com/org/repo/pull/123`, run from inside a checkout of that repository, starts the
-review and prints the address of its page; `main:feature/x` reviews what one local branch adds on top of another. The
-review reads the PR's description and the tickets it links, maps the change into use cases, reads the business rules in
-its tests, notes the few places that are hard to follow, and only then reviews the code, use case by use case from the
-entry point down, against the enabled directives — including whether the code could be simpler or left to the standard
-library, the framework or a dependency the build already has. Every finding is a proposed PR comment: edit it, delete
-it, or mark it to send, and send the marked ones to GitHub whenever you like — nothing is posted before that.
+`/craftsman:pr-review`, run from any folder, prints the address of the review page and opens nothing in the session
+itself. On the page, a wizard asks what is reviewed — a pull request, or what one local branch adds on top of another —
+and where its code is read from: your checkout of the repository (typed, or picked with "Browse…"), or, for a pull
+request, a clone made for the review in `/tmp`. `/craftsman:pr-review https://github.com/org/repo/pull/123` fills the
+wizard in, or opens that PR's review when it is already under way. The review reads the PR's description and the tickets
+it links, maps the change into use cases, reads the business rules in its tests, notes the few places that are hard to
+follow, and only then reviews the code, use case by use case from the entry point down, against the enabled directives —
+including whether the code could be simpler or left to the standard library, the framework or a dependency the build
+already has. Every finding is a proposed PR comment: edit it, delete it, or mark it to send, and send the marked ones to
+GitHub whenever you like — nothing is posted before that.
 
 Reviews have their own page, `/review` on the dashboard server, apart from the dashboard. The reviews are tiles in a
 rail on the left; the open one has four tabs:
@@ -204,7 +207,8 @@ inline comment on its first place, with a pointer from each further place; a com
 posted twice.
 
 Each review keeps its state in `~/.craftsman/reviews/<review-id>/`, outside the repository, and reads the code from its
-own `git worktree`, so your checkout is never touched and several reviews can run at once. A review needs the
+own `git worktree`, so your checkout is never touched and several reviews can run at once. A clone is deleted when its
+review is closed or archived, and made again, with the page saying so, when the review resumes. A review needs the
 `code-review` bundle of the workshop and `gh` logged in to the PR's repository; the state it keeps is described in
 [`REVIEW.md`](plugins/craftsman/REVIEW.md).
 

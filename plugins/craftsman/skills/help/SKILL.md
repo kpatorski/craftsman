@@ -23,7 +23,7 @@ Entry points:
   /craftsman:analyse <input>          raw requirements -> Given/When/Then business rules
   /craftsman:domain-design <input>    event storming -> specs and working code, one use case at a time
   /craftsman:implement <task/spec>    drive one task test-first, checkpoint by checkpoint
-  /craftsman:pr-review <PR URL | target:source>
+  /craftsman:pr-review [PR URL | target:source]
                                       review a pull request on its own page; findings are proposed
                                       comments you edit, pick and send
 

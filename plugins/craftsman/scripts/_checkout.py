@@ -22,7 +22,8 @@ DIALOGS = {
 
 
 def git(*args, cwd=None):
-    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
+    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True,
+                          env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})
 
 
 def pull_request(source):
@@ -75,10 +76,16 @@ def clone(source):
     url = f"{os.environ.get('CRAFTSMAN_GITHUB') or 'https://github.com'}/{owner}/{repo}.git"
     shutil.rmtree(target, ignore_errors=True)
     target.parent.mkdir(parents=True, exist_ok=True)
-    made = git("clone", "-q", "--filter=blob:none", "--no-checkout", url, str(target))
+    # git signs in to GitHub the way gh does, so a private repository clones and fetches too; the empty helper first
+    # drops whatever helpers the global config names
+    helper = f"!{shutil.which('gh') or 'gh'} auth git-credential"
+    made = git("-c", "credential.helper=", "-c", f"credential.helper={helper}", "clone", "-q", "--filter=blob:none",
+               "--no-checkout", url, str(target))
     if made.returncode != 0:
         shutil.rmtree(target, ignore_errors=True)
         raise Refused(f"cloning {owner}/{repo} failed: {made.stderr.strip()}")
+    git("config", "--local", "credential.helper", "", cwd=target)
+    git("config", "--local", "--add", "credential.helper", helper, cwd=target)
     return target
 
 

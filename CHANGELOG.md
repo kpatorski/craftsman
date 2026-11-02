@@ -5,13 +5,16 @@ not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets s
 
 ## 0.12.0
 
-- New: `/craftsman:pr-review <PR URL | target:source>` reviews a pull request on its own page, `/review` on the
+- New: `/craftsman:pr-review [PR URL | target:source]` reviews a pull request on its own page, `/review` on the
   dashboard server. The page has four tabs — Overview, Structure, Code, Findings — and the review's Claude session runs
   on the server, so its questions and progress show on the page. Findings are proposed PR comments to edit, drop or mark
   to send; only the marked ones go to GitHub, when you press Send, and a comment the PR already has is not posted again.
   Each review has its own state and `git worktree`, so several can run at once. Needs the workshop's `code-review`
   bundle and `gh`. The review state is described in `REVIEW.md`; the README's "Reviewing a pull request" describes the
   page.
+- `/craftsman:pr-review` runs from any folder. A wizard on the page asks what is reviewed and where its code is read
+  from: a checkout, typed or picked with "Browse…", or for a pull request a partial clone in `/tmp/craftsman/repos/`,
+  deleted when the review is closed or archived and made again when it resumes.
 - Reviews live in `~/.craftsman/reviews/`, apart from the repositories they review; one dashboard server lists them
   all. A review's id names its repository: `<owner>-<repo>-pr-<number>`, or `<checkout folder>-<target>..<source>`.
 - The dashboard finds a project registered through a symlink.
