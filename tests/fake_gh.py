@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """A stand-in for `gh api`, for the sending tests. It records every call in $FAKE_GH_LOG (argv and the JSON sent),
-keeps the review comments it was given in $FAKE_GH_STATE, and answers the way GitHub's REST API does for the calls
+keeps the review and general comments it was given in $FAKE_GH_STATE, and answers the way GitHub's REST API does for the calls
 send_review.py makes. FAKE_GH_FAIL=1 makes every call fail.
 """
 import json
@@ -18,7 +18,7 @@ with LOG.open("a") as out:
 if os.environ.get("FAKE_GH_FAIL"):
     sys.exit("HTTP 422: Unprocessable Entity")
 
-state = json.loads(STATE.read_text()) if STATE.exists() else {"reviews": {}, "issue_comments": 0}
+state = json.loads(STATE.read_text()) if STATE.exists() else {"reviews": {}, "issue_comments": []}
 endpoint = next(arg for arg in args if arg.startswith("repos/"))
 if endpoint.endswith("/reviews") and "POST" in args:
     review_id = str(len(state["reviews"]) + 1)
@@ -34,8 +34,11 @@ elif endpoint.endswith("/pulls/123/comments"):
     answer = [dict(comment, pull_request_review_id=int(review_id))
               for review_id, comments in state["reviews"].items() for comment in comments]
 elif endpoint.endswith("/issues/123/comments") and "POST" in args:
-    state["issue_comments"] += 1
-    answer = {"html_url": f"https://github.com/org/booking/pull/123#issuecomment-{state['issue_comments']}"}
+    answer = {"body": payload["body"],
+              "html_url": f"https://github.com/org/booking/pull/123#issuecomment-{len(state['issue_comments']) + 1}"}
+    state["issue_comments"].append(answer)
+elif endpoint.endswith("/issues/123/comments"):
+    answer = state["issue_comments"]
 else:
     sys.exit(f"fake gh does not know {endpoint}")
 STATE.write_text(json.dumps(state))

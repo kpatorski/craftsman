@@ -127,7 +127,8 @@ For a deleted file, the server also lists where the reviewed code in `worktree/`
   ever sent. A refresh that no longer sees the problem sets `maybe-resolved`; only the developer decides it is gone.
 - **Sent is final.** A `sent` finding is not edited or sent again; a follow-up is a new finding.
 - **Only `to-send` is sent.** Sending posts every `to-send` finding and changes it to `sent` only once its comment
-  exists on GitHub.
+  exists on GitHub. A comment already on the pull request, at the same place with the same text, is not posted again;
+  its link is recorded.
 
 ## `inbox.jsonl`
 

@@ -118,6 +118,23 @@ class SendReviewTest(unittest.TestCase):
         self.assertIn("Exposes a mutable list.", general[0]["body"])
         self.assertEqual(self.findings()[found]["status"], "sent")
 
+    def test_a_comment_already_on_github_is_not_sent_again(self):
+        self.opened()
+        inline = self.finding("Use a value object.", [at("src/Cancel.java", 2)])
+        general = self.finding("Exposes a mutable list.", [at("src/DeskRepository.java", 40)], kind="out-of-scope")
+        earlier = {"reviews": {"1": [{"path": "src/Cancel.java", "line": 2, "side": "RIGHT", "body": "Use a value object.",
+                                      "html_url": "https://github.com/org/booking/pull/123#discussion_r11"}]},
+                   "issue_comments": [{"body": "**`src/DeskRepository.java:40`**\n\nExposes a mutable list.",
+                                       "html_url": "https://github.com/org/booking/pull/123#issuecomment-1"}]}
+        (self.root / "gh.json").write_text(json.dumps(earlier))
+
+        result = send_review.send(self.review, gh=self.gh)
+
+        self.assertEqual((self.posted_reviews(), self.posted("/issues/123/comments")), ([], []))
+        self.assertEqual(sorted(result["sent"]), sorted([inline, general]))
+        self.assertEqual(self.findings()[inline]["sent"][0]["url"], "https://github.com/org/booking/pull/123#discussion_r11")
+        self.assertEqual(self.findings()[general]["sent"][0]["url"], "https://github.com/org/booking/pull/123#issuecomment-1")
+
     def test_without_a_pull_request_nothing_is_sent(self):
         self.opened({"kind": "branches", "target": "main", "source": "feature/x", "pull-request": None})
         found = self.finding("x", [at("src/Cancel.java", 2)])
