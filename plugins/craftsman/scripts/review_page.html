@@ -111,6 +111,8 @@
 
   /* ---- tables ---- */
   table { width: 100%; border-collapse: collapse; font-size: 13.5px; table-layout: fixed; }
+  th.sortable, th .subsort, th [data-sort] { cursor: pointer; user-select: none; } th.sortable:hover, th [data-sort]:hover { color: var(--text); }
+  th.on, th .on { color: var(--heading); } th .subsort { color: var(--dim); margin-left: 4px; }
   th { text-align: left; font-weight: 400; color: var(--muted); font-size: 12px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
   td { padding: 11px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
   tbody tr { cursor: pointer; } tbody tr:hover td { background: var(--card2); }
@@ -316,7 +318,7 @@ let current = { project: params.get("project"), id: params.get("review") };
 let reviewsList = [], projects = [], R = null, deferred = false;
 const ui = { tab: params.get("tab") || "overview", panel: null, file: params.get("file"), uc: null, ucFile: null,
   fsev: null, fby: null, fstatus: "open", fcat: "", fquestions: false, search: "", codeFilter: "all", editing: null,
-  selection: null, inline: localStorage.getItem("craftsman-review-inline") === "1", open: new Set() };
+  selection: null, sort: { key: "severity", dir: 1 }, inline: localStorage.getItem("craftsman-review-inline") === "1", open: new Set() };
 const diffs = {}, refs = {};
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -567,9 +569,26 @@ function viewOverview() {
 }
 
 // ================================================================ findings
-function findingTable(list) {
-  return `<table><thead><tr><th style="width:110px">Severity</th><th>Finding</th><th style="width:100px">By</th><th style="width:140px">Category</th>
-    <th style="width:70px">Thread</th><th style="width:110px">To the author</th></tr></thead><tbody>${list.map(f => {
+// What each column sorts by; equal values keep the worst severity first, then the order the findings were made in.
+const SORTS = {
+  severity: f => SEVS.indexOf(f.severity), title: f => f.title.toLowerCase(),
+  file: f => { const l = (f.locations || [])[0] || {}; return `${l.path || "~"}:${String(l.line || 0).padStart(6, "0")}`; },
+  by: f => f.by || "agent", category: f => f.category, thread: f => -threadsOf("finding", f.id).reduce((a, t) => a + t.messages.length, 0),
+  status: f => ["to-send", "proposed", "maybe-resolved", "sent", "deleted"].indexOf(f.status),
+};
+function sorted(list) {
+  const key = SORTS[ui.sort.key] || SORTS.severity, num = f => +String(f.id).replace(/\D/g, "");
+  const cmp = (a, b) => { const x = key(a), y = key(b); return x < y ? -1 : x > y ? 1 : 0; };
+  return [...list].sort((a, b) => ui.sort.dir * cmp(a, b) || SORTS.severity(a) - SORTS.severity(b) || num(a) - num(b));
+}
+function findingTable(list, sortable) {
+  const th = (key, label, style = "") => sortable
+    ? `<th style="${style}" class="sortable${ui.sort.key === key ? " on" : ""}" data-sort="${key}">${label}${ui.sort.key === key ? (ui.sort.dir > 0 ? " ▲" : " ▼") : ""}</th>`
+    : `<th style="${style}">${label}</th>`;
+  const fileSort = sortable ? ` <a class="subsort${ui.sort.key === "file" ? " on" : ""}" data-sort="file">· by file${ui.sort.key === "file" ? (ui.sort.dir > 0 ? " ▲" : " ▼") : ""}</a>` : "";
+  return `<table><thead><tr>${th("severity", "Severity", "width:110px")}${sortable
+      ? `<th class="sortable${ui.sort.key === "title" ? " on" : ""}"><span data-sort="title">Finding${ui.sort.key === "title" ? (ui.sort.dir > 0 ? " ▲" : " ▼") : ""}</span>${fileSort}</th>` : "<th>Finding</th>"}
+    ${th("by", "By", "width:100px")}${th("category", "Category", "width:140px")}${th("thread", "Thread", "width:70px")}${th("status", "To the author", "width:110px")}</tr></thead><tbody>${list.map(f => {
       const loc = (f.locations || [])[0] || {}, threads = threadsOf("finding", f.id);
       const st = { "to-send": '<span class="tag green">to send</span>', sent: '<span class="tag blue">sent</span>',
         "maybe-resolved": '<span class="tag amber">maybe resolved</span>', deleted: '<span class="tag">dropped</span>' }[f.status] || '<span class="tag">not yet</span>';
@@ -584,8 +603,7 @@ function viewFindings() {
   const all = S().findings.filter(f => f.status !== "merged"), base = all.filter(STATUS[ui.fstatus] || STATUS.open);
   const openQ = f => threadsOf("finding", f.id).some(t => t.status === "open"), text = ui.search.toLowerCase();
   const list = base.filter(f => (!ui.fsev || f.severity === ui.fsev) && (!ui.fby || (f.by || "agent") === ui.fby) && (!ui.fcat || f.category === ui.fcat) &&
-    (!ui.fquestions || openQ(f)) && (!text || (f.title + " " + f.comment + " " + (f.locations || []).map(l => l.path).join(" ")).toLowerCase().includes(text)))
-    .sort((a, b) => SEVS.indexOf(a.severity) - SEVS.indexOf(b.severity));
+    (!ui.fquestions || openQ(f)) && (!text || (f.title + " " + f.comment + " " + (f.locations || []).map(l => l.path).join(" ")).toLowerCase().includes(text)));
   const chip = (label, n, on, data) => `<button class="chip${on ? " on" : ""}" ${data}>${label}${n !== null ? ` <b>${n}</b>` : ""}</button>`;
   const cats = [...new Set(all.map(f => f.category))].sort();
   return `<div class="filters">
@@ -596,7 +614,7 @@ function viewFindings() {
       <span class="fsep"></span>${[["open", "Open"], ["to-send", "To send"], ["sent", "Sent"], ["deleted", "Dropped"]].map(([k, l]) =>
         chip(l, all.filter(STATUS[k]).length, ui.fstatus === k, `data-fstatus="${k}"`)).join("")}
       <input class="search" id="fsearch" placeholder="Search findings…"></div>
-    <div class="card" style="padding:6px 10px">${list.length ? findingTable(list) : '<div class="muted" style="padding:14px">No finding matches.</div>'}</div>`;
+    <div class="card" style="padding:6px 10px">${list.length ? findingTable(sorted(list), true) : '<div class="muted" style="padding:14px">No finding matches.</div>'}</div>`;
 }
 
 // ================================================================ the side panel
@@ -1025,7 +1043,7 @@ function dropSelection() {
 }
 const stepIn = (list, at, by) => list[Math.min(list.length - 1, Math.max(0, list.indexOf(at) + by))];
 
-const CLICKABLE = ["tab", "restart", "inline", "gutter", "goto", "finding", "thread", "close-panel", "edit", "save", "status", "set-sev", "resolve", "compose", "view", "pick-file",
+const CLICKABLE = ["tab", "sort", "restart", "inline", "gutter", "goto", "finding", "thread", "close-panel", "edit", "save", "status", "set-sev", "resolve", "compose", "view", "pick-file",
   "open-file", "step-file", "step-uc", "code-filter", "fsev", "fby", "fquestions", "fstatus", "answer", "live", "refresh", "send", "power",
   "close-review", "uccard", "close-uc", "ask-uc", "open-review", "archive", "new", "archived", "unarchive", "start", "pop", "new-finding",
   "nf-sev", "nf-save", "answer-here"].map(name => `[data-${name}]`).join(",");
@@ -1048,6 +1066,7 @@ document.addEventListener("click", async e => {
   if (d.fquestions !== undefined) { ui.fquestions = !ui.fquestions; return render(); }
   if (d.fstatus) { ui.fstatus = d.fstatus; return render(); }
   if (d.finding) { ui.panel = ui.panel && ui.panel.finding === d.finding ? null : { finding: d.finding }; ui.editing = null; return render(); }
+  if (d.sort) { ui.sort = ui.sort.key === d.sort ? { key: d.sort, dir: -ui.sort.dir } : { key: d.sort, dir: 1 }; return render(); }
   if (d.inline !== undefined) { ui.inline = !ui.inline; localStorage.setItem("craftsman-review-inline", ui.inline ? "1" : "0"); return render(); }
   if (d.gutter) { ui.open.has(d.gutter) ? ui.open.delete(d.gutter) : ui.open.add(d.gutter); document.getElementById("gtip").style.display = "none"; return ui.uc ? ucPanel() : render(); }
   if (d.goto) {
