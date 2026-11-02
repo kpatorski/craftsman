@@ -9,8 +9,8 @@ import review_state
 from _markdown import render_markdown
 
 ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
-MESSAGE_FIELDS = {"answer": ("checkpoint", "option"), "explain": ("about",), "refresh": (), "ask": ("text", "about"),
-                  "message": ("text",), "close": ()}
+MESSAGE_FIELDS = {"answer": ("checkpoint", "option"), "refresh": (), "ask": ("thread",), "close": ()}
+DIFF_HEADER = re.compile(r"^diff --git a/(.*) b/(.*)$")
 
 
 PULL_REQUEST = re.compile(r"^https://github\.com/[^/]+/[^/]+/pull/(\d+)/?$")
@@ -52,28 +52,34 @@ def list_reviews(projects):
                 counts[found["status"]] = counts.get(found["status"], 0) + 1
             listed.append({"id": state_file.parent.name, "project": str(project), "source": state.get("source"),
                            "head": state.get("head"), "closed": state.get("closed"), "findings": counts,
+                           "archived": bool(state.get("archived")),
                            "checkpoint": bool(state.get("checkpoint") and not state["checkpoint"].get("answer"))})
     return listed
 
 
 def read_review(project, review_id):
+    """The state, plus what the server works out from the diff: every changed file with how it changed, which use
+    cases it belongs to and whether the developer viewed it, and the files no use case reaches."""
     review = review_dir(project, review_id)
     state = review_state.read(review)
+    use_cases = (state.get("structure") or {}).get("use-cases", [])
+    viewed = set(state.get("viewed", []))
+    files = [{**changed, "use-cases": [u["id"] for u in use_cases if changed["path"] in u.get("files", [])],
+              "viewed": changed["path"] in viewed} for changed in changed_files(diff_text(project, review_id))]
     return {"state": state, "pending": len(pending_messages(review)), "html": rendered(state),
-            "console": console_lines(review)}
+            "console": console_lines(review), "files": files,
+            "untied": [changed["path"] for changed in files if not changed["use-cases"]]}
 
 
 def rendered(state):
     """Every markdown text of the review as HTML, keyed the way the page looks it up."""
-    texts = {"scope": state.get("scope"), "requirements": state.get("requirements"),
-             "boundaries": (state.get("structure") or {}).get("boundaries")}
+    texts = {"scope": state.get("scope"), "requirements": state.get("requirements")}
     for found in state.get("findings", []):
         for field in ("description", "comment"):
             texts[f"finding:{found['id']}:{field}"] = found.get(field)
-    for explanation in state.get("explanations", []):
-        texts[f"explanation:{explanation['id']}"] = explanation.get("body")
-    for group in state.get("map", []):
-        texts[f"group:{group['id']}"] = group.get("summary")
+    for thread in state.get("threads", []):
+        for number, said in enumerate(thread["messages"]):
+            texts[f"thread:{thread['id']}:{number}"] = said.get("text")
     return {key: render_markdown(text, lambda url: None) for key, text in texts.items() if text}
 
 
@@ -109,14 +115,85 @@ def console_lines(review, limit=400):
     return lines[-limit:]
 
 
-def diff_text(project, review_id):
+def diff_text(project, review_id, path=None):
+    """The diff of the reviewed head; with `path`, only that file's part of it."""
     review = review_dir(project, review_id)
-    return (review / "diff" / f"{review_state.read(review)['head']}.diff").read_text()
+    text = (review / "diff" / f"{review_state.read(review)['head']}.diff").read_text()
+    if path is None:
+        return text
+    return "".join("".join(part) for header, part in file_parts(text) if path in header)
+
+
+def file_parts(text):
+    """The diff cut into one part per file: ((old path, new path), the part's lines)."""
+    parts = []
+    for line in text.splitlines(keepends=True):
+        header = DIFF_HEADER.match(line.rstrip("\n"))
+        if header:
+            parts.append((header.groups(), []))
+        if parts:
+            parts[-1][1].append(line)
+    return parts
+
+
+def changed_files(text):
+    """Every file the diff changes: its path, `added`, `modified`, `deleted` or `renamed` (with `from`), and how many
+    lines it adds and removes."""
+    files = []
+    for (old, new), lines in file_parts(text):
+        heading = "".join(line for line in lines if not line.startswith(("+", "-", " ", "@@")))
+        change = ("added" if "new file mode" in heading else "deleted" if "deleted file mode" in heading
+                  else "renamed" if "rename from" in heading else "modified")
+        body = [line for line in lines if not line.startswith(("+++", "---"))]
+        changed = {"path": old if change == "deleted" else new, "change": change,
+                   "added": sum(line.startswith("+") for line in body),
+                   "removed": sum(line.startswith("-") for line in body)}
+        if change == "renamed":
+            changed["from"] = old
+        files.append(changed)
+    return files
+
+
+def references(project, review_id, path, limit=50):
+    """Where the reviewed code still names a deleted file's class or module: `path:line` in the review's worktree."""
+    review = review_dir(project, review_id)
+    worktree = review / "worktree"
+    name = re.compile(r"\b" + re.escape(pathlib.PurePath(path).stem) + r"\b")
+    found = []
+    for candidate in sorted(worktree.rglob("*")) if worktree.is_dir() else []:
+        if not candidate.is_file() or ".git" in candidate.relative_to(worktree).parts:
+            continue
+        try:
+            lines = candidate.read_text().splitlines()
+        except (OSError, UnicodeDecodeError):
+            continue
+        found += [f"{candidate.relative_to(worktree)}:{number}" for number, line in enumerate(lines, 1)
+                  if name.search(line)]
+        if len(found) >= limit:
+            break
+    return found[:limit]
 
 
 def developer_change(project, review_id, action, body):
-    """A change the page makes as the developer: `edit`, `status` or `answer`. Raises Refused."""
+    """A change the page makes as the developer. A question or a reply in a thread also goes to the inbox, so the
+    review's session answers it. Raises Refused."""
     review = review_dir(project, review_id)
+    if action == "add-finding":
+        return review_state.change(review, "add-finding", body.get("fields") or {}, "developer")
+    if action == "ask":
+        thread = review_state.change(review, "open-thread", {key: body.get(key) for key in ("about", "quote", "text")},
+                                     "developer")
+        add_message(project, review_id, {"type": "ask", "thread": thread})
+        return thread
+    if action == "reply":
+        review_state.change(review, "reply", {"text": body.get("text")}, "developer", body.get("thread"))
+        return add_message(project, review_id, {"type": "ask", "thread": body.get("thread")})
+    if action == "resolve":
+        return review_state.change(review, "resolve", {}, "developer", body.get("thread"))
+    if action in ("view", "unview"):
+        return review_state.change(review, action, {"path": body.get("path")}, "developer")
+    if action == "archive":
+        return review_state.change(review, "archive", {"archived": body.get("archived")}, "developer")
     if action == "edit":
         return review_state.change(review, "update-finding", body.get("fields") or {}, "developer", body.get("finding"))
     if action == "status":

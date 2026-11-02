@@ -22,7 +22,7 @@ def finding(**overrides):
     base = {"category": "naming", "title": "Name says nothing", "description": "The name hides what it does.",
             "comment": "The name `process`...", "locations": [{"path": "A.java", "line": 3, "side": "RIGHT",
                                                                  "commit": "bbb"}],
-            "directive": "naming", "kind": "violation"}
+            "directive": "naming", "kind": "violation", "severity": "should-fix"}
     base.update(overrides)
     return base
 
@@ -171,16 +171,113 @@ class ReviewStateTest(unittest.TestCase):
         self.assertEqual(self.state()["scope"], "Cancels a reservation.")
         self.assertEqual(self.state()["language"], "English")
 
-    def test_explanations_are_added_pending_and_finished_later(self):
+    def test_a_finding_says_how_serious_it_is_and_who_found_it(self):
         self.opened()
 
-        explanation = self.run_state("add-explanation", payload={"about": {"kind": "file", "id": "A.java"},
-                                                                 "origin": "requested"}).stdout.strip()
-        self.run_state("update-explanation", explanation, payload={"body": "It retries.", "status": "ready"})
+        self.run_state("add-finding", payload=finding(severity=None), expect_ok=False)
+        self.run_state("add-finding", payload=finding(severity="blocker"), expect_ok=False)
+        self.run_state("add-finding", payload=finding(severity="must-fix"))
 
-        self.assertEqual(self.state()["explanations"][0], {"id": "e1", "about": {"kind": "file", "id": "A.java"},
-                                                           "origin": "requested", "body": "It retries.",
-                                                           "status": "ready"})
+        found = self.state()["findings"][0]
+        self.assertEqual((found["severity"], found["by"]), ("must-fix", "agent"))
+
+    def test_the_developer_adds_a_finding_of_their_own(self):
+        self.opened()
+
+        added = self.run_state("add-finding", by="developer", payload={
+            "title": "A refusal should be a result", "comment": "Return a result instead of throwing.",
+            "locations": [{"path": "A.java", "line": 22, "side": "RIGHT", "commit": "bbb"}],
+            "severity": "should-fix"}).stdout.strip()
+
+        found = self.state()["findings"][0]
+        self.assertEqual(added, "f1")
+        self.assertEqual((found["by"], found["kind"], found["category"], found["status"]),
+                         ("developer", "violation", "yours", "proposed"))
+
+    def test_the_developer_changes_how_serious_a_finding_is_and_the_agent_keeps_it(self):
+        self.opened()
+        self.run_state("add-finding", payload=finding())
+
+        self.run_state("update-finding", "f1", payload={"severity": "nit"}, by="developer")
+        self.run_state("update-finding", "f1", payload={"severity": "must-fix"}, by="agent", expect_ok=False)
+        self.run_state("update-finding", "f1", payload={"severity": "huge"}, by="developer", expect_ok=False)
+
+        found = self.state()["findings"][0]
+        self.assertEqual((found["severity"], found["edited"]), ("nit", ["severity"]))
+
+    def test_the_developer_marks_the_files_they_have_viewed(self):
+        self.opened()
+
+        self.run_state("view", payload={"path": "A.java"}, by="developer")
+        self.run_state("view", payload={"path": "B.java"}, by="developer")
+        self.run_state("view", payload={"path": "A.java"}, by="developer")
+        self.run_state("unview", payload={"path": "B.java"}, by="developer")
+        self.run_state("view", payload={"path": "C.java"}, expect_ok=False)
+
+        self.assertEqual(self.state()["viewed"], ["A.java"])
+
+    def test_a_thread_starts_with_a_question_and_collects_the_answers(self):
+        self.opened()
+        self.run_state("add-finding", payload=finding())
+
+        thread = self.run_state("open-thread", by="developer", payload={
+            "about": {"kind": "finding", "id": "f1"}, "quote": "straight into the SQL text",
+            "text": "Is the id validated anywhere?"}).stdout.strip()
+        self.run_state("reply", thread, payload={"text": "No, nothing checks it."})
+        self.run_state("resolve", thread, by="agent", expect_ok=False)
+        self.run_state("resolve", thread, by="developer")
+
+        opened = self.state()["threads"][0]
+        self.assertEqual((opened["id"], opened["status"], opened["quote"]), ("t1", "resolved",
+                                                                             "straight into the SQL text"))
+        self.assertEqual([(m["by"], m["text"]) for m in opened["messages"]],
+                         [("developer", "Is the id validated anywhere?"), ("agent", "No, nothing checks it.")])
+        self.assertTrue(all(m["at"] for m in opened["messages"]))
+
+    def test_a_resolved_thread_opens_again_when_the_developer_asks_more(self):
+        self.opened()
+        self.run_state("open-thread", by="developer", payload={"about": {"kind": "review"}, "text": "Why now?"})
+        self.run_state("resolve", "t1", by="developer")
+
+        self.run_state("reply", "t1", by="developer", payload={"text": "One more thing."})
+
+        self.assertEqual(self.state()["threads"][0]["status"], "open")
+
+    def test_a_thread_is_about_something_the_review_knows(self):
+        self.opened()
+
+        self.run_state("open-thread", payload={"about": {"kind": "finding", "id": "f9"}, "text": "?"}, expect_ok=False)
+        self.run_state("open-thread", payload={"about": {"kind": "file"}, "text": "?"}, expect_ok=False)
+        self.run_state("open-thread", payload={"about": {"kind": "weather"}, "text": "?"}, expect_ok=False)
+        self.run_state("open-thread", payload={"about": {"kind": "file", "path": "A.java"}}, expect_ok=False)
+        self.run_state("open-thread", payload={"about": {"kind": "file", "path": "A.java", "lines": [22, 23]},
+                                               "text": "Unasked: this is the only owner check."})
+
+        self.assertEqual(self.state()["threads"][0]["messages"][0]["by"], "agent")
+
+    def test_use_cases_say_what_they_do_and_how_they_run(self):
+        self.opened()
+        use_case = {"id": "u1", "name": "Cancel a reservation", "says": "The owner cancels their reservation.",
+                    "entry": "CancelController.java:22", "files": ["CancelController.java"], "status": "pending",
+                    "flow": {"steps": [{"call": "CancelController.cancel()", "path": "CancelController.java",
+                                        "line": 22, "change": "added", "crosses": None}],
+                             "branches": [{"what": "not the owner → refused", "tested": True}]}}
+
+        self.run_state("set", payload={"structure": {"use-cases": [{**use_case, "says": None}]}}, expect_ok=False)
+        self.run_state("set", payload={"structure": {"use-cases": [{**use_case, "flow": {
+            "steps": [{**use_case["flow"]["steps"][0], "change": "rewritten"}], "branches": []}}]}}, expect_ok=False)
+        self.run_state("set", payload={"structure": {"use-cases": [use_case]}})
+        self.run_state("set", payload={"map": []}, expect_ok=False)
+
+        self.assertEqual(self.state()["structure"]["use-cases"][0]["flow"]["branches"][0]["tested"], True)
+
+    def test_the_developer_archives_a_review(self):
+        self.opened()
+
+        self.run_state("archive", payload={"archived": True}, expect_ok=False)
+        self.run_state("archive", payload={"archived": True}, by="developer")
+
+        self.assertTrue(self.state()["archived"])
 
     def test_a_handled_inbox_message_is_remembered_without_waiting_for_input(self):
         self.opened()
