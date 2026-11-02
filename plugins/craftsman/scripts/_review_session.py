@@ -16,8 +16,9 @@ import _reviews as reviews
 import review_state
 
 SCRIPTS = pathlib.Path(__file__).resolve().parent
-ALLOWED_TOOLS = ["Read", "Grep", "Glob", "Agent", "Skill", "TodoWrite", "Bash(git:*)", "Bash(gh:*)",
-                 f"Bash(python3 {SCRIPTS}/:*)"]
+# A `Bash(<prefix>:*)` rule matches whole words of the command, so each script is named by its full path.
+ALLOWED_TOOLS = ["Read", "Grep", "Glob", "Agent", "Skill", "TodoWrite", "Bash(git:*)", "Bash(gh:*)"] + [
+    f"Bash(python3 {script}:*)" for script in sorted(SCRIPTS.glob("*.py")) if not script.name.startswith("_")]
 EXCLUDED = ".claude/reviews/"
 
 
@@ -102,7 +103,8 @@ class ReviewSession:
             self.delivered.add(message["id"])
             self.send(f"Message {message['id']} from the review page:\n```json\n{json.dumps(message)}\n```\n"
                       f"Handle it as serve-page says, then record it: "
-                      f"python3 {SCRIPTS}/review_state.py {self.review} handled {message['id']}")
+                      f"python3 {SCRIPTS}/review_state.py {self.review} handled {message['id']}\n"
+                      f"A review_state.py payload is one JSON argument in single quotes, never a heredoc or a pipe.")
 
     def send(self, text):
         with self.lock:

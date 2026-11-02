@@ -38,9 +38,9 @@ class ReviewStateTest(unittest.TestCase):
         shutil.rmtree(self.root)
 
     def run_state(self, *args, payload=None, by=None, expect_ok=True):
-        command = [sys.executable, str(SCRIPT), str(self.review), *args] + (["--by", by] if by else [])
-        done = subprocess.run(command, input="" if payload is None else json.dumps(payload),
-                              capture_output=True, text=True, timeout=30)
+        command = [sys.executable, str(SCRIPT), str(self.review), *args] + (
+            [] if payload is None else [json.dumps(payload)]) + (["--by", by] if by else [])
+        done = subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30)
         if expect_ok:
             self.assertEqual(done.returncode, 0, done.stderr)
         else:
@@ -206,12 +206,9 @@ class ReviewStateTest(unittest.TestCase):
 
     def test_two_writers_at_once_lose_nothing(self):
         self.opened()
-        command = [sys.executable, str(SCRIPT), str(self.review), "add-finding"]
-        writers = [subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        command = [sys.executable, str(SCRIPT), str(self.review), "add-finding", json.dumps(finding())]
+        writers = [subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                     text=True) for _ in range(12)]
-        for writer in writers:
-            writer.stdin.write(json.dumps(finding()))
-            writer.stdin.close()
         for writer in writers:
             with writer:
                 errors = writer.stderr.read()
