@@ -12,6 +12,7 @@ import shutil
 import subprocess
 
 import _reviews as reviews
+import review_state
 from review_state import Refused
 
 DIALOGS = {
@@ -93,3 +94,66 @@ def browse():
     if picked.returncode != 0 or not chosen:
         return None
     return chosen.rstrip("/") or "/"
+
+
+# ---- a review's worktree and clone: deleted when it is closed or archived, made again when it resumes ------------
+
+def is_clone(path):
+    return clones_root() in pathlib.Path(path).parents
+
+
+def pull_url(source):
+    source = source or {}
+    if source.get("kind") == "pull-request":
+        return source.get("url")
+    return (source.get("pull-request") or {}).get("url")
+
+
+def needs_restore(review):
+    """True when the review's checkout or its worktree at the reviewed commit is missing."""
+    state = review_state.read(review)
+    worktree = pathlib.Path(review) / "worktree"
+    at = git("rev-parse", "HEAD", cwd=worktree) if (worktree / ".git").exists() else None
+    return not (pathlib.Path(state.get("checkout") or "") / ".git").exists() or not at or \
+        at.returncode != 0 or at.stdout.strip() != state["head"]
+
+
+def restore(review):
+    """Make the checkout again when it is a clone, and the worktree at the reviewed commit. Raises Refused."""
+    review = pathlib.Path(review)
+    state = review_state.read(review)
+    folder = pathlib.Path(state.get("checkout") or "")
+    if not (folder / ".git").exists():
+        url = pull_url(state.get("source"))
+        if not is_clone(folder) or not url or clone_dir(url) != folder:
+            raise Refused(f"the checkout of {review.name} is missing: {folder}")
+        clone(url)
+    if not needs_restore(review):
+        return
+    worktree = review / "worktree"
+    shutil.rmtree(worktree, ignore_errors=True)
+    git("worktree", "prune", cwd=folder)
+    if git("cat-file", "-e", f"{state['head']}^{{commit}}", cwd=folder).returncode != 0:
+        source = state.get("source") or {}
+        number = source.get("number") or (source.get("pull-request") or {}).get("number")
+        wanted = f"refs/pull/{number}/head" if number else source.get("source")
+        git("fetch", "-q", "origin", wanted, cwd=folder)
+    made = git("worktree", "add", "-q", "--detach", str(worktree), state["head"], cwd=folder)
+    if made.returncode != 0:
+        raise Refused(f"the worktree of {review.name} at {state['head'][:12]} failed: {made.stderr.strip()}")
+
+
+def release(review):
+    """Delete the review's worktree, and its clone when no other open review reads from it. The state stays."""
+    review = pathlib.Path(review)
+    folder = pathlib.Path(review_state.read(review).get("checkout") or "")
+    worktree = review / "worktree"
+    if (folder / ".git").exists():
+        git("worktree", "remove", "--force", str(worktree), cwd=folder)
+    shutil.rmtree(worktree, ignore_errors=True)
+    if (folder / ".git").exists():
+        git("worktree", "prune", cwd=folder)
+    others = [r for r in reviews.list_reviews() if r["id"] != review.name and r["checkout"] == str(folder)
+              and not r["archived"] and not r["closed"]]
+    if is_clone(folder) and not others:
+        shutil.rmtree(folder, ignore_errors=True)

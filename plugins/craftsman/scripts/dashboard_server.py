@@ -221,6 +221,7 @@ class Handler(BaseHTTPRequestHandler):
             for review in listed:
                 runner = self.hub.sessions.get(review["id"])
                 review["running"] = bool(runner and runner.running())
+                review["restoring"] = bool(runner and runner.restoring)
             return self.send(200, dict(reviews=listed))
         if url.path in ("/api/review", "/api/review/diff", "/api/review/references"):
             query = {key: values[0] for key, values in urllib.parse.parse_qs(url.query).items()}
@@ -252,9 +253,10 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/review":
                 return self.send(200, dict(reviews.read_review(review_id), running=runner.running(),
                                            working=runner.working(), background=runner.background,
-                                           quiet=runner.quiet()))
+                                           quiet=runner.quiet(), restoring=runner.restoring,
+                                           problem=runner.problem))
             if path == "/api/review/resume":
-                if not runner.running():
+                if not runner.running() and not runner.restoring:
                     runner.resume()
                 return self.send(200, dict(ok=True))
             if path == "/api/review/diff":
@@ -265,6 +267,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, send_review.send(review))
             if path == "/api/review/change":
                 reviews.developer_change(review_id, body.get("action"), body)
+                if body.get("action") == "archive" and body.get("archived"):
+                    runner.stop()
+                    checkouts.release(review)
                 runner.deliver()
                 return self.send(200, dict(ok=True))
             if path == "/api/review/message":

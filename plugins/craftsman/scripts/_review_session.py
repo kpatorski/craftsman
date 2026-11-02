@@ -13,6 +13,7 @@ import subprocess
 import threading
 import time
 
+import _checkout as checkouts
 import _reviews as reviews
 import review_state
 
@@ -54,6 +55,8 @@ class ReviewSession:
         self.background = 0
         self.delivered = set()
         self.reader = None
+        self.restoring = False
+        self.problem = None
 
     # ---- lifecycle ----------------------------------------------------------------------------------------------
 
@@ -63,13 +66,31 @@ class ReviewSession:
         self.send(f"/craftsman:pr-review --headless {source} --review {self.review} --checkout {self.checkout}")
 
     def resume(self):
-        """The same conversation again, e.g. after the server restarted; what it has not handled is passed first."""
+        """The same conversation again, e.g. after the server restarted; what it has not handled is passed first. A
+        missing clone or worktree is made again first, in the background, while `restoring` says so."""
         state = review_state.read(self.review)
         session = state.get("session")
         self.checkout = pathlib.Path(state["checkout"]) if state.get("checkout") else self.checkout
-        if self.checkout is None or not self.checkout.is_dir():
+        if self.checkout is None or not (self.checkout.is_dir() or checkouts.is_clone(self.checkout)):
             raise review_state.Refused(f"the checkout of {self.review.name} is missing: {self.checkout}")
-        self.spawn(["--resume", session] if session else [])
+        argv = ["--resume", session] if session else []
+        if not checkouts.needs_restore(self.review):
+            self.spawn(argv)
+            self.deliver()
+            return
+        self.restoring, self.problem = True, None
+        threading.Thread(target=self.restore_then_spawn, args=(argv,), daemon=True).start()
+
+    def restore_then_spawn(self, argv):
+        try:
+            checkouts.restore(self.review)
+        except review_state.Refused as refusal:
+            self.problem = str(refusal)
+        try:
+            if self.checkout.is_dir():
+                self.spawn(argv)
+        finally:
+            self.restoring = False  # only now, so the page never sees a gap between restoring and running
         self.deliver()
 
     def stop(self):
@@ -161,6 +182,7 @@ class ReviewSession:
                         self.background = still_running(event.get("subagent_stats") or {})
                     if self.closed():
                         process.stdin.close()
+                        checkouts.release(self.review)
                     else:
                         self.deliver()
         process.stdout.close()

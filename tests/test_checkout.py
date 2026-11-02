@@ -98,5 +98,95 @@ class CheckoutTest(unittest.TestCase):
         self.assertIsNone(checkout.browse())
 
 
+class ReleaseAndRestoreTest(unittest.TestCase):
+    """A review's worktree, and the clone it reads from, are deleted when the review is closed or archived, and made
+    again when it resumes: /tmp may be emptied at any restart."""
+
+    def setUp(self):
+        self.tmp = pathlib.Path(tempfile.mkdtemp()).resolve()
+        self.saved = {key: os.environ.get(key) for key in ("CRAFTSMAN_CLONES", "CRAFTSMAN_GITHUB", "CRAFTSMAN_HOME")}
+        os.environ.update(CRAFTSMAN_CLONES=str(self.tmp / "clones"), CRAFTSMAN_GITHUB=f"file://{self.tmp / 'github'}",
+                          CRAFTSMAN_HOME=str(self.tmp / "home"))
+        work = self.tmp / "work"
+        git("init", "-q", "-b", "main", str(work))
+        (work / "A.java").write_text("class A {}\n")
+        git("add", ".", cwd=work)
+        git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "a", cwd=work)
+        self.head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=work, capture_output=True,
+                                   text=True).stdout.strip()
+        origin = self.tmp / "github" / "org" / "booking.git"
+        git("clone", "-q", "--bare", str(work), str(origin))
+        git("update-ref", "refs/pull/123/head", self.head, cwd=origin)
+        self.diff = self.tmp / "change.diff"
+        self.diff.write_text("diff\n")
+
+    def tearDown(self):
+        for key, value in self.saved.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+        shutil.rmtree(self.tmp)
+
+    def review(self, review_id, checkout):
+        review = self.tmp / "home" / "reviews" / review_id
+        review_state.change(review, "init", {"source": {"kind": "pull-request", "url": PULL, "number": 123},
+                                             "base": self.head, "head": self.head, "diff": str(self.diff),
+                                             "checkout": str(checkout)})
+        return review
+
+    def test_a_review_in_a_clone_is_restored_with_its_worktree_at_the_reviewed_commit(self):
+        review = self.review("org-booking-pr-123", checkout.clone_dir(PULL))
+        self.assertTrue(checkout.needs_restore(review))
+
+        checkout.restore(review)
+
+        self.assertEqual((review / "worktree" / "A.java").read_text(), "class A {}\n")
+        self.assertFalse(checkout.needs_restore(review))
+
+    def test_releasing_a_review_deletes_its_worktree_and_its_clone(self):
+        review = self.review("org-booking-pr-123", checkout.clone_dir(PULL))
+        checkout.restore(review)
+
+        checkout.release(review)
+
+        self.assertFalse((review / "worktree").exists())
+        self.assertFalse(checkout.clone_dir(PULL).exists())
+        self.assertTrue((review / "review.json").exists())
+
+    def test_a_clone_another_open_review_reads_from_is_kept(self):
+        first = self.review("org-booking-pr-123", checkout.clone_dir(PULL))
+        second = self.review("org-booking-pr-124", checkout.clone_dir(PULL))
+        checkout.restore(first)
+        checkout.restore(second)
+
+        checkout.release(first)
+
+        self.assertTrue(checkout.clone_dir(PULL).exists())
+        self.assertTrue((second / "worktree" / "A.java").exists())
+
+    def test_releasing_a_review_in_the_developers_checkout_keeps_the_checkout(self):
+        mine = self.tmp / "booking"
+        git("clone", "-q", str(self.tmp / "github" / "org" / "booking.git"), str(mine))
+        git("fetch", "-q", "origin", "refs/pull/123/head", cwd=mine)
+        review = self.review("org-booking-pr-123", mine)
+        checkout.restore(review)
+
+        checkout.release(review)
+
+        self.assertFalse((review / "worktree").exists())
+        self.assertTrue((mine / "A.java").exists())
+        listed = subprocess.run(["git", "worktree", "list"], cwd=mine, capture_output=True, text=True).stdout
+        self.assertEqual(len(listed.splitlines()), 1)
+
+    def test_a_missing_checkout_of_the_developer_is_not_made_again(self):
+        review = self.review("org-booking-pr-123", self.tmp / "gone")
+
+        with self.assertRaises(review_state.Refused) as refused:
+            checkout.restore(review)
+
+        self.assertIn("missing", str(refused.exception))
+
+
 if __name__ == "__main__":
     unittest.main()
