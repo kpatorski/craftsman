@@ -73,6 +73,10 @@ class SendReviewTest(unittest.TestCase):
     def findings(self):
         return {f["id"]: f for f in review_state.read(self.review)["findings"]}
 
+    def test_a_list_github_gives_in_pages_reads_as_one(self):
+        self.assertEqual(send_review.pages('[{"id": 1}, {"id": 2}]\n[{"id": 3}]'), [{"id": 1}, {"id": 2}, {"id": 3}])
+        self.assertEqual(send_review.pages('{"id": 7}'), {"id": 7})
+
     def test_only_findings_marked_to_send_go_as_one_review_on_the_reviewed_commit(self):
         self.opened()
         sent = self.finding("Use a value object.", [at("src/Cancel.java", 2)])

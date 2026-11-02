@@ -27,7 +27,12 @@ if endpoint.endswith("/reviews") and "POST" in args:
         for n, comment in enumerate(payload["comments"], 1)]
     answer = {"id": int(review_id)}
 elif "/reviews/" in endpoint and endpoint.endswith("/comments"):
-    answer = state["reviews"][endpoint.split("/reviews/")[1].split("/")[0]]
+    # GitHub answers this one with `position` and leaves `line` out (null): only the pull's own list carries `line`
+    answer = [dict(comment, line=None, position=comment["line"]) for comment in
+              state["reviews"][endpoint.split("/reviews/")[1].split("/")[0]]]
+elif endpoint.endswith("/pulls/123/comments"):
+    answer = [dict(comment, pull_request_review_id=int(review_id))
+              for review_id, comments in state["reviews"].items() for comment in comments]
 elif endpoint.endswith("/issues/123/comments") and "POST" in args:
     state["issue_comments"] += 1
     answer = {"html_url": f"https://github.com/org/booking/pull/123#issuecomment-{state['issue_comments']}"}
