@@ -36,6 +36,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import _checkout as checkouts  # noqa: E402
 import _dashboard_data as data  # noqa: E402
 import _review_session  # noqa: E402
 import _reviews as reviews  # noqa: E402
@@ -231,13 +232,15 @@ class Handler(BaseHTTPRequestHandler):
         review_id = str(body.get("id", ""))
         try:
             if path == "/api/review/start":
-                checkout = pathlib.Path(body.get("checkout") or "").expanduser().resolve()
-                review_id = reviews.review_id_for(body.get("source"), checkout)
-                if not (checkout / ".git").exists():
-                    raise review_state.Refused(f"not a git repository: {checkout}; a review runs at its top level")
+                source = body.get("source")
+                checkout = checkouts.clone_dir(source) if body.get("clone") else \
+                    pathlib.Path(checkouts.check(body.get("checkout"), source)["checkout"])
+                review_id = reviews.review_id_for(source, checkout)
                 if (reviews.reviews_root() / review_id / "review.json").exists():
                     raise review_state.Refused(f"{review_id} is in progress; resume it instead")
-                self.hub.session(review_id, checkout).start(body["source"])
+                if body.get("clone"):
+                    checkout = checkouts.clone(source)
+                self.hub.session(review_id, checkout).start(source)
                 return self.send(200, dict(ok=True, id=review_id))
             if path == "/api/review/stop":
                 if not reviews.ID.match(review_id):
@@ -320,6 +323,13 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, dict(ok=True, projects=[str(p) for p in self.hub.project_list()]))
         if url.path.startswith("/api/review/"):
             return self.review_request(body, url.path)
+        if url.path in ("/api/checkout/check", "/api/checkout/browse"):
+            try:
+                if url.path == "/api/checkout/check":
+                    return self.send(200, checkouts.check(body.get("path"), body.get("source")))
+                return self.send(200, dict(path=checkouts.browse()))
+            except review_state.Refused as refusal:
+                return self.send(409, dict(error=str(refusal)))
         if url.path == "/api/toggle":
             action, entry_id = body.get("action"), str(body.get("id", ""))
             if action not in ("enable", "disable") or not entry_id:
