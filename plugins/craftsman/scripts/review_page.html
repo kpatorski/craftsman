@@ -211,6 +211,16 @@
   .ln.lf-must-fix { outline: 1px solid var(--must); outline-offset: -1px; } .ln.lf-should-fix { outline: 1px solid var(--should); outline-offset: -1px; }
   .ln.lf-nit { outline: 1px solid var(--nit); outline-offset: -1px; }
   .ann.on { border-color: var(--line2); background: var(--float); }
+  .modal { position: fixed; inset: 0; z-index: 40; display: none; align-items: center; justify-content: center;
+    background: var(--scrim); }
+  .modal.shown { display: flex; }
+  .modal .box { width: min(640px, 92vw); max-height: 80vh; overflow: auto; background: var(--card); border: 1px solid var(--line2);
+    border-radius: 14px; padding: 20px 22px; box-shadow: 0 20px 60px var(--shadow); }
+  .modal h2 { margin: 0 0 4px; font-size: 18px; font-weight: 500; color: var(--heading); }
+  .modal .mrow { display: grid; grid-template-columns: 92px 40px minmax(0, 1fr); gap: 10px; align-items: baseline; padding: 8px 0;
+    border-top: 1px solid var(--line); font-size: 13.5px; }
+  .modal .mrow .w { grid-column: 3; color: var(--dim); font-family: var(--mono); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .modal .foot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
   .gtip { position: fixed; display: none; z-index: 30; max-width: 520px; padding: 8px 12px; border-radius: 10px; background: var(--float);
     border: 1px solid var(--line2); box-shadow: 0 10px 30px var(--shadow); font-size: 12.5px; pointer-events: none; }
   .gtip div { display: flex; gap: 8px; align-items: center; padding: 2px 0; } .gtip .hint { color: var(--dim); font-size: 12px; margin-top: 4px; }
@@ -296,6 +306,7 @@
 <div class="hover" id="hover"></div>
 <div class="pop" id="pop"></div>
 <div class="gtip" id="gtip"></div>
+<div class="modal" id="modal"></div>
 <div class="toast" id="toast"></div>
 <script>
 // ================================================================ state
@@ -758,6 +769,19 @@ function diffView(path, position) {
   }).join("")).join("");
   return `<div class="diffcard">${head}${banner}<div class="diffbody" data-diff="${esc(path)}">${body || '<div class="banner">No lines changed.</div>'}</div></div>`;
 }
+// An in-page confirmation: resolves true on the confirm button, false on Cancel, Escape, or a click outside the box.
+function ask(title, body, yes) {
+  const el = document.getElementById("modal");
+  el.innerHTML = `<div class="box"><h2>${title}</h2>${body}<div class="foot"><button class="btn ghost" data-m="no">Cancel</button>
+    <button class="btn go" data-m="yes">${esc(yes)}</button></div></div>`;
+  el.classList.add("shown"); el.querySelector("[data-m=yes]").focus();
+  return new Promise(done => {
+    const close = answer => { el.classList.remove("shown"); el.onclick = null; document.removeEventListener("keydown", key, true); done(answer); };
+    const key = e => { if (e.key === "Escape") { e.stopPropagation(); close(false); } };
+    document.addEventListener("keydown", key, true);
+    el.onclick = e => { e.stopPropagation(); const m = e.target.closest("[data-m]"); if (m || e.target === el) close(!!m && m.dataset.m === "yes"); };
+  });
+}
 // A line's findings as dots beside its number, worst first; the list behind them shows on hover, and a click opens it.
 function gutter(here, key) {
   if (!here.length) return `<span class="gd"></span>`;
@@ -1075,8 +1099,13 @@ document.addEventListener("click", async e => {
   }
   if (d.send !== undefined) {
     const marked = S().findings.filter(f => f.status === "to-send");
-    if (!confirm(`Send ${marked.length} comment(s) to ${sourceLabel(S().source)}?\n\n` + marked.map(f => `${f.id} ${f.title}`).join("\n") +
-      "\n\nComments on GitHub cannot be taken back from here.")) return;
+    const ok = await ask(`Send ${plural(marked.length, "comment")} to ${esc(sourceLabel(S().source))}?`,
+      `<div class="muted" style="font-size:13px;margin-bottom:10px">Each finding goes as an inline comment on its first place; further places point back to it.
+        Comments on GitHub cannot be taken back from here.</div>` +
+      marked.map(f => `<div class="mrow">${sev(f.severity)}<span class="mono dim">${esc(f.id)}</span><span>${inline(f.title)}</span>` +
+        `<span class="w">${(f.locations || []).map(l => esc(l.path.split("/").pop()) + ":" + l.line).join(", ")}</span></div>`).join(""),
+      `Send ${plural(marked.length, "comment")}`);
+    if (!ok) return;
     toast("sending…");
     const out = await api("/api/review/send", K());
     if (out) toast(`sent ${out.sent.length}` + (out.errors.length ? ` · problems: ${out.errors.join("; ")}` : ""));

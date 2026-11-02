@@ -27,7 +27,7 @@ THEME_CSS = '''
     --nit: #9a9a9a; --nit-dot: #6b6b6b; --nit-bg: rgba(255, 255, 255, .06);
     --select: #b69cff; --select-bg: rgba(182, 156, 255, .14);
     --card: #141414; --card2: #1a1a1a; --float: #1d1d1d; --dim: #5a5a5a;
-    --line: rgba(255, 255, 255, .08); --line2: rgba(255, 255, 255, .14); --shadow: rgba(0, 0, 0, .7);
+    --line: rgba(255, 255, 255, .08); --line2: rgba(255, 255, 255, .14); --shadow: rgba(0, 0, 0, .7); --scrim: rgba(0, 0, 0, .55);
     --radius: 12px; --radius-sm: 8px; --pill: 999px;
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
