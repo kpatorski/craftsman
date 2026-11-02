@@ -40,12 +40,15 @@ time; this is what keeps either of them from losing the other's change.
 
 What the page shows above the findings. Every text field is GitHub markdown.
 
-- `scope` — what the PR is about, from its description.
+- `scope` — what the PR is about, from its description, in three parts: how the system behaves before the change,
+  how it behaves after, and what the PR leaves out.
 - `requirements` — what the linked Jira ticket asks for; `tickets` lists the keys found in the description. Empty,
   with the reason in `requirements`, when no ticket is linked or Jira cannot be read.
-- `structure` — the shape of the change: `use-cases`, each `{"id", "name", "says", "entry", "files": [...],
-  "status", "flow"}`:
+- `structure` — the shape of the change: `use-cases`, each `{"id", "name", "says", "before", "after", "entry",
+  "files": [...], "status", "flow"}`:
   - `says` — one sentence on what the use case does, for someone who has not read the code;
+  - `before` and `after` — how the system behaves in this use case without the change and with it, one to three
+    sentences each;
   - `entry` — the file and line where the use case starts;
   - `files` — every changed file the use case reaches; a file reached by several use cases is in each of them;
   - `status` — `pending`, `reviewing` or `reviewed`;

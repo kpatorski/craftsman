@@ -271,6 +271,19 @@ class ReviewStateTest(unittest.TestCase):
 
         self.assertEqual(self.state()["structure"]["use-cases"][0]["flow"]["branches"][0]["tested"], True)
 
+    def test_a_use_case_says_how_things_were_and_how_they_will_be(self):
+        self.opened()
+        use_case = {"id": "u1", "name": "Cancel a reservation", "says": "The owner cancels.", "entry": "A.java:1",
+                    "files": ["A.java"], "before": "A reservation cannot be cancelled.",
+                    "after": "The owner cancels up to an hour before the start; billing refunds in full."}
+
+        self.run_state("set", payload={"structure": {"use-cases": [{**use_case, "before": ["not text"]}]}},
+                       expect_ok=False)
+        self.run_state("set", payload={"structure": {"use-cases": [use_case]}})
+
+        stored = self.state()["structure"]["use-cases"][0]
+        self.assertEqual((stored["before"], stored["after"]), (use_case["before"], use_case["after"]))
+
     def test_the_developer_archives_a_review(self):
         self.opened()
 
