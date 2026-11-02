@@ -7,239 +7,284 @@
   /*THEME_CSS*/
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
-    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-  a { color: var(--blue); text-decoration: none; cursor: pointer; }
-  code { font-family: var(--mono); font-size: 12.5px; color: var(--blue); }
-  .app { display: grid; grid-template-columns: 240px minmax(0, 1fr) clamp(440px, 38vw, 960px); height: 100vh; }
-  .app > * { overflow-y: auto; min-height: 0; }
+    font: 300 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  a { color: inherit; text-decoration: none; cursor: pointer; }
+  code, .mono { font-family: var(--mono); font-size: 12.5px; font-weight: 400; }
+  b, strong { font-weight: 500; color: var(--heading); }
+  button { font: inherit; }
+  .muted { color: var(--muted); } .dim { color: var(--dim); }
 
-  /* ---- menu ---- */
-  .menu { background: var(--panel); border-right: 1px solid var(--border); padding: 14px 0; }
-  .brand { padding: 0 16px 12px; font-weight: 600; color: var(--green); letter-spacing: .5px;
-    border-bottom: 1px solid var(--border); }
-  .brand span { color: var(--muted); font-weight: 400; }
-  .menu-group { padding: 10px 0 2px; }
-  .menu-title { padding: 2px 16px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
-  .menu-item { display: flex; align-items: center; gap: 8px; padding: 4px 16px; cursor: pointer;
-    color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .menu-item:hover { background: var(--panel2); }
-  .menu-item.current { background: var(--blue-bg); color: var(--heading); }
-  .menu-item .grow { flex: 1; overflow: hidden; text-overflow: ellipsis; }
-  .menu-item.review { font-weight: 500; }
-  .menu-item.section { padding-left: 32px; }
-  .menu-item.category { padding-left: 46px; font-size: 13px; }
-  .menu-item .where { color: var(--muted); font-weight: 400; font-size: 12px; }
-  .count { color: var(--muted); font-size: 12px; }
-  .count.waiting { color: var(--amber); }
+  .app { display: grid; grid-template-columns: 64px minmax(0, 1fr); height: 100vh; }
+  /* the side panel grows with the screen and can be dragged wider or narrower; the width is remembered */
+  .app.with-panel { grid-template-columns: 64px minmax(0, 1fr) var(--panel-w, clamp(480px, 36vw, 760px)); }
+  main { overflow-y: auto; padding: 24px 32px 48px; min-width: 0; }
 
-  /* ---- centre ---- */
-  .head { position: sticky; top: 0; z-index: 2; background: var(--bg); border-bottom: 1px solid var(--border); }
-  .topbar { display: flex; align-items: center; gap: 10px; padding: 10px 24px; flex-wrap: wrap; }
-  .topbar .crumb { flex: 1; min-width: 200px; font-family: var(--mono); font-size: 13px; color: var(--muted); }
-  .topbar .crumb b { color: var(--heading); font-weight: 500; }
-  .live { font-size: 12px; color: var(--muted); }
-  .live::before { content: "●"; color: var(--green); margin-right: 5px; }
-  .live.off::before { color: var(--red); }
-  .btn { background: var(--panel2); border: 1px solid var(--border); color: var(--text); border-radius: 4px;
-    padding: 3px 10px; font-size: 12px; cursor: pointer; }
-  .btn:hover { border-color: var(--blue); }
-  .btn.primary { border-color: var(--green-dim); color: var(--green); }
-  .btn.danger { border-color: var(--red-dim); color: var(--red); }
+  /* ---- rail: one tile per review ---- */
+  .rail { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px 0; border-right: 1px solid var(--line); }
+  .rtile { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; background: var(--card);
+    border: 1px solid var(--line); color: var(--muted); font-size: 12px; font-weight: 500; position: relative; cursor: pointer; }
+  .rtile:hover { border-color: var(--line2); color: var(--heading); }
+  .rtile.on { background: var(--neon-bg); color: var(--neon); border-color: var(--neon-dim); }
+  .rtile .badge { position: absolute; right: -3px; top: -3px; width: 9px; height: 9px; border-radius: 50%; background: var(--should);
+    border: 2px solid var(--bg); }
+  .rtile.end { margin-top: auto; }
+  .rsep { width: 28px; height: 1px; background: var(--line); margin: 4px 0; }
+  .hover { position: fixed; left: 72px; width: 300px; background: var(--float); border: 1px solid var(--line2); border-radius: 12px;
+    padding: 14px 16px; box-shadow: 0 16px 40px var(--shadow); z-index: 20; font-size: 13px; display: none; }
+  .hover .t { color: var(--heading); font-size: 14.5px; margin: 2px 0; }
+
+  /* ---- header ---- */
+  .head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px 24px; }
+  .head > div:first-child { min-width: 0; flex: 1 1 420px; }
+  .title { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+  h1 { margin: 0; font-size: 28px; font-weight: 300; color: var(--heading); letter-spacing: -.2px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+  .sub { color: var(--muted); font-size: 13.5px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .tabs { display: flex; gap: 4px; margin: 18px 0 20px; border-bottom: 1px solid var(--line); }
+  .tab { padding: 9px 14px; color: var(--muted); font-size: 13.5px; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; }
+  .tab:hover { color: var(--text); }
+  .tab.on { color: var(--heading); border-color: var(--neon); }
+  .tab .n { color: var(--dim); margin-left: 5px; } .tab.on .n { color: var(--neon); }
+
+  .tag { font-size: 12px; padding: 2px 9px; border-radius: 7px; font-weight: 400; white-space: nowrap; background: var(--nit-bg); color: var(--nit); }
+  .tag.green { background: var(--neon-bg); color: var(--neon); } .tag.red { background: var(--must-bg); color: var(--must); }
+  .tag.amber { background: var(--should-bg); color: var(--should); } .tag.blue { background: var(--change-bg); color: var(--change); }
+  .live { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 10px; font-size: 13px;
+    background: var(--neon-bg); color: var(--neon); cursor: pointer; border: 0; }
+  .live.wait { background: var(--should-bg); color: var(--should); } .live.off { background: var(--nit-bg); color: var(--nit); }
+  .pulse { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .live:not(.off) .pulse { animation: p 1.6s infinite; }
+  @keyframes p { 50% { opacity: .3; } }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px; font-size: 13.5px; font-weight: 400;
+    background: var(--card2); border: 1px solid var(--line); color: var(--text); cursor: pointer; white-space: nowrap; }
+  .btn:hover { border-color: var(--line2); }
+  .btn.go { background: var(--neon-strong); border-color: var(--neon-strong); color: var(--heading); }
+  .btn.ghost { background: none; } .btn.sm { padding: 5px 10px; font-size: 12.5px; }
+  .btn.danger { color: var(--must); background: none; }
   .btn[disabled] { opacity: .45; cursor: default; }
-  .actions { display: flex; flex-wrap: wrap; gap: 6px; }
-  .checkpoint { background: var(--amber-bg); border-top: 1px solid var(--amber-dim); padding: 10px 24px 12px; }
-  .checkpoint .q { color: var(--heading); margin: 2px 0 8px; white-space: pre-wrap; max-height: 40vh; overflow-y: auto; }
-  .checkpoint .field { margin-bottom: 8px; }
-  .view { padding: 18px 24px 60px; max-width: 1100px; }
-  h1 { font-size: 20px; color: var(--heading); margin: 0 0 4px; font-weight: 600; }
-  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 26px 0 8px; font-weight: 600; }
-  .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
-  .muted { color: var(--muted); }
-  .id { font-family: var(--mono); font-size: 12px; color: var(--muted); }
-  .label { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-top: 8px; }
+  .field { width: 100%; background: var(--card2); border: 1px solid var(--line2); border-radius: 10px; color: var(--text);
+    padding: 8px 10px; font: inherit; font-weight: 300; }
+  textarea.field { min-height: 90px; resize: vertical; }
 
-  details.block { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); margin: 8px 0; }
-  details.block > summary { list-style: none; cursor: pointer; padding: 8px 12px; display: flex; gap: 10px; align-items: baseline; }
-  details.block > summary::-webkit-details-marker { display: none; }
-  details.block > summary::before { content: "▸"; color: var(--muted); width: 10px; flex: none; }
-  details.block[open] > summary::before { content: "▾"; }
-  details.block > summary .t { color: var(--heading); font-weight: 500; }
-  details.block > .inner { padding: 4px 16px 12px 32px; border-top: 1px solid var(--border); }
+  /* ---- cards and grid ---- */
+  .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 20px; }
+  .s4 { grid-column: span 4; } .s8 { grid-column: span 8; } .s12 { grid-column: span 12; }
+  @media (max-width: 1200px) { .s4, .s8 { grid-column: span 12; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; min-width: 0; }
+  .card h3 { margin: 0 0 14px; font-size: 12.5px; font-weight: 400; color: var(--muted); display: flex; justify-content: space-between; gap: 10px; }
+  .card h3 a:hover { color: var(--heading); }
+  .card.now { border-color: var(--neon-dim); box-shadow: 3px 0 0 var(--neon) inset; }
+  .card.now h3 { color: var(--neon); }
+  .card.now .q { font-size: 16px; line-height: 1.5; color: var(--heading); margin-bottom: 14px; white-space: pre-wrap; max-height: 40vh; overflow-y: auto; }
+  .kpi { font-size: 44px; font-weight: 200; line-height: 1; color: var(--heading); }
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .kpis .l { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+  .kpi.must { color: var(--must); } .kpi.should { color: var(--should); } .kpi.nit { color: var(--nit); }
+  .bars { display: flex; flex-direction: column; gap: 9px; }
+  .bar { display: grid; grid-template-columns: 130px 1fr 22px; align-items: center; gap: 10px; font-size: 13px; cursor: pointer; }
+  .bar span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .track { height: 8px; border-radius: 4px; background: var(--nit-bg); display: flex; overflow: hidden; }
+  .track i { display: block; height: 100%; }
+  .bar .n { text-align: right; color: var(--heading); }
+  i.must { background: var(--must); } i.should { background: var(--should); } i.nit { background: var(--nit-dot); }
+  .progress { display: block; height: 6px; border-radius: 3px; background: var(--nit-bg); overflow: hidden; }
+  .progress i { display: block; height: 100%; background: var(--neon); }
+  .row { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 7px 0;
+    border-top: 1px solid var(--line); font-size: 13px; }
+  .ok { color: var(--neon); } .no { color: var(--must); } .wip { color: var(--dim); }
+  .md p { margin: 6px 0; } .md ul, .md ol { margin: 6px 0; padding-left: 20px; } .md li { margin: 3px 0; }
 
-  .badge { display: inline-block; font-size: 11px; padding: 0 7px; border-radius: 9px; border: 1px solid var(--border);
-    font-family: var(--mono); white-space: nowrap; }
-  .badge.active { color: var(--green); border-color: var(--green-dim); background: var(--green-bg); }
-  .badge.done, .badge.off { color: var(--muted); }
-  .badge.pending { color: var(--blue); border-color: var(--blue-dim); background: var(--blue-bg); }
-  .badge.violation { color: var(--red); border-color: var(--red-dim); }
-  .badge.new-convention { color: var(--violet); border-color: var(--violet-dim); }
-  .badge.scout { color: var(--green); border-color: var(--green-dim); }
-  .badge.out-of-scope { color: var(--amber); border-color: var(--amber-dim); }
-  .badge.proposed { color: var(--text); }
-  .badge.to-send { color: var(--green); border-color: var(--green-dim); background: var(--green-bg); }
-  .badge.sent { color: var(--blue); border-color: var(--blue-dim); background: var(--blue-bg); }
-  .badge.deleted, .badge.merged { color: var(--muted); }
-  .badge.maybe-resolved { color: var(--amber); border-color: var(--amber-dim); }
+  /* ---- tables ---- */
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { text-align: left; font-weight: 400; color: var(--muted); font-size: 12px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  td { padding: 11px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tbody tr { cursor: pointer; } tbody tr:hover td { background: var(--card2); }
+  tr.sel td { background: var(--neon-bg); } tr.sel td:first-child { box-shadow: 2px 0 0 var(--neon) inset; }
+  td .t { color: var(--heading); } td .w { color: var(--muted); font-size: 12.5px; }
+  .sev { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .sev::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--nit-dot); flex: none; }
+  .sev.must-fix::before { background: var(--must); } .sev.should-fix::before { background: var(--should); }
+  .who-agent, .who-developer { white-space: nowrap; } .who-agent { color: var(--neon); } .who-developer { color: var(--change); }
 
-  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin: 8px 0 4px; }
-  .tile { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; cursor: pointer; }
-  .tile:hover { border-color: var(--blue-dim); }
-  .tile .n { font-size: 22px; color: var(--heading); font-weight: 600; }
-  .tile .what { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
-  .bar { display: flex; gap: 3px; margin: 6px 0 12px; }
-  .bar span { flex: 1; height: 6px; border-radius: 3px; background: var(--panel2); }
-  .bar span.done { background: var(--green); }
-  .bar span.active { background: repeating-linear-gradient(45deg, var(--green), var(--green) 4px, var(--green-dim) 4px, var(--green-dim) 8px); }
-  .list-row { display: flex; gap: 10px; align-items: baseline; padding: 5px 4px; border-bottom: 1px solid var(--border); }
-  .list-row .grow { flex: 1; }
-  .ico { width: 14px; text-align: center; flex: none; }
-  .ico.done { color: var(--muted); } .ico.active { color: var(--green); } .ico.pending { color: var(--blue); }
-  .ico.waiting { color: var(--amber); }
-  .field { width: 100%; background: var(--panel2); border: 1px solid var(--border); border-radius: var(--radius-sm);
-    color: var(--text); padding: 6px 8px; font: inherit; }
-  textarea.field { min-height: 120px; font-family: var(--mono); font-size: 12.5px; }
-  .filterbar { display: flex; gap: 8px; align-items: center; background: var(--blue-bg); border: 1px solid var(--blue-dim);
-    border-radius: var(--radius-sm); padding: 5px 10px; margin: 0 0 12px; font-size: 13px; }
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+  .chip { padding: 5px 12px; border-radius: var(--pill); border: 1px solid var(--line); color: var(--muted); font-size: 12.5px;
+    cursor: pointer; background: none; }
+  .chip:hover { color: var(--text); }
+  .chip.on { border-color: var(--neon-dim); color: var(--neon); background: var(--neon-bg); }
+  .chip b { font-weight: 500; color: inherit; margin-left: 4px; }
+  .fsep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
+  select.chip { appearance: none; background: var(--bg); }
+  .search { margin-left: auto; padding: 6px 12px; border-radius: 10px; border: 1px solid var(--line); background: none;
+    color: var(--text); width: 220px; font: inherit; font-size: 13px; }
+  .cover { font-size: 12.5px; padding: 6px 10px; border-radius: 9px; background: var(--neon-bg); }
 
-  .graph { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px; }
-  .graph svg { display: block; width: 100%; max-width: 900px; height: auto; }
-  .graph .gnode rect { fill: var(--panel2); stroke: var(--border); rx: 8; }
-  .graph .gnode.uc rect { stroke: var(--blue-dim); } .graph .gnode.ctx rect { stroke: var(--violet); }
-  .graph .gnode text { fill: var(--text); font-size: 12px; pointer-events: none; }
-  .graph .gnode { cursor: pointer; }
-  .graph .gedge { stroke: var(--border); stroke-width: 1.5; fill: none; }
-  .graph .glink { stroke: var(--green); stroke-width: 1.8; fill: none; cursor: pointer; }
-  .graph .glink.doubt { stroke: var(--red); stroke-dasharray: 5 4; }
-  .graph .glabel { fill: var(--muted); font-size: 10.5px; font-family: var(--mono); }
-  .graph.hovering .gnode, .graph.hovering .gedge, .graph.hovering .glink, .graph.hovering .glabel { opacity: .25; }
-  .graph.hovering .hl { opacity: 1 !important; }
-  .graph .gnode.picked rect { fill: var(--blue-bg); stroke: var(--blue); }
-  .graph-info { margin-top: 6px; font-size: 13px; }
+  /* ---- side panel ---- */
+  .panel { border-left: 1px solid var(--line); background: var(--code-bg); display: flex; flex-direction: column;
+    padding: 22px 22px 18px; min-height: 0; overflow-y: auto; position: relative; }
+  .panel .crumb { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 10px; }
+  .panel h2 { margin: 6px 0 4px; font-size: 18px; font-weight: 400; color: var(--heading); line-height: 1.35; }
+  .box { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-top: 12px; font-size: 13.5px; }
+  .box .l { font-size: 12px; color: var(--muted); margin-bottom: 4px; display: flex; justify-content: space-between; gap: 10px; }
+  .quote { border-left: 2px solid var(--select); padding: 6px 12px; margin: 10px 0 0; color: var(--muted);
+    background: var(--select-bg); border-radius: 0 8px 8px 0; white-space: pre-wrap; font-family: var(--mono); font-size: 12px; }
+  .thread { margin-top: 16px; }
+  .thread-h { font-size: 12px; color: var(--muted); margin: 0 0 8px; display: flex; justify-content: space-between; gap: 10px; }
+  .msgs { display: flex; flex-direction: column; gap: 10px; }
+  .msg .who { font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+  .msg .body { background: var(--card2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: 13.5px; }
+  .msg.developer .body { background: var(--select-bg); border-color: var(--select-bg); }
+  .composer { display: flex; gap: 8px; align-items: flex-end; padding: 6px; border-radius: 12px; background: var(--card);
+    border: 1px solid var(--line2); margin-top: 12px; }
+  .composer textarea { flex: 1; background: none; border: 0; color: var(--text); font: inherit; resize: none; min-height: 36px; padding: 6px; outline: none; }
+  .send { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: var(--neon-strong);
+    color: var(--heading); border: 0; cursor: pointer; flex: none; }
+  .row-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+  .panel.over { position: fixed; right: 0; bottom: 0; width: var(--panel-w, clamp(480px, 36vw, 760px)); z-index: 16;
+    border-left: 1px solid var(--line2); box-shadow: -30px 0 60px var(--shadow); }
+  .grip { position: absolute; left: -4px; top: 0; bottom: 0; width: 8px; cursor: col-resize; z-index: 3; }
+  .grip::after { content: ""; position: absolute; left: 3px; top: 50%; width: 2px; height: 36px; margin-top: -18px;
+    border-radius: 2px; background: var(--line2); }
+  .grip:hover::after, .grip.drag::after { background: var(--neon); }
+  .log div { font-size: 12.5px; padding: 3px 0; white-space: pre-wrap; }
+  .log .tool { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+  .log .denied { color: var(--must); font-family: var(--mono); font-size: 11.5px; }
+  .log .turn { color: var(--dim); font-size: 11px; border-bottom: 1px dashed var(--line); padding-bottom: 6px; }
+  .log .you { color: var(--heading); border-left: 2px solid var(--select); padding-left: 8px; }
 
-  .finding { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); margin: 8px 0; padding: 10px 14px; }
-  .finding.to-send { border-color: var(--green-dim); }
-  .finding.deleted { opacity: .5; } .finding.sent { border-color: var(--blue-dim); }
-  .finding.maybe-resolved { border-style: dashed; }
-  .finding .fhead { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
-  .finding .ftitle { color: var(--heading); font-weight: 500; flex: 1; }
-  .finding .comment { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 2px 12px; }
-  .finding .actions { margin-top: 10px; }
-  .loc { font-family: var(--mono); font-size: 12px; }
-  .hunk { font-family: var(--mono); font-size: 12px; background: var(--code-bg); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); margin: 4px 0 8px; overflow-x: auto; }
-  .hunk div { white-space: pre; padding: 0 8px; }
-  .hunk .add { background: var(--green-bg); } .hunk .del { background: var(--red-bg); }
-  .hunk .at { color: var(--muted); } .hunk .here { outline: 1px solid var(--amber); }
-  .reply { border-left: 3px solid var(--blue-dim); padding: 2px 10px; margin: 4px 0; font-size: 13px; }
-  .cmd { display: inline-flex; gap: 6px; align-items: center; margin: 4px 0 0; }
-  .cmd code { background: var(--panel2); padding: 2px 6px; border-radius: 3px; font-size: 12px; }
-  .copy { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 22px; flex: none;
-    background: var(--panel2); border: 1px solid var(--border); border-radius: 4px; color: var(--muted); cursor: pointer; padding: 0; }
-  .copy:hover, .copy.done { color: var(--green); border-color: var(--green); }
+  /* ---- selection popover ---- */
+  .pop { position: fixed; display: none; gap: 4px; padding: 4px; border-radius: 10px; background: var(--float);
+    border: 1px solid var(--line2); box-shadow: 0 10px 30px var(--shadow); z-index: 30; }
 
-  /* ---- console (right) ---- */
-  .side { position: relative; background: var(--panel); border-left: 1px solid var(--border); display: flex;
-    flex-direction: column; overflow: hidden; padding: 12px 12px 12px 14px; }
-  .grip { position: absolute; left: -3px; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 3; }
-  .grip:hover, .grip.dragging { background: var(--blue-dim); }
-  .side-title { display: flex; gap: 8px; align-items: baseline; font-size: 11px; text-transform: uppercase;
-    letter-spacing: 1px; color: var(--muted); padding: 2px 4px 10px; }
-  .side-title .grow { flex: 1; }
-  .lines { flex: 1; overflow-y: auto; font-size: 13px; padding: 0 2px; }
-  .ln { padding: 3px 4px; white-space: pre-wrap; word-break: break-word; }
-  .ln.you { color: var(--heading); border-left: 2px solid var(--blue); background: var(--blue-bg); margin-top: 8px; }
-  .ln.tool { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
-  .ln.denied { color: var(--red); font-family: var(--mono); font-size: 11.5px; }
-  .ln.turn { color: var(--muted); font-size: 11px; border-bottom: 1px dashed var(--border); padding-bottom: 6px; }
-  .say { display: flex; gap: 6px; padding-top: 8px; align-items: flex-end; }
-  .say textarea { flex: 1; min-height: 64px; font-size: 13px; font-family: inherit; }
+  /* ---- files and diffs ---- */
+  .pdir { font-family: var(--mono); font-size: 11.5px; color: var(--muted); margin: 8px 0 2px 6px; }
+  .pf { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 7px; font-size: 12.5px;
+    font-family: var(--mono); margin-left: 8px; cursor: pointer; }
+  .pf:hover { background: var(--card); }
+  .pf .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pf.on { background: var(--card); color: var(--heading); box-shadow: 2px 0 0 var(--heading) inset; }
+  .pf.del .nm { text-decoration: line-through; color: var(--muted); }
+  .vbox { width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--line2); display: inline-grid; place-items: center;
+    font-size: 10px; flex: none; font-family: -apple-system, sans-serif; cursor: pointer; }
+  .vbox.on { background: var(--neon); border-color: var(--neon); color: var(--bg); }
+  .kd { display: inline-block; width: 12px; text-align: center; font-family: var(--mono); font-weight: 600; }
+  .kd.added { color: var(--neon); } .kd.modified, .kd.renamed { color: var(--change); } .kd.deleted { color: var(--must); }
+  .dots { display: inline-flex; gap: 3px; } .dots i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  .klegend { font-size: 11.5px; color: var(--muted); margin: 10px 0 0 6px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .diffcard { background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; min-width: 0; }
+  .diffhead { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 16px;
+    border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .diffbody { overflow-x: auto; padding: 6px 0; }
+  .hunk { font-family: var(--mono); font-size: 12px; color: var(--muted); background: var(--change-bg); padding: 4px 16px; }
+  .ln { display: grid; grid-template-columns: 44px 44px 18px max-content; line-height: 1.9; white-space: pre; font-family: var(--mono);
+    font-size: 12.5px; min-width: 100%; }
+  .ln .no, .ln .sg { color: var(--dim); user-select: none; } .ln .no { text-align: right; padding-right: 8px; } .ln .sg { text-align: center; }
+  .ln.add { background: var(--added-bg); } .ln.add .sg { color: var(--neon); }
+  .ln.del { background: var(--removed-bg); } .ln.del .sg { color: var(--must); } .ln.del .c { color: var(--removed-text); }
+  .ln.whole { background: none; }
+  .ln.sel { background: var(--select-bg); box-shadow: 2px 0 0 var(--select) inset; }
+  .ann { margin: 4px 16px 8px 106px; padding: 8px 12px; border-radius: 10px; background: var(--card2); border: 1px solid var(--line);
+    font-size: 13px; display: flex; gap: 10px; align-items: baseline; cursor: pointer; white-space: normal; }
+  .ann:hover { border-color: var(--line2); }
+  .banner { margin: 10px 16px; padding: 10px 14px; border-radius: 10px; font-size: 13px; background: var(--card2); border: 1px solid var(--line); }
+  .banner.red { background: var(--must-bg); border-color: var(--must-bg); }
+  .snip { overflow-x: auto; } .snip .ln { grid-template-columns: 36px 18px max-content; }
 
-  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--panel2);
-    border: 1px solid var(--green); border-radius: var(--radius-sm); padding: 8px 14px; font-size: 13px; opacity: 0;
-    transition: opacity .2s; pointer-events: none; max-width: 640px; }
+  /* ---- structure: use cases as cards, one opened beside them ---- */
+  .ucs { position: relative; min-height: 120px; }
+  .uc { position: absolute; width: 260px; background: var(--card2); border: 1px solid var(--line2); border-radius: 14px; padding: 14px 16px;
+    cursor: pointer; transition: left .42s cubic-bezier(.2, .7, .2, 1), top .42s cubic-bezier(.2, .7, .2, 1), width .42s cubic-bezier(.2, .7, .2, 1),
+    border-color .2s, box-shadow .2s; }
+  .uc:hover { border-color: var(--neon-dim); }
+  .uc .gac { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .uc .name { color: var(--heading); font-size: 15px; margin: 2px 0 8px; }
+  .uc .meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .uc.untied { border-style: dashed; border-color: var(--should-bg); } .uc.untied .name { color: var(--should); }
+  .uc.picked { border-color: var(--neon); box-shadow: 0 0 0 3px var(--neon-bg); }
+  .uc.related { border-style: dashed; border-color: var(--line2); }
+  .tip { position: absolute; width: 320px; background: var(--float); border: 1px solid var(--line2); border-radius: 12px; padding: 12px 14px;
+    z-index: 25; box-shadow: 0 16px 40px var(--shadow); font-size: 13px; pointer-events: none; display: none; }
+  .tip .say { color: var(--heading); margin-bottom: 8px; }
+  .tip .shares { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+  .slide { position: fixed; right: 0; bottom: 0; z-index: 15; border-left: 1px solid var(--line2); box-shadow: -30px 0 60px var(--shadow);
+    transform: translateX(100%); transition: transform .42s cubic-bezier(.2, .7, .2, 1); visibility: hidden; }
+  .slide.shown { transform: none; visibility: visible; }
+  .slide > * { transition: opacity .14s ease; } .slide.swap > * { opacity: 0; }
+  details.how { margin-top: 14px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+  details.how summary { cursor: pointer; font-size: 12.5px; color: var(--muted); }
+  .hflow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+  .hstep { display: inline-flex; gap: 6px; align-items: center; padding: 5px 10px; border-radius: 8px; background: var(--card2);
+    border: 1px solid var(--line2); font-size: 12px; cursor: pointer; }
+  .harr { color: var(--muted); font-size: 12px; } .harr.bad { color: var(--must); }
+  .hbr { margin-top: 10px; font-size: 12.5px; } .hbr div { padding: 2px 0; }
+
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--float); border: 1px solid var(--neon-dim);
+    border-radius: 10px; padding: 8px 14px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 50; }
   .toast.show { opacity: 1; }
   /*MD_CSS*/
 </style>
 </head>
 <body>
 <div class="app" id="app">
-  <nav class="menu" id="menu"></nav>
-  <main class="centre" id="centre"></main>
-  <aside class="side" id="side"></aside>
+  <nav class="rail" id="rail"></nav>
+  <main id="main"></main>
+  <aside class="panel" id="panel" style="display:none"></aside>
 </div>
+<aside class="panel slide" id="ucpanel"></aside>
+<div class="hover" id="hover"></div>
+<div class="pop" id="pop"></div>
 <div class="toast" id="toast"></div>
 <script>
-// ---------------------------------------------------------------- state
-// `current` is what the page shows: one review (`project` + `id`) and one of its sections, or the new-review form.
-const SECTIONS = ["overview", "structure", "rules", "map", "explanations", "findings", "sent"];
+// ================================================================ state
+// One review is shown at a time: `project` + `id` from the address. `ui` is what the developer looks at in it.
 const params = new URLSearchParams(location.search);
-let current = { project: params.get("project"), id: params.get("review"), section: params.get("section") || "overview",
-  category: params.get("category") };
-let reviewsList = [], projects = [], R = null, diffText = null, live = false;
-let rFilter = null, graphInfo = null, openContext = null, editing = null;
-const openKeys = new Set(), shownHunks = new Set();
+let current = { project: params.get("project"), id: params.get("review") };
+let reviewsList = [], projects = [], R = null, deferred = false;
+const ui = { tab: params.get("tab") || "overview", panel: null, file: params.get("file"), uc: null, ucFile: null,
+  fsev: null, fby: null, fstatus: "open", fcat: "", fquestions: false, search: "", codeFilter: "all", editing: null,
+  selection: null };
+const diffs = {}, refs = {};
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const K = () => ({ project: current.project, id: current.id });
+const q = () => `project=${encodeURIComponent(current.project)}&id=${encodeURIComponent(current.id)}`;
+const SEV = { "must-fix": "Must fix", "should-fix": "Should fix", "nit": "Nit" };
+const SEVS = Object.keys(SEV);
+const KIND = { added: "+", modified: "~", renamed: "~", deleted: "−", unchanged: "·" };
+const DOT = { "must-fix": "var(--must)", "should-fix": "var(--should)", "nit": "var(--nit-dot)" };
+const STATUS = { open: f => !["deleted", "sent"].includes(f.status), "to-send": f => f.status === "to-send",
+  sent: f => f.status === "sent", deleted: f => f.status === "deleted" };
+const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 async function reload() {
   const [list, ping] = await Promise.all([fetch("/api/reviews"), fetch("/api/ping")]);
   reviewsList = list.ok ? (await list.json()).reviews : [];
   projects = ping.ok ? (await ping.json()).found : [];
-  if (current.id === null && current.section !== "new") {
-    const first = reviewsList.find(r => !r.closed && r.checkpoint) || reviewsList.find(r => !r.closed) || reviewsList[0];
-    current = first ? { ...current, project: first.project, id: first.id } : { section: "new" };
+  if (!current.id) {
+    const open = reviewsList.filter(r => !r.archived && !r.closed);
+    const first = open.find(r => r.checkpoint) || open[0];
+    if (first) current = { project: first.project, id: first.id };
   }
-  await loadReview();
+  if (current.id) {
+    const r = await fetch("/api/review?" + q());
+    const fresh = r.ok ? await r.json() : null;
+    if (fresh && R && fresh.state.head !== R.state.head) Object.keys(diffs).forEach(k => delete diffs[k]);
+    R = fresh;
+  } else R = null;
   render();
 }
-async function loadReview() {
-  if (!current.id) { R = null; return; }
-  const q = `project=${encodeURIComponent(current.project)}&id=${encodeURIComponent(current.id)}`;
-  const r = await fetch("/api/review?" + q);
-  const fresh = r.ok ? await r.json() : null;
-  if (fresh && R && fresh.state.head !== R.state.head) diffText = null;
-  R = fresh;
-  if (R && diffText === null) { const d = await fetch("/api/review/diff?" + q); diffText = d.ok ? await d.text() : ""; }
+function fileDiff(path) {
+  if (diffs[path] !== undefined) return;
+  diffs[path] = null;
+  fetch(`/api/review/diff?${q()}&path=${encodeURIComponent(path)}`).then(r => r.ok ? r.text() : "")
+    .then(text => { diffs[path] = parseDiff(text); render(); });
 }
-function go(target) {
-  const other = target.id !== current.id || target.project !== current.project;
-  current = { project: current.project, id: current.id, ...target };
-  if (other) { R = null; diffText = null; rFilter = null; graphInfo = null; openContext = null; editing = null; shownHunks.clear(); }
-  const q = new URLSearchParams();
-  if (current.id) { q.set("project", current.project); q.set("review", current.id); }
-  if (current.section && current.section !== "overview") q.set("section", current.section);
-  if (current.category) q.set("category", current.category);
-  history.replaceState(null, "", "?" + q.toString());
-  document.getElementById("centre").scrollTop = 0;
-  return other ? reload() : render();
-}
-
-// ---------------------------------------------------------------- helpers
-const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const inline = s => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-const ICON = { done: "✓", active: "●", pending: "○", waiting: "?" };
-const ico = st => `<span class="ico ${st}">${ICON[st] || "·"}</span>`;
-const COPY_SVG = `<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M3 11V3.5A1.5 1.5 0 0 1 4.5 2H11" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>`;
-const copyCmd = c => `<span class="cmd"><button class="copy" data-copy="${esc(c)}" title="copy">${COPY_SVG}</button><code>${esc(c)}</code></span>`;
-const short = sha => String(sha || "").slice(0, 8);
-const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
-function det(key, summary, inner) {
-  return `<details class="block" data-key="${esc(key)}"${openKeys.has(key) ? " open" : ""}>` +
-         `<summary>${summary}</summary><div class="inner">${inner}</div></details>`;
-}
-function sourceLabel(src) {
-  if (!src) return "";
-  if (src.kind === "pull-request") return `PR #${src.number} · ${src.repository}`;
-  return `${src.target} ← ${src.source}` + (src["pull-request"] ? ` · PR #${src["pull-request"].number}` : " · no PR");
-}
-function projectLabel(path) {
-  const parts = String(path || "").split("/").filter(Boolean);
-  return parts.slice(-1)[0] || path;
-}
-const waiting = () => R && R.state.checkpoint && !R.state.checkpoint.answer;
-const open = list => list.filter(f => f.status !== "merged" && f.status !== "sent");
-function categories() {
-  const cats = {};
-  open(R.state.findings).forEach(f => (cats[f.category] ||= []).push(f));
-  return Object.entries(cats).sort((a, b) => a[0].localeCompare(b[0]));
+function references(path) {
+  if (refs[path] !== undefined) return;
+  refs[path] = null;
+  fetch(`/api/review/references?${q()}&path=${encodeURIComponent(path)}`).then(r => r.ok ? r.json() : { references: [] })
+    .then(out => { refs[path] = out.references; render(); });
 }
 const api = async (path, body) => {
   const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json", "X-Craftsman": "1" },
@@ -248,439 +293,662 @@ const api = async (path, body) => {
   if (!r.ok) { toast(out.error || "failed"); return null; }
   return out;
 };
-const reviewKey = () => ({ project: current.project, id: current.id });
-
-// ---------------------------------------------------------------- menu (left)
-function renderMenu() {
-  let html = `<div class="brand">craftsman <span>· review</span></div><div class="menu-group"><div class="menu-title">Reviews</div>`;
-  html += `<div class="menu-item${current.section === "new" ? " current" : ""}" data-new="1"><span class="grow">+ New review</span></div>`;
-  const several = new Set(reviewsList.map(r => r.project)).size > 1;
-  reviewsList.forEach(rv => {
-    const here = rv.id === current.id && rv.project === current.project;
-    const state = rv.closed ? "done" : rv.checkpoint ? "waiting" : rv.running ? "active" : "pending";
-    const total = Object.values(rv.findings).reduce((a, b) => a + b, 0);
-    html += `<div class="menu-item review${here && !R ? " current" : ""}" data-review="${esc(rv.id)}" data-rproject="${esc(rv.project)}"` +
-      ` title="${esc(rv.project)}">${ico(state)}<span class="grow">${esc(rv.id)}${several ? ` <span class="where">${esc(projectLabel(rv.project))}</span>` : ""}</span>` +
-      `<span class="count">${rv.findings["to-send"] || 0}/${total}</span></div>`;
-    if (here && R) html += sectionItems();
-  });
-  document.getElementById("menu").innerHTML = html + `</div>`;
-}
-function sectionItems() {
-  const S = R.state, st = S.structure || {};
-  const ucs = st["use-cases"] || [];
-  const counts = {
-    overview: waiting() ? `<span class="count waiting">waiting for you</span>` : "",
-    structure: ucs.length ? `<span class="count">${ucs.filter(u => u.status === "reviewed").length}/${ucs.length}</span>` : "",
-    rules: (S.rules || []).length || "", map: (S.map || []).length || "", explanations: (S.explanations || []).length || "",
-    findings: open(S.findings).length || "", sent: S.findings.filter(f => f.status === "sent").length || "",
-  };
-  const names = { overview: "Overview", structure: "Structure", rules: "Rules from the tests", map: "PR map",
-    explanations: "Explanations", findings: "Findings", sent: "Sent" };
-  let html = "";
-  SECTIONS.forEach(section => {
-    const here = current.section === section && !(section === "findings" && current.category);
-    const count = typeof counts[section] === "number" ? `<span class="count">${counts[section]}</span>` : counts[section];
-    html += `<div class="menu-item section${here ? " current" : ""}" data-section="${section}"><span class="grow">${names[section]}</span>${count}</div>`;
-    if (section === "findings") categories().forEach(([cat, list]) => {
-      const there = current.section === "findings" && current.category === cat;
-      html += `<div class="menu-item category${there ? " current" : ""}" data-section="findings" data-category="${esc(cat)}">` +
-        `<span class="grow">${esc(cat)}</span><span class="count">${list.length}</span></div>`;
-    });
-  });
-  return html;
+const change = (action, body) => api("/api/review/change", { ...K(), action, ...body });
+function go(target) {
+  const other = target.id !== undefined && (target.id !== current.id || target.project !== current.project);
+  if (target.id !== undefined) current = { project: target.project, id: target.id };
+  Object.assign(ui, target.ui || {});
+  if (other) { R = null; Object.keys(diffs).forEach(k => delete diffs[k]); Object.keys(refs).forEach(k => delete refs[k]);
+    Object.assign(ui, { panel: null, uc: null, file: null, selection: null }); }
+  const p = new URLSearchParams();
+  if (current.id) { p.set("project", current.project); p.set("review", current.id); }
+  if (ui.tab !== "overview") p.set("tab", ui.tab);
+  if (ui.tab === "code" && ui.file) p.set("file", ui.file);
+  history.replaceState(null, "", "?" + p.toString());
+  return other ? reload() : render();
 }
 
-// ---------------------------------------------------------------- top of the centre: where, actions, the question
+// ================================================================ reading the review
+const S = () => R.state;
+const useCases = () => (S().structure || {})["use-cases"] || [];
+const fileInfo = path => (R.files || []).find(f => f.path === path) || { path, change: "modified", added: 0, removed: 0, "use-cases": [], viewed: false };
+const live = list => list.filter(f => !["merged", "deleted", "sent"].includes(f.status));
+const findingsAt = path => S().findings.filter(f => !["merged", "deleted"].includes(f.status) && (f.locations || []).some(l => l.path === path));
+const threadsOf = (kind, id) => (S().threads || []).filter(t => t.about.kind === kind && (kind === "file" ? t.about.path === id : t.about.id === id));
+const waiting = () => S().checkpoint && !S().checkpoint.answer;
+function sourceLabel(src) {
+  if (!src) return "";
+  if (src.kind === "pull-request") return `PR #${src.number} · ${src.repository}`;
+  return `${src.target} ← ${src.source}` + (src["pull-request"] ? ` · PR #${src["pull-request"].number}` : " · no PR");
+}
+const pull = src => src && (src.kind === "pull-request" ? src : src["pull-request"]);
+const dotsOf = list => `<span class="dots">${list.map(f => `<i style="background:${DOT[f.severity] || "var(--nit-dot)"}"></i>`).join("")}</span>`;
+const sev = s => `<span class="sev ${esc(s)}">${SEV[s] || esc(s)}</span>`;
+const who = by => by === "developer" ? `<span class="who-developer">● you</span>` : `<span class="who-agent">✦ AI Agent</span>`;
+const md = key => R.html[key] || "";
+function commonRoot() {
+  const all = (R.files || []).map(f => f.path);
+  const root = all.length > 1 ? all.reduce((a, b) => { let i = 0; while (i < a.length && a[i] === b[i]) i++; return a.slice(0, i); }) : "";
+  return root.slice(0, root.lastIndexOf("/") + 1);
+}
+const shortPath = p => { const root = commonRoot(); return root && p.startsWith(root) ? "…/" + p.slice(root.length) : p; };
+
+// ================================================================ rail
+function renderRail() {
+  const shown = reviewsList.filter(r => !r.archived), archived = reviewsList.length - shown.length;
+  document.getElementById("rail").innerHTML = shown.map((r, i) => {
+    const pr = pull(r.source), here = r.id === current.id && r.project === current.project;
+    return `<div class="rtile${here ? " on" : ""}" data-open-review="${i}" data-hoverr="${i}">${pr ? "#" + pr.number : "⑂"}` +
+      `${r.checkpoint ? '<span class="badge"></span>' : ""}</div>`;
+  }).join("") + `<div class="rsep"></div><div class="rtile" data-new title="New review">＋</div>` +
+    `<div class="rtile end" data-archived title="Archived reviews · ${archived}">⌫</div>`;
+}
+function showHover(i, tile) {
+  const r = reviewsList.filter(x => !x.archived)[i], h = document.getElementById("hover"); if (!r) return;
+  const counts = r.findings || {};
+  const total = Object.entries(counts).filter(([k]) => !["merged", "deleted"].includes(k)).reduce((a, [, n]) => a + n, 0);
+  h.innerHTML = `<div class="muted" style="font-size:12px">${esc(sourceLabel(r.source))}</div>
+    <div class="t">${esc((r.source && r.source.title) || r.id)}</div>
+    <div class="muted">${esc(r.project.split("/").pop())}</div>
+    <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">${r.checkpoint ? '<span class="tag amber">AI Agent waits for your answer</span>' : ""}
+      ${r.running ? '<span class="tag green">session running</span>' : '<span class="tag">session stopped</span>'}
+      <span class="tag">${plural(total, "finding")}</span>${r.closed ? '<span class="tag">closed</span>' : ""}</div>
+    <div class="row-actions"><button class="btn sm" data-open-review="${i}">Open</button>
+      <button class="btn ghost sm" data-archive="${i}">Archive</button></div>`;
+  h.style.top = Math.max(8, tile.getBoundingClientRect().top - 8) + "px";
+  h.style.display = "block";
+}
+
+// ================================================================ header and tabs
 function renderHead() {
-  if (!R) return `<div class="topbar"><span class="crumb"><b>${esc(current.section === "new" ? "new review" : current.id || "")}</b></span>` +
-    `<span class="live${live ? "" : " off"}">${live ? "live" : "reconnecting…"}</span></div>`;
-  const S = R.state;
-  const where = [current.section, current.category].filter(Boolean).join(" / ");
-  const toSend = S.findings.filter(f => f.status === "to-send").length;
-  let html = `<div class="topbar"><span class="crumb"><b>${esc(current.id)}</b> / ${esc(where)}</span>` +
-    `<span class="badge ${R.running ? "active" : "off"}">${R.running ? "session running" : "session stopped"}</span>` +
-    (S.closed ? `<span class="badge done">closed</span>` : "") +
-    (R.pending ? `<span class="muted" style="font-size:12px">${plural(R.pending, "request")} waiting</span>` : "") +
-    `<span class="actions">` +
-    (R.running ? `<button class="btn" data-rv="stop">Stop</button><button class="btn" data-rv="cli">Continue in CLI</button>`
-               : `<button class="btn primary" data-rv="resume">${S.session ? "Resume" : "Start"}</button>`) +
-    `<button class="btn" data-rv="refresh">Refresh PR</button>` +
-    `<button class="btn primary" data-rv="send"${toSend ? "" : " disabled"}>Send ${toSend} to GitHub</button>` +
-    `<button class="btn danger" data-rv="close">Close</button></span>` +
-    `<span class="live${live ? "" : " off"}">${live ? "live" : "reconnecting…"}</span></div>`;
-  if (waiting()) {
-    const cp = S.checkpoint;
-    html += `<div class="checkpoint"><div class="muted" style="font-size:12px">${esc(cp.step)} is waiting for you</div>` +
-      `<div class="q">${inline(cp.question)}</div><input class="field" id="cp-note" placeholder="note (optional)">` +
-      `<div class="actions">${(cp.options || []).map(o => `<button class="btn primary" data-answer="${esc(o)}">${esc(o)}</button>`).join("")}</div></div>`;
-  }
-  return html;
+  const s = S(), pr = pull(s.source), files = R.files || [];
+  const added = files.reduce((a, f) => a + f.added, 0), removed = files.reduce((a, f) => a + f.removed, 0);
+  const toSend = s.findings.filter(f => f.status === "to-send").length, now = useCases().find(u => u.status === "reviewing");
+  const status = waiting() ? ["wait", "AI Agent waits for your answer"] : R.running ? ["", now ? `AI Agent · reviewing ${now.name}` : "AI Agent is working"]
+    : ["off", s.closed ? "Review closed" : "Session stopped · start it"];
+  const branches = s.source && (s.source["base-branch"] ? `${s.source["base-branch"]} ← ${s.source["head-branch"]}` :
+    s.source.kind === "branches" ? `${s.source.target} ← ${s.source.source}` : "");
+  const tabs = [["overview", "Overview", ""], ["findings", "Findings", live(s.findings).length],
+    ["code", "Code", plural(files.length, "file")], ["structure", "Structure", useCases().length || ""]];
+  return `<div class="head"><div>
+      <div class="title"><h1>${esc((s.source && s.source.title) || sourceLabel(s.source))}</h1>
+        ${pr ? `<span class="tag">PR #${pr.number}</span>` : '<span class="tag">no PR</span>'}
+        ${(s.tickets || []).map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div>
+      <div class="sub">${esc([pr && pr.repository, branches, `${plural(files.length, "file")}, +${added} −${removed}`].filter(Boolean).join(" · "))}</div></div>
+    <div class="actions">
+      <button class="live ${status[0]}" data-live title="Click for the session's log"><span class="pulse"></span>${esc(status[1])}</button>
+      <button class="btn ghost" data-refresh>⟳ Refresh PR</button>
+      <button class="btn go" data-send ${toSend && pr ? "" : "disabled"} title="${pr ? "" : "No pull request to send to"}">Send ${plural(toSend, "comment")}</button>
+      <button class="btn ghost" data-power title="${R.running ? "Stop the session" : "Start the session"}">⏻</button>
+    </div></div>
+    <div class="tabs">${tabs.map(([id, name, n]) => `<a class="tab${id === ui.tab ? " on" : ""}" data-tab="${id}">${name}${n !== "" ? `<span class="n">${n}</span>` : ""}</a>`).join("")}</div>`;
 }
 
-// ---------------------------------------------------------------- sections
+// ================================================================ overview
 function viewOverview() {
-  const S = R.state, H = R.html, st = S.structure || {};
-  const ucs = st["use-cases"] || [];
-  let html = `<h1>${esc(sourceLabel(S.source))}</h1><div class="sub">${esc(current.id)} · base <code>${short(S.base)}</code>` +
-    ` · head <code>${short(S.head)}</code> · <span title="${esc(current.project)}">${esc(current.project)}</span></div>`;
-  const status = {}; S.findings.forEach(f => status[f.status] = (status[f.status] || 0) + 1);
-  const tile = (n, what, section) => `<div class="tile" data-section="${section}"><div class="n">${n}</div><div class="what">${what}</div></div>`;
-  html += `<div class="tiles">` + tile(`${ucs.filter(u => u.status === "reviewed").length}/${ucs.length}`, "use cases reviewed", "structure") +
-    tile(open(S.findings).length, "findings open", "findings") + tile(status["to-send"] || 0, "marked to send", "findings") +
-    tile(status.sent || 0, "sent", "sent") + `</div>`;
-  if (ucs.length) html += `<div class="bar">${ucs.map(u => `<span class="${{ reviewed: "done", reviewing: "active" }[u.status] || ""}" title="${esc(u.name)}"></span>`).join("")}</div>`;
-  html += `<h2>What the PR is for</h2>` + (H.scope ? `<div class="md">${H.scope}</div>` : `<div class="muted">not read yet</div>`);
-  if (H.requirements || (S.tickets || []).length)
-    html += `<h2>Requirements${(S.tickets || []).length ? " · " + S.tickets.map(esc).join(", ") : ""}</h2><div class="md">${H.requirements || ""}</div>`;
-  return html;
+  const s = S(), open = live(s.findings);
+  const bySev = Object.fromEntries(SEVS.map(k => [k, open.filter(f => f.severity === k).length]));
+  const cats = {};
+  open.forEach(f => { cats[f.category] ||= { "must-fix": 0, "should-fix": 0, "nit": 0, n: 0 }; cats[f.category][f.severity]++; cats[f.category].n++; });
+  const most = Math.max(1, ...Object.values(cats).map(c => c.n));
+  const toSend = s.findings.filter(f => f.status === "to-send").length, sent = s.findings.filter(f => f.status === "sent").length;
+  const ucs = useCases(), done = ucs.filter(u => u.status === "reviewed").length, cp = s.checkpoint;
+  const scope = `<div class="md">${md("scope") || '<span class="muted">AI Agent has not read the PR yet.</span>'}</div>` +
+    (md("requirements") ? `<h3 style="margin-top:14px"><span>What the ticket asks for</span></h3><div class="md">${md("requirements")}</div>` : "");
+  let html = `<div class="grid">`;
+  html += waiting() ? `<section class="card now s8"><h3><span>AI Agent asks you · ${esc(cp.step || "")}</span></h3>
+      <div class="q">${esc(cp.question)}</div>
+      <input class="field" id="cp-note" placeholder="A note with your answer (optional)" style="margin-bottom:10px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${(cp.options || []).map((o, i) =>
+        `<button class="btn${i === 0 ? " go" : ""}" data-answer="${esc(o)}">${esc(o)}</button>`).join("")}</div></section>`
+    : `<section class="card s8"><h3><span>What the PR is for</span></h3>${scope}</section>`;
+  html += `<section class="card s4"><h3><span>Comments for the author</span><a data-tab="findings" data-fstatus="to-send">Review them →</a></h3>
+      <div class="kpis" style="grid-template-columns:1fr 1fr"><div><div class="kpi">${toSend}</div><div class="l">ready to send</div></div>
+        <div><div class="kpi nit">${sent}</div><div class="l">sent</div></div></div>
+      <div class="muted" style="font-size:13px;margin-top:14px">${plural(open.filter(f => f.status === "proposed").length, "finding")} not marked to send yet.</div></section>`;
+  html += `<section class="card s4"><h3><span>Findings by severity</span><a data-tab="findings" data-fsev="">${open.length} →</a></h3>
+      <div class="kpis">${SEVS.map(k => `<a data-tab="findings" data-fsev="${k}"><div class="kpi ${k.split("-")[0]}">${bySev[k]}</div><div class="l">${SEV[k].toLowerCase()}</div></a>`).join("")}</div>
+      <div class="track" style="height:10px;margin-top:22px">${SEVS.map(k => `<i class="${k.split("-")[0]}" style="width:${open.length ? 100 * bySev[k] / open.length : 0}%"></i>`).join("")}</div></section>`;
+  html += `<section class="card s4"><h3><span>Findings by category</span></h3><div class="bars">${Object.entries(cats).sort((a, b) => b[1].n - a[1].n).slice(0, 6).map(([c, v]) =>
+      `<div class="bar" data-tab="findings" data-fcat="${esc(c)}"><span>${esc(c)}</span><span class="track">${SEVS.map(k => `<i class="${k.split("-")[0]}" style="width:${100 * v[k] / most}%"></i>`).join("")}</span><span class="n">${v.n}</span></div>`).join("") || '<span class="muted">No findings yet.</span>'}</div></section>`;
+  html += `<section class="card s4"><h3><span>Review progress</span><span>${done} of ${ucs.length} use cases</span></h3>
+      <div class="progress" style="margin-bottom:10px"><i style="width:${ucs.length ? 100 * done / ucs.length : 0}%"></i></div>
+      ${ucs.map(u => `<div class="row" data-tab="structure" data-uc="${esc(u.id)}" style="cursor:pointer"><span class="${u.status === "pending" ? "wip" : "ok"}">${u.status === "reviewed" ? "✓" : u.status === "reviewing" ? "●" : "○"}</span>
+        <span>${esc(u.name)}</span>${dotsOf(open.filter(f => (f.locations || []).some(l => (u.files || []).includes(l.path))))}</div>`).join("") || '<span class="muted">AI Agent has not mapped the use cases yet.</span>'}</section>`;
+  const must = open.filter(f => f.severity === "must-fix");
+  if (must.length) html += `<section class="card s12"><h3><span>Must fix</span><a data-tab="findings" data-fsev="">All findings →</a></h3>${findingTable(must)}</section>`;
+  if (waiting()) html += `<section class="card s12"><h3><span>What the PR is for</span></h3>${scope}</section>`;
+  return html + `</div>`;
 }
 
-function filesOf(kind, id) {
-  const st = R.state.structure || {};
-  const list = kind === "uc" ? st["use-cases"] : st.contexts;
-  return new Set(((list || []).find(x => x.id === id) || {}).files || []);
-}
-const inFilter = path => !rFilter || rFilter.files.has(path);
-function filterBar() {
-  return rFilter ? `<div class="filterbar">Showing only <b>${esc(rFilter.name)}</b> — picked on the structure graph` +
-    `<span style="flex:1"></span><a data-clear-filter="1">show everything</a></div>` : "";
-}
-function graphSvg() {
-  const st = R.state.structure || {};
-  const ucs = st["use-cases"] || [], ctxs = st.contexts || [], links = st.links || [];
-  if (!ucs.length && !ctxs.length) return "";
-  const compact = ucs.length + ctxs.length > 12;
-  const shownUc = compact ? ucs.filter(u => openContext && [...filesOf("ctx", openContext)].some(f => (u.files || []).includes(f))) : ucs;
-  const H = 34, W = 640, ucX = 10, ucW = 230, cX = compact && !shownUc.length ? 200 : 330, cW = 200;
-  const rows = Math.max(shownUc.length, ctxs.length, 1);
-  const height = rows * H + 20;
-  const yOf = (i, n) => 10 + (rows - n) * H / 2 + i * H;
-  const cY = Object.fromEntries(ctxs.map((c, i) => [c.id, yOf(i, ctxs.length)]));
-  let edges = "", linkPaths = "", nodes = "";
-  shownUc.forEach((u, i) => {
-    const y = yOf(i, shownUc.length);
-    ctxs.forEach(c => {
-      if ((u.files || []).some(f => (c.files || []).includes(f)))
-        edges += `<path class="gedge" data-a="uc:${esc(u.id)}" data-b="ctx:${esc(c.id)}" d="M${ucX + ucW},${y + 13} C${ucX + ucW + 50},${y + 13} ${cX - 50},${cY[c.id] + 13} ${cX},${cY[c.id] + 13}"/>`;
-    });
-    nodes += `<g class="gnode uc${rFilter && rFilter.key === "uc:" + u.id ? " picked" : ""}" data-gnode="uc:${esc(u.id)}"><rect x="${ucX}" y="${y}" width="${ucW}" height="26"/>` +
-      `<text x="${ucX + 10}" y="${y + 17}">${esc(u.name).slice(0, 34)}</text><title>${esc(u.name)} — ${esc(u.entry || "")}</title></g>`;
-  });
-  links.forEach((l, i) => {
-    if (!(l.from in cY) || !(l.to in cY)) return;
-    const y1 = cY[l.from] + 13, y2 = cY[l.to] + 13, bend = cX + cW + 40 + (i % 3) * 22;
-    linkPaths += `<path class="glink${l.doubt ? " doubt" : ""}" data-link="${i}" data-a="ctx:${esc(l.from)}" data-b="ctx:${esc(l.to)}" ` +
-      `d="M${cX + cW},${y1} C${bend},${y1} ${bend},${y2} ${cX + cW},${y2}"/>` +
-      `<text class="glabel" data-a="ctx:${esc(l.from)}" data-b="ctx:${esc(l.to)}" x="${bend - 8}" y="${(y1 + y2) / 2 + 4}">${esc(l.how)}</text>`;
-  });
-  ctxs.forEach(c => {
-    nodes += `<g class="gnode ctx${rFilter && rFilter.key === "ctx:" + c.id ? " picked" : ""}" data-gnode="ctx:${esc(c.id)}"><rect x="${cX}" y="${cY[c.id]}" width="${cW}" height="26"/>` +
-      `<text x="${cX + 10}" y="${cY[c.id] + 17}">${esc(c.name).slice(0, 28)}${compact ? (openContext === c.id ? " ▾" : " ▸") : ""}</text></g>`;
-  });
-  const info = graphInfo !== null && links[graphInfo] ? (l => `<div class="graph-info"><code>${esc(l.from)}</code> → <code>${esc(l.to)}</code> by <b>${esc(l.how)}</b>` +
-    (l.doubt ? ` — <span style="color:var(--red)">${inline(l.doubt)}</span>` : "") + `</div>`)(links[graphInfo]) : "";
-  return `<div class="graph" id="graph"><svg viewBox="0 0 ${W} ${height}">${edges}${linkPaths}${nodes}</svg>${info}` +
-    (compact ? `<div class="muted" style="font-size:12px">${ucs.length} use cases — click a context to see its own</div>` : "") + `</div>`;
-}
-function viewStructure() {
-  const st = R.state.structure || {}, H = R.html;
-  const ucs = st["use-cases"] || [];
-  let html = `<h1>Structure</h1><div class="sub">Use cases on the left, the modules they touch on the right. ` +
-    `Click a box to narrow the PR map, explanations and findings to its files; click a link to see how the modules talk.</div>`;
-  html += filterBar() + (graphSvg() || `<div class="muted">not mapped yet</div>`);
-  if (ucs.length) {
-    html += `<h2>Use cases · ${ucs.filter(u => u.status === "reviewed").length} of ${ucs.length} reviewed</h2>`;
-    ucs.forEach(u => html += `<div class="list-row">${ico({ reviewed: "done", reviewing: "active" }[u.status] || "pending")}` +
-      `<span class="grow">${esc(u.name)}</span><code>${esc(u.entry || "")}</code></div>`);
-  }
-  if (H.boundaries) html += `<h2>Boundaries</h2><div class="md">${H.boundaries}</div>`;
-  return html;
-}
-function viewRules() {
-  const rules = R.state.rules || [];
-  return `<h1>Rules from the tests</h1><div class="sub">The business rules the PR's tests pin down, and the requirement each one serves.</div>` +
-    (rules.length ? rules.map(r => `<div class="list-row"><span class="grow">${inline(r.rule)}</span><code>${esc(r.test)}</code>` +
-      `<span class="muted" style="font-size:12px">${inline(r.requirement || "no requirement")}</span></div>`).join("") : `<div class="muted">not read yet</div>`);
-}
-function viewMap() {
-  const H = R.html;
-  const groups = (R.state.map || []).filter(g => (g.files || []).some(inFilter));
-  let html = `<h1>PR map</h1><div class="sub">The changed files in groups that belong together. Ask for an explanation of a group or a file; it shows under Explanations.</div>` + filterBar();
-  if (!groups.length) return html + `<div class="muted">${rFilter ? "nothing here for this filter" : "not mapped yet"}</div>`;
-  groups.forEach(g => html += det("group:" + g.id, `<span class="t">${esc(g.name)}</span><span class="count">${plural(g.files.length, "file")}</span>` +
-    `<span style="flex:1"></span><a data-explain="group" data-eid="${esc(g.id)}">explain</a>`,
-    `<div class="md">${H["group:" + g.id] || ""}</div>` + g.files.filter(inFilter).map(f =>
-      `<div class="loc">${esc(f)} <a data-explain="file" data-eid="${esc(f)}" style="font-size:11px">explain</a></div>`).join("")));
-  return html;
-}
-function viewExplanations() {
-  const S = R.state, H = R.html;
-  const exps = (S.explanations || []).filter(e => !rFilter || e.about.kind !== "file" || inFilter(e.about.id));
-  let html = `<h1>Explanations</h1><div class="sub">What the session explained — on its own where the code needed it, or because you asked.</div>` + filterBar();
-  if (!exps.length) return html + `<div class="muted">none yet</div>`;
-  const aboutName = a => a.kind === "group" ? ((S.map || []).find(g => g.id === a.id) || {}).name || a.id
-    : a.kind === "finding" ? ((S.findings.find(f => f.id === a.id) || {}).title || a.id) : a.id;
-  exps.forEach(e => html += det("exp:" + e.id, `<span class="t">${esc(aboutName(e.about))}</span><span class="muted">${esc(e.about.kind)}</span>` +
-    `<span class="badge ${e.status === "ready" ? "done" : "pending"}">${e.status === "ready" ? esc(e.origin) : "writing…"}</span>`,
-    `<div class="md">${H["explanation:" + e.id] || '<span class="muted">being written</span>'}</div>`));
-  return html;
-}
-function hunkFor(path, line) {
-  if (!diffText) return `<div class="muted">no diff loaded</div>`;
-  const file = diffText.split(/^diff --git /m).slice(1).find(f => f.split("\n")[0].endsWith(" b/" + path));
-  if (!file) return `<div class="muted">${esc(path)} is not in the diff — outside the change</div>`;
-  for (const h of file.split(/^(?=@@ )/m).slice(1)) {
-    const m = h.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/);
-    if (!m) continue;
-    const start = +m[1], len = m[2] === undefined ? 1 : +m[2];
-    if (line < start || line >= start + len) continue;
-    let n = start - 1;
-    const rows = h.replace(/\n$/, "").split("\n").filter(l => !l.startsWith("\\")).map((l, i) => {
-      if (i === 0) return `<div class="at">${esc(l)}</div>`;
-      const cls = l[0] === "+" ? "add" : l[0] === "-" ? "del" : "";
-      if (l[0] !== "-") n++;
-      return `<div class="${cls}${l[0] !== "-" && n === line ? " here" : ""}">${esc(l)}</div>`;
-    });
-    return `<div class="hunk">${rows.join("")}</div>`;
-  }
-  return `<div class="muted">line ${line} of ${esc(path)} is not in a changed hunk</div>`;
-}
-function findingCard(f) {
-  const H = R.html, editingThis = editing === f.id, final = f.status === "sent";
-  const merged = R.state.findings.filter(m => m.status === "merged" && m["merged-into"] === f.id);
-  const act = (label, attrs, cls = "") => `<button class="btn ${cls}" ${attrs}>${label}</button>`;
-  let actions = "";
-  if (!final) {
-    actions += f.status === "to-send" ? act("Unmark", `data-fstatus="proposed" data-fid="${f.id}"`)
-      : f.status !== "deleted" ? act("Mark to send", `data-fstatus="to-send" data-fid="${f.id}"`, "primary") : "";
-    actions += f.status === "deleted" ? act("Restore", `data-fstatus="proposed" data-fid="${f.id}"`)
-      : act("Delete", `data-fstatus="deleted" data-fid="${f.id}"`, "danger");
-    actions += editingThis ? act("Save", `data-fsave="${f.id}"`, "primary") + act("Cancel", `data-fedit=""`) : act("Edit", `data-fedit="${f.id}"`);
-  }
-  actions += act("Explain", `data-explain="finding" data-eid="${f.id}"`);
-  const sentAt = Object.fromEntries((f.sent || []).map(s => [s.location, s.url]));
-  const locs = f.locations.map((l, i) => {
-    const key = f.id + ":" + i;
-    return `<div class="loc">${i === 0 ? "▸" : "·"} <a data-hunk="${esc(key)}">${esc(l.path)}:${l.line}</a>` +
-      (sentAt[i] ? ` <a href="${esc(sentAt[i])}" target="_blank" rel="noopener">on GitHub ↗</a>` : i > 0 ? ' <span class="muted">— gets “same as” the first</span>' : "") +
-      `</div>` + (shownHunks.has(key) ? hunkFor(l.path, l.line) : "");
-  }).join("");
-  const replies = (f.sent || []).flatMap(s => (s.replies || []).map(r =>
-    `<div class="reply"><span class="muted">${esc(r.author)} · ${esc(r.at)}</span><br>${inline(r.body)}</div>`)).join("");
-  const body = editingThis
-    ? `<div class="label">title</div><input class="field" id="edit-title" value="${esc(f.title)}">` +
-      `<div class="label">description</div><textarea class="field" id="edit-description" style="min-height:60px">${esc(f.description)}</textarea>` +
-      `<div class="label">proposed comment (GitHub markdown)</div><textarea class="field" id="edit-comment">${esc(f.comment)}</textarea>`
-    : `<div class="md">${H["finding:" + f.id + ":description"] || ""}</div>` +
-      `<div class="label">${final ? "sent comment" : "proposed comment"}${f.edited.length ? " · edited by you" : ""}</div><div class="comment md">${H["finding:" + f.id + ":comment"] || ""}</div>`;
-  return `<div class="finding ${f.status}"><div class="fhead"><span class="id">${f.id}</span><span class="ftitle">${esc(f.title)}</span>` +
-    `<span class="badge ${f.kind}">${f.kind}${f.when ? " · " + esc(f.when) : ""}</span><span class="badge ${f.status}">${f.status}</span>` +
-    `${f.directive ? `<span class="id">${esc(f.directive)}</span>` : ""}</div>` +
-    body + `<div class="label">where</div>${locs}` +
-    (merged.length ? `<div class="label">merged into this</div><div class="muted" style="font-size:12.5px">${merged.map(m => m.id + " " + esc(m.title)).join(" · ")}</div>` : "") +
-    (replies ? `<div class="label">replies on GitHub</div>${replies}` : "") +
-    `<div class="actions">${actions}</div></div>`;
+// ================================================================ findings
+function findingTable(list) {
+  return `<table><thead><tr><th style="width:110px">Severity</th><th>Finding</th><th style="width:100px">By</th><th style="width:140px">Category</th>
+    <th style="width:70px">Thread</th><th style="width:110px">To the author</th></tr></thead><tbody>${list.map(f => {
+      const loc = (f.locations || [])[0] || {}, threads = threadsOf("finding", f.id);
+      const st = { "to-send": '<span class="tag green">to send</span>', sent: '<span class="tag blue">sent</span>',
+        "maybe-resolved": '<span class="tag amber">maybe resolved</span>', deleted: '<span class="tag">dropped</span>' }[f.status] || '<span class="tag">not yet</span>';
+      return `<tr data-finding="${esc(f.id)}"${ui.panel && ui.panel.finding === f.id ? ' class="sel"' : ""}><td>${sev(f.severity)}</td>
+        <td><div class="t">${esc(f.title)}</div><div class="w mono" title="${esc(loc.path || "")}">${esc(shortPath(loc.path || ""))}${loc.line ? ":" + loc.line : ""}</div></td>
+        <td>${who(f.by)}</td><td class="muted">${esc(f.category)}</td>
+        <td class="muted">${threads.length ? `💬 ${threads.reduce((a, t) => a + t.messages.length, 0)}` : '<span class="dim">—</span>'}</td><td>${st}</td></tr>`;
+    }).join("")}</tbody></table>`;
 }
 function viewFindings() {
-  const shown = categories().filter(([cat]) => !current.category || cat === current.category);
-  const status = {}; open(R.state.findings).forEach(f => status[f.status] = (status[f.status] || 0) + 1);
-  let html = `<h1>${current.category ? esc(current.category) : "Findings"}</h1><div class="sub">` +
-    Object.entries(status).map(([k, n]) => `<span class="badge ${k}">${k} ${n}</span>`).join(" ") +
-    ` — each one a proposed PR comment: edit it, mark it to send, or delete it.</div>` + filterBar();
-  let any = false;
-  shown.forEach(([cat, list]) => {
-    const visible = list.filter(f => f.locations.some(l => inFilter(l.path)));
-    if (!visible.length) return;
-    any = true;
-    if (!current.category) html += `<h2>${esc(cat)} · ${visible.length}</h2>`;
-    html += visible.map(findingCard).join("");
+  const all = S().findings.filter(f => f.status !== "merged"), base = all.filter(STATUS[ui.fstatus] || STATUS.open);
+  const openQ = f => threadsOf("finding", f.id).some(t => t.status === "open"), text = ui.search.toLowerCase();
+  const list = base.filter(f => (!ui.fsev || f.severity === ui.fsev) && (!ui.fby || (f.by || "agent") === ui.fby) && (!ui.fcat || f.category === ui.fcat) &&
+    (!ui.fquestions || openQ(f)) && (!text || (f.title + " " + f.comment + " " + (f.locations || []).map(l => l.path).join(" ")).toLowerCase().includes(text)))
+    .sort((a, b) => SEVS.indexOf(a.severity) - SEVS.indexOf(b.severity));
+  const chip = (label, n, on, data) => `<button class="chip${on ? " on" : ""}" ${data}>${label}${n !== null ? ` <b>${n}</b>` : ""}</button>`;
+  const cats = [...new Set(all.map(f => f.category))].sort();
+  return `<div class="filters">
+      ${chip("All", base.length, !ui.fsev, 'data-fsev=""')}${SEVS.map(k => chip(SEV[k], base.filter(f => f.severity === k).length, ui.fsev === k, `data-fsev="${k}"`)).join("")}
+      <span class="fsep"></span>${chip("✦ AI Agent", base.filter(f => f.by !== "developer").length, ui.fby === "agent", 'data-fby="agent"')}${chip("You", base.filter(f => f.by === "developer").length, ui.fby === "developer", 'data-fby="developer"')}
+      <span class="fsep"></span><select class="chip${ui.fcat ? " on" : ""}" id="fcat"><option value="">Any category</option>${cats.map(c => `<option${c === ui.fcat ? " selected" : ""}>${esc(c)}</option>`).join("")}</select>
+      ${chip("Open questions", base.filter(openQ).length, ui.fquestions, "data-fquestions")}
+      <span class="fsep"></span>${[["open", "Open"], ["to-send", "To send"], ["sent", "Sent"], ["deleted", "Dropped"]].map(([k, l]) =>
+        chip(l, all.filter(STATUS[k]).length, ui.fstatus === k, `data-fstatus="${k}"`)).join("")}
+      <input class="search" id="fsearch" placeholder="Search findings…"></div>
+    <div class="card" style="padding:6px 10px">${list.length ? findingTable(list) : '<div class="muted" style="padding:14px">No finding matches.</div>'}</div>`;
+}
+
+// ================================================================ the side panel
+function panelFinding(id) {
+  const f = S().findings.find(x => x.id === id); if (!f) return `<div class="muted">No finding ${esc(id)}.</div>`;
+  const loc = (f.locations || [])[0] || {}, sent = f.status === "sent", editing = ui.editing === f.id;
+  const snippet = loc.path ? snippetAt(loc.path, loc.line, loc.side) : "";
+  const actions = editing ? `<button class="btn go sm" data-save="${esc(f.id)}">Save</button><button class="btn ghost sm" data-edit="">Cancel</button>`
+    : sent ? (f.sent || []).map(x => `<a class="btn sm" href="${esc(x.url)}" target="_blank">On GitHub ↗</a>`).join("")
+    : (f.status === "to-send" ? `<button class="btn sm" data-status="proposed">✓ Marked to send</button>` : `<button class="btn go sm" data-status="to-send">Mark to send</button>`) +
+      (f.status === "deleted" ? `<button class="btn ghost sm" data-status="proposed">Bring back</button>` : `<button class="btn danger sm" data-status="deleted">Drop</button>`);
+  return `<div class="crumb"><span>Finding ${esc(f.id)} · ${esc(f.category)} · ${who(f.by)}</span><a data-close-panel>✕</a></div>
+    ${editing ? `<input class="field" id="edit-title" value="${esc(f.title)}" style="margin-top:8px">` : `<h2>${esc(f.title)}</h2>`}
+    <div class="filters" style="margin:6px 0 0">${SEVS.map(k => `<button class="chip${f.severity === k ? " on" : ""}" data-set-sev="${k}" ${sent ? "disabled" : ""}>${SEV[k]}</button>`).join("")}</div>
+    ${f.status === "maybe-resolved" ? `<div class="banner" style="margin:12px 0 0">AI Agent no longer sees this problem at the PR's head. Drop it, or keep it.</div>` : ""}
+    <div class="box" data-quote-about="finding:${esc(f.id)}"><div class="l">Why</div>${editing ? `<textarea class="field" id="edit-description">${esc(f.description)}</textarea>` : `<div class="md">${md(`finding:${f.id}:description`)}</div>`}</div>
+    ${snippet ? `<div class="box"><div class="l"><span class="mono">${esc(loc.path)}</span><a style="color:var(--neon)" data-open-file="${esc(loc.path)}">Open in Code →</a></div>${snippet}</div>` : ""}
+    <div class="box"><div class="l"><span>Draft comment to the author</span>${sent || editing ? "" : `<a data-edit="${esc(f.id)}">Edit</a>`}</div>
+      ${editing ? `<textarea class="field" id="edit-comment" style="min-height:140px">${esc(f.comment)}</textarea>` : `<div class="md">${md(`finding:${f.id}:comment`)}</div>`}</div>
+    <div class="row-actions">${actions}</div>
+    ${(f.sent || []).flatMap(x => x.replies || []).map(r => `<div class="box"><div class="l">${esc(r.author)} on GitHub</div>${esc(r.body)}</div>`).join("")}
+    ${threadsBlock(threadsOf("finding", f.id), { kind: "finding", id: f.id }, "Ask about this finding…")}`;
+}
+// Open threads in full; resolved ones folded under one line, so the conversation that matters stays in view. A question
+// waiting for an answer says plainly whether the session that answers it is running.
+function threadsBlock(threads, about, placeholder) {
+  const last = [...threads].reverse().find(t => t.status === "open");
+  const one = t => {
+    const waits = t.status === "open" && t.messages[t.messages.length - 1].by === "developer";
+    return `<div class="thread"><div class="thread-h"><span>${t.messages[0].by === "agent" ? "AI Agent's note" : "Your question"} · ${t.status}</span>
+      ${t.status === "open" ? `<a data-resolve="${esc(t.id)}">Resolve</a>` : ""}</div>
+      ${t.quote ? `<div class="quote">${esc(t.quote)}</div>` : ""}
+      <div class="msgs" style="margin-top:8px">${t.messages.map((m, i) => `<div class="msg ${m.by}"><div class="who">${m.by === "agent" ? "✦ AI Agent" : "you"} · ${esc((m.at || "").slice(11, 16))}</div>
+        <div class="body md">${md(`thread:${t.id}:${i}`) || esc(m.text)}</div></div>`).join("")}
+      ${!waits ? "" : R.running ? '<div class="muted" style="font-size:12px">AI Agent is answering…</div>'
+        : '<div class="banner" style="margin:0">No answer yet: the AI agent\'s session is stopped. <a style="color:var(--neon)" data-power>Start it</a> and it answers every question waiting.</div>'}</div></div>`;
+  };
+  const open = threads.filter(t => t.status === "open"), resolved = threads.filter(t => t.status !== "open");
+  return (resolved.length ? `<details class="thread"><summary class="muted" style="font-size:12px;cursor:pointer">${plural(resolved.length, "resolved question")}</summary>${resolved.map(one).join("")}</details>` : "") +
+    open.map(one).join("") +
+    `<div class="composer"><textarea id="compose" placeholder="${esc(placeholder)}" rows="2"></textarea>
+      <button class="send" data-compose="${esc(JSON.stringify({ about, thread: last ? last.id : null }))}" title="Send (⌘↵)">→</button></div>`;
+}
+function placeOf(about) {
+  if (about.kind === "file") return `${about.path}${about.lines ? ` ${about.lines[0]}–${about.lines[1]}` : ""}`;
+  if (about.kind === "review") return "the whole review";
+  const uc = about.kind === "use-case" && useCases().find(u => u.id === about.id);
+  return uc ? uc.name : `${about.kind} ${about.id}`;
+}
+function panelAsk(p) {
+  const same = p.about.kind === "file" ? threadsOf("file", p.about.path).filter(t => JSON.stringify(t.about.lines) === JSON.stringify(p.about.lines))
+    : p.about.kind === "use-case" ? threadsOf("use-case", p.about.id) : [];
+  return `<div class="crumb"><span>Question · ${esc(placeOf(p.about))}</span><a data-close-panel>✕</a></div>
+    <h2>Ask AI Agent</h2>${p.quote && !same.length ? `<div class="quote">${esc(p.quote)}</div>` : ""}
+    ${threadsBlock(same, { ...p.about, quote: p.quote }, "What do you want to know?")}
+    ${p.about.kind === "file" ? `<div class="row-actions"><button class="btn sm" data-new-finding>Make it a finding</button></div>` : ""}`;
+}
+function panelThread(id) {
+  const t = (S().threads || []).find(x => x.id === id); if (!t) return "";
+  return `<div class="crumb"><span>Thread ${esc(t.id)} · ${esc(placeOf(t.about))}</span><a data-close-panel>✕</a></div>
+    ${threadsBlock([t], t.about, "Reply…")}
+    ${t.about.kind === "file" ? `<div class="row-actions"><button class="btn sm" data-open-file="${esc(t.about.path)}">Show the code</button></div>` : ""}`;
+}
+function panelNewFinding(p) {
+  return `<div class="crumb"><span>Your finding · ${esc(p.path)}:${p.lines[0]}${p.lines[1] !== p.lines[0] ? "–" + p.lines[1] : ""}</span><a data-close-panel>✕</a></div>
+    <h2>New finding</h2>${p.quote ? `<div class="quote">${esc(p.quote)}</div>` : ""}
+    <div class="filters" style="margin-top:12px">${SEVS.map(k => `<button class="chip${p.severity === k ? " on" : ""}" data-nf-sev="${k}">${SEV[k]}</button>`).join("")}</div>
+    <input class="field" id="nf-title" placeholder="Title — a few words" style="margin-top:4px">
+    <textarea class="field" id="nf-comment" placeholder="The comment for the author: what is wrong, why it matters, what to do" style="margin-top:10px;min-height:140px"></textarea>
+    <div class="row-actions"><button class="btn go sm" data-nf-save>Add finding</button><button class="btn ghost sm" data-close-panel>Cancel</button></div>`;
+}
+function panelLog() {
+  const s = S();
+  return `<div class="crumb"><span>The review's AI Agent session</span><a data-close-panel>✕</a></div>
+    <h2>${R.running ? "Running" : "Stopped"}</h2>
+    <div class="row-actions">${R.running ? '<button class="btn sm" data-power>Stop the session</button>' : '<button class="btn go sm" data-power>Start the session</button>'}
+      <button class="btn danger sm" data-close-review>Close the review</button></div>
+    ${s.session ? `<div class="box"><div class="l">Continue it in the CLI, once the session is stopped</div><code>cd ${esc(current.project)} && claude --resume ${esc(s.session)}</code></div>` : ""}
+    <div class="box log">${(R.console || []).map(l => `<div class="${l.kind}">${esc(l.text)}</div>`).join("") || '<span class="muted">Nothing yet.</span>'}</div>`;
+}
+function renderPanel() {
+  const el = document.getElementById("panel"), app = document.getElementById("app"), p = ui.panel;
+  const body = !p || !R ? "" : p.finding ? panelFinding(p.finding) : p.thread ? panelThread(p.thread) : p.ask ? panelAsk(p.ask)
+    : p.newFinding ? panelNewFinding(p.newFinding) : p.log ? panelLog() : "";
+  // over an open use case the panel floats on top of it, instead of taking a column the use case covers
+  const over = !!body && ui.tab === "structure" && !!ui.uc;
+  app.classList.toggle("with-panel", !!body && !over);
+  el.classList.toggle("over", over);
+  if (over) { const tabs = document.querySelector(".tabs"); el.style.top = (tabs ? tabs.getBoundingClientRect().bottom : 160) + "px"; }
+  el.style.display = body ? "flex" : "none";
+  el.innerHTML = body ? `<div class="grip" id="grip"></div>` + body : "";
+}
+
+// ================================================================ diffs
+function parseDiff(text) {
+  const hunks = []; let old = 0, now = 0;
+  for (const line of text.split("\n")) {
+    const h = line.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+    if (h) { old = +h[1]; now = +h[2]; hunks.push({ header: line, lines: [] }); continue; }
+    if (!hunks.length) continue;
+    const kind = { "+": "add", "-": "del", " ": "ctx" }[line[0]];
+    if (!kind) continue;
+    hunks[hunks.length - 1].lines.push({ kind, old: kind === "add" ? null : old, now: kind === "del" ? null : now, text: line.slice(1) });
+    if (kind !== "add") old++;
+    if (kind !== "del") now++;
+  }
+  return hunks;
+}
+function snippetAt(path, line, side) {
+  const hunks = diffs[path];
+  if (!hunks) { fileDiff(path); return '<div class="muted">Loading…</div>'; }
+  const all = hunks.flatMap(h => h.lines), at = all.findIndex(l => (side === "LEFT" ? l.old : l.now) === line);
+  if (at < 0) return "";
+  return `<div class="snip">${all.slice(Math.max(0, at - 3), at + 4).map((l, i, shown) => `<div class="ln ${l.kind}${l === all[at] ? " sel" : ""}">` +
+    `<span class="no">${l.now ?? l.old}</span><span class="sg">${l.kind === "add" ? "+" : l.kind === "del" ? "−" : ""}</span><span class="c">${esc(l.text)}</span></div>`).join("")}</div>`;
+}
+// One file's diff, with its findings and threads under their lines. A new or a deleted file is shown without colour:
+// every line of it changed alike, so the colour would say nothing.
+function diffView(path, position) {
+  const info = fileInfo(path), hunks = diffs[path];
+  const counts = [info.added ? "+" + info.added : "", info.removed ? "−" + info.removed : ""].filter(Boolean).join(" ");
+  const head = `<div class="diffhead"><span>${position ? `<span class="muted" style="font-size:12.5px">${position}</span><br>` : ""}<b class="mono">${esc(path)}</b>
+      <span class="tag ${{ added: "green", deleted: "red" }[info.change] || "blue"}" style="margin-left:6px">${info.change}${counts ? " · " + counts : ""}</span></span>
+    <span style="display:flex;gap:14px;align-items:center;font-size:12.5px"><span class="muted">select lines to ask AI Agent or add a finding</span>
+      <span style="display:inline-flex;gap:6px;align-items:center;cursor:pointer" data-view="${esc(path)}"><span class="vbox${info.viewed ? " on" : ""}">${info.viewed ? "✓" : ""}</span>Viewed</span></span></div>`;
+  if (!hunks) { fileDiff(path); return `<div class="diffcard">${head}<div class="banner">Loading…</div></div>`; }
+  let banner = "";
+  if (info.change === "added") banner = `<div class="banner"><span class="kd added">+</span> <b>New file</b> · all ${info.added} lines are added, so they carry no colour.</div>`;
+  if (info.change === "renamed") banner = `<div class="banner">Renamed from <code>${esc(info.from)}</code>.</div>`;
+  if (info.change === "deleted") {
+    references(path);
+    const found = refs[path], name = path.split("/").pop().replace(/\.[^.]+$/, "");
+    banner = `<div class="banner red"><b>Deleted in this PR</b> · ${info.removed} lines.</div>` + (!found ? "" : found.length
+      ? `<div class="banner red">Still named in: ${found.map(r => `<code>${esc(r)}</code>`).join(", ")}</div>`
+      : `<div class="banner"><span class="ok">✓</span> Nothing in the reviewed code still names <code>${esc(name)}</code>.</div>`);
+  }
+  const notes = threadsOf("file", path), anchored = findingsAt(path), whole = ["added", "deleted"].includes(info.change);
+  const sel = ui.selection && ui.selection.path === path ? ui.selection.lines : null;
+  const body = hunks.map(h => `<div class="hunk">${esc(h.header)}</div>` + h.lines.map(l => {
+    const n = l.now ?? l.old, side = l.now === null ? "LEFT" : "RIGHT";
+    const here = anchored.filter(f => f.locations.some(x => x.path === path && x.line === n && (x.side || "RIGHT") === side));
+    const talk = notes.filter(t => t.about.lines && t.about.lines[1] === n && (side === "RIGHT" || info.change === "deleted"));
+    const inSel = sel && side === "RIGHT" && n >= sel[0] && n <= sel[1];
+    return `<div class="ln ${l.kind}${whole ? " whole" : ""}${inSel ? " sel" : ""}" data-line="${n}" data-side="${side}">` +
+      `<span class="no">${l.old ?? ""}</span><span class="no">${l.now ?? ""}</span><span class="sg">${l.kind === "add" ? "+" : l.kind === "del" ? "−" : ""}</span><span class="c">${esc(l.text)}</span></div>` +
+      here.map(f => `<div class="ann" data-finding="${esc(f.id)}">${sev(f.severity)}<span>${who(f.by)} · ${esc(f.id)} · ${esc(f.title)}</span></div>`).join("") +
+      talk.map(t => `<div class="ann" data-thread="${esc(t.id)}"><span class="tag">💬 ${t.messages.length}</span><span>${esc(t.messages[0].text.slice(0, 140))}</span></div>`).join("");
+  }).join("")).join("");
+  return `<div class="diffcard">${head}${banner}<div class="diffbody" data-diff="${esc(path)}">${body || '<div class="banner">No lines changed.</div>'}</div></div>`;
+}
+// Files under their folders, the folders shortened: the common root once, a long folder as its first and last two parts.
+function fileList(paths, selected, opts = {}) {
+  const root = commonRoot();
+  const folder = p => {
+    const rel = p.startsWith(root) ? p.slice(root.length) : p, parts = rel.split("/").slice(0, -1);
+    return parts.length ? (parts.length > 3 ? [parts[0], "…", ...parts.slice(-2)] : parts).join("/") + "/" : root ? "./" : "project root";
+  };
+  const groups = new Map();
+  paths.forEach(p => { const d = folder(p); groups.has(d) || groups.set(d, []); groups.get(d).push(p); });
+  return (root ? `<div class="dim" style="font-size:11.5px;margin:0 0 2px 6px" title="${esc(root)}">in …/${esc(root.split("/").filter(Boolean).pop() || "")}/</div>` : "") +
+    [...groups].map(([d, ps]) => `<div class="pdir">${esc(d)}</div>` + ps.map(p => {
+      const f = fileInfo(p), shared = f["use-cases"].length > 1;
+      return `<div class="pf${p === selected ? " on" : ""}${f.change === "deleted" ? " del" : ""}" data-pick-file="${esc(p)}" title="${esc(p)}">` +
+        `<span class="vbox${f.viewed ? " on" : ""}" data-view="${esc(p)}">${f.viewed ? "✓" : ""}</span><span class="kd ${f.change}">${KIND[f.change] || "~"}</span>` +
+        `<span class="nm">${esc(p.split("/").pop())}</span>${shared ? '<span class="dim" title="in more than one use case">⇄</span>' : ""}${dotsOf(findingsAt(p).filter(x => x.status !== "sent"))}</div>`;
+    }).join("")).join("") +
+    `<div class="klegend"><span class="kd added">+</span> added <span class="kd modified">~</span> modified <span class="kd deleted">−</span> deleted${opts.shared ? ' <span class="dim">⇄</span> in more than one use case' : ""}</div>`;
+}
+
+// ================================================================ code
+const codeFiles = () => (R.files || []).filter(f => ui.codeFilter === "all" || (ui.codeFilter === "unviewed" ? !f.viewed : findingsAt(f.path).length));
+function viewCode() {
+  const files = R.files || [], shown = codeFiles();
+  if (!ui.file || !files.some(f => f.path === ui.file)) ui.file = (files.find(f => !f.viewed) || files[0] || {}).path;
+  const viewed = files.filter(f => f.viewed).length, at = shown.findIndex(f => f.path === ui.file);
+  const chip = (k, l, n) => `<button class="chip${ui.codeFilter === k ? " on" : ""}" data-code-filter="${k}">${l} <b>${n}</b></button>`;
+  return `<div style="display:grid;grid-template-columns:290px minmax(0,1fr);gap:20px;align-items:start">
+    <div><div class="muted" style="font-size:12.5px">You viewed <b>${viewed} of ${files.length}</b> files</div>
+      <div class="progress" style="margin:6px 0 10px"><i style="width:${files.length ? 100 * viewed / files.length : 0}%"></i></div>
+      <div class="filters">${chip("all", "All", files.length)}${chip("unviewed", "Not viewed", files.length - viewed)}${chip("findings", "With findings", files.filter(f => findingsAt(f.path).length).length)}</div>
+      ${fileList(shown.map(f => f.path), ui.file)}</div>
+    <div>${ui.file ? diffView(ui.file, `file ${at + 1} of ${shown.length} &nbsp;<a data-step-file="-1">← prev</a> · <a data-step-file="1" style="color:var(--neon)">next →</a>`) : '<div class="muted">No changed files.</div>'}</div></div>`;
+}
+
+// ================================================================ structure
+function cards() {
+  const list = useCases().map(u => ({ ...u, files: u.files || [] }));
+  if ((R.untied || []).length) list.push({ id: "untied", untied: true, name: "Not tied to a use case", entry: "not reached from any entry point",
+    says: "Changes no use case of the PR reaches — worth asking the author why they are here.", files: R.untied });
+  return list;
+}
+function viewStructure() {
+  const list = cards(), files = R.files || [], viewed = files.filter(f => f.viewed).length, untied = (R.untied || []).length;
+  return `<div class="filters"><span class="muted" style="font-size:13px">${plural(useCases().length, "use case")} · you viewed <b>${viewed} of ${files.length}</b> files</span>
+      <span class="progress" style="width:120px"><i style="width:${files.length ? 100 * viewed / files.length : 0}%"></i></span>
+      <span class="cover"><span class="ok">✓</span> ${untied ? `${files.length - untied} of ${files.length} changed files are in a use case, the rest under “Not tied to a use case”` : `All ${files.length} changed files are in a use case`}</span></div>
+    ${list.length ? "" : '<div class="muted">AI Agent has not mapped the use cases yet.</div>'}
+    <div class="ucs" id="ucs">${list.map(u => {
+      const fs = u.files.map(fileInfo), seen = fs.filter(f => f.viewed).length;
+      return `<div class="uc${u.untied ? " untied" : ""}${ui.uc === u.id ? " picked" : ""}" data-uccard="${esc(u.id)}">
+        <div class="gac">${esc(u.entry || "")}</div><div class="name">${esc(u.name)}</div>
+        <div class="meta"><span>${plural(fs.length, "file")} · ${seen} viewed</span>${dotsOf(live(S().findings).filter(f => (f.locations || []).some(l => u.files.includes(l.path))))}</div>
+        <div class="progress"><i style="width:${fs.length ? 100 * seen / fs.length : 0}%"></i></div></div>`;
+    }).join("")}<div class="tip" id="tip"></div></div>`;
+}
+// The cards stand in a row (wrapping) without the panel, and in one column beside it; they glide between the two.
+function layoutCards(animate) {
+  const box = document.getElementById("ucs"); if (!box) return;
+  const list = [...box.querySelectorAll(".uc")], W = box.clientWidth, w = 260, gap = 24, cols = Math.max(1, Math.floor((W + gap) / (w + gap)));
+  if (!animate) list.forEach(e => e.style.transition = "none");
+  list.forEach((e, i) => {
+    if (ui.uc) { e.style.left = "0px"; e.style.top = i * 132 + "px"; e.style.width = "300px"; }
+    else { e.style.left = (i % cols) * (w + gap) + "px"; e.style.top = Math.floor(i / cols) * 150 + "px"; e.style.width = w + "px"; }
   });
-  return any ? html : html + `<div class="muted">${rFilter ? "nothing here for this filter" : "none yet"}</div>`;
+  box.style.height = (ui.uc ? list.length * 132 : Math.ceil(list.length / cols) * 150) + "px";
+  if (!animate) { void box.offsetHeight; list.forEach(e => e.style.transition = ""); }
 }
-function viewSent() {
-  const sent = R.state.findings.filter(f => f.status === "sent");
-  return `<h1>Sent</h1><div class="sub">Comments on the pull request, with the replies they got.</div>` +
-    (sent.length ? sent.map(findingCard).join("") : `<div class="muted">nothing sent yet</div>`);
+function ucPanel() {
+  const el = document.getElementById("ucpanel"), u = ui.tab === "structure" && R && ui.uc && cards().find(x => x.id === ui.uc);
+  if (!u) { el.classList.remove("shown"); return; }
+  const tabs = document.querySelector(".tabs"), box = document.getElementById("ucs");
+  el.style.top = (tabs ? tabs.getBoundingClientRect().bottom : 160) + "px";
+  el.style.left = (box ? box.getBoundingClientRect().left + 300 + 24 : 420) + "px";
+  if (!u.files.includes(ui.ucFile)) ui.ucFile = u.files.find(p => !fileInfo(p).viewed) || u.files[0];
+  const at = u.files.indexOf(ui.ucFile), seen = u.files.filter(p => fileInfo(p).viewed).length, flow = u.flow || { steps: [], branches: [] };
+  const how = u.untied ? `<div class="muted" style="font-size:13px;margin-top:8px">No entry point reaches these files — nothing in the PR's use cases calls them.</div>`
+    : `<div class="hflow">${(flow.steps || []).map((s, i) => `${i ? `<span class="harr${s.crosses ? " bad" : ""}">→${s.crosses ? " crosses into " + esc(s.crosses) : ""}</span>` : ""}` +
+        `<span class="hstep" data-pick-file="${esc(s.path)}" title="${esc(s.path)}${s.line ? ":" + s.line : ""}"><span class="kd ${s.change}">${KIND[s.change] || "·"}</span><span class="mono">${esc(s.call)}</span></span>`).join("")
+        || '<span class="muted">AI Agent did not record how it runs.</span>'}</div>
+      <div class="hbr">${(flow.branches || []).map(b => `<div><span class="${b.tested ? "ok" : "no"}">${b.tested ? "✓" : "✕"}</span> ${esc(b.what)} <span class="dim">· ${b.tested ? "tested" : "not tested"}</span></div>`).join("")}</div>`;
+  const notes = u.untied ? [] : threadsOf("use-case", u.id);
+  el.innerHTML = `<div class="crumb"><span>${esc(u.entry || "")}</span><a data-close-uc>✕</a></div>
+    <h2>${esc(u.name)}</h2><div class="muted" style="font-size:13.5px">${esc(u.says || "")}</div>
+    <details class="how" open><summary>How it runs</summary>${how}</details>
+    ${notes.length ? threadsBlock(notes, { kind: "use-case", id: u.id }, "Ask about this use case…") : ""}
+    <div style="display:grid;grid-template-columns:240px minmax(0,1fr);gap:16px;margin-top:14px;min-height:0;flex:1">
+      <div><div class="muted" style="font-size:12px;margin-bottom:6px">${seen} of ${u.files.length} viewed</div>${fileList(u.files, ui.ucFile, { shared: true })}
+        ${u.untied || notes.length ? "" : `<button class="btn ghost sm" style="margin-top:12px" data-ask-uc="${esc(u.id)}">Ask about this use case</button>`}</div>
+      <div>${ui.ucFile ? diffView(ui.ucFile, `file ${at + 1} of ${u.files.length} &nbsp;<a data-step-uc="-1">← prev</a> · <a data-step-uc="1" style="color:var(--neon)">next →</a> · <a data-open-file="${esc(ui.ucFile)}">Full screen ⤢</a>`) : ""}</div></div>`;
+  el.classList.add("shown");
 }
+// A click opens the use case beside the cards; another card reloads the panel in place; the same card closes it.
+function openUseCase(id) {
+  const first = !ui.uc;
+  ui.uc = ui.uc === id ? null : id; ui.ucFile = null;
+  document.querySelectorAll(".uc").forEach(x => x.classList.toggle("picked", x.dataset.uccard === ui.uc));
+  const tip = document.getElementById("tip"); if (tip) tip.style.display = "none";
+  layoutCards(true);
+  const el = document.getElementById("ucpanel");
+  if (!ui.uc) { el.classList.remove("shown"); if (ui.panel) { ui.panel = null; renderPanel(); } return; }
+  if (first) return ucPanel();
+  el.classList.add("swap"); setTimeout(() => { ucPanel(); el.classList.remove("swap"); }, 140);
+}
+function showTip(card) {
+  const u = cards().find(x => x.id === card.dataset.uccard), tip = document.getElementById("tip"); if (!u || !tip || ui.uc === u.id) return;
+  const shares = cards().filter(x => x !== u).map(x => [x, u.files.filter(p => x.files.includes(p)).map(p => p.split("/").pop())]).filter(([, fs]) => fs.length);
+  document.querySelectorAll(".uc").forEach(x => x.classList.toggle("related", shares.some(([y]) => y.id === x.dataset.uccard)));
+  tip.innerHTML = `<div class="say">${esc(u.says || "")}</div>${fileList(u.files, null)}${shares.length ? `<div class="shares">⇄ shares files with ${shares.map(([x, fs]) =>
+    `<b>${esc(x.name)}</b> <span class="mono" style="font-size:11px">(${esc(fs.join(", "))})</span>`).join(", ")}</div>` : ""}`;
+  // beside the panel the cards stand in a column, so the preview opens to the right and never covers the cards below
+  if (ui.uc) { tip.style.left = card.offsetLeft + card.offsetWidth + 12 + "px"; tip.style.top = card.offsetTop + "px"; }
+  else { tip.style.left = card.offsetLeft + "px"; tip.style.top = card.offsetTop + card.offsetHeight + 10 + "px"; }
+  tip.style.display = "block";
+}
+
+// ================================================================ new and archived reviews
 function viewNew() {
-  return `<h1>New review</h1><div class="sub">A pull request URL, or two branches of the repository as <code>target:source</code>.` +
-    ` The review runs in its own worktree; your checkout is not touched.</div>` +
-    `<div class="label">repository</div><select class="field" id="nr-project">${projects.map(p =>
-      `<option value="${esc(p)}"${p === current.project ? " selected" : ""}>${esc(p)}</option>`).join("")}</select>` +
-    `<div class="label">pull request or branches</div>` +
-    `<input class="field" id="nr-source" placeholder="https://github.com/org/repo/pull/123  or  main:feature/x">` +
-    `<div class="actions" style="margin-top:10px"><button class="btn primary" data-rv="start">Start review</button></div>` +
-    `<p class="muted" style="font-size:12.5px">The same from Claude CLI, inside the repository: ${copyCmd("/craftsman:pr-review <url | target:source>")}</p>`;
+  return `<div class="card" style="max-width:640px"><h3><span>New review</span></h3>
+    <label class="muted" style="font-size:12.5px">Project</label>
+    <select class="field" id="nr-project" style="margin:4px 0 12px">${projects.map(p => `<option${p === current.project ? " selected" : ""}>${esc(p)}</option>`).join("")}</select>
+    <label class="muted" style="font-size:12.5px">Pull request URL, or <code>target:source</code> branches</label>
+    <input class="field" id="nr-source" placeholder="https://github.com/org/repo/pull/123" style="margin:4px 0 14px">
+    <button class="btn go" data-start>Start the review</button></div>`;
+}
+function viewArchived() {
+  const list = reviewsList.filter(r => r.archived);
+  return `<div class="card" style="max-width:720px"><h3><span>Archived reviews</span></h3>${list.map(r => `<div class="row" style="grid-template-columns:minmax(0,1fr) auto">
+    <span>${esc((r.source && r.source.title) || sourceLabel(r.source))} <span class="muted">· ${esc(r.project.split("/").pop())}</span></span>
+    <button class="btn sm" data-unarchive="${esc(r.project)}|${esc(r.id)}">Bring back</button></div>`).join("") || '<span class="muted">Nothing archived.</span>'}</div>`;
 }
 
-// ---------------------------------------------------------------- console (right)
-function renderSide() {
-  const side = document.getElementById("side");
-  const box = document.getElementById("lines");
-  const atBottom = !box || box.scrollHeight - box.scrollTop - box.clientHeight < 40;
-  const lines = R ? R.console : [];
-  side.innerHTML = `<div class="grip" id="grip" title="drag to resize"></div>` +
-    `<div class="side-title"><span class="grow">Console${current.id ? " · " + esc(current.id) : ""}</span>` +
-    (R && R.state.session ? `<span class="id" title="claude --resume ${esc(R.state.session)}">${esc(short(R.state.session))}</span>` : "") + `</div>` +
-    `<div class="lines" id="lines">${lines.map(l => `<div class="ln ${l.kind}">${l.kind === "text" || l.kind === "you" ? inline(l.text)
-      : (l.kind === "denied" ? "refused · " : "") + esc(l.text)}</div>`).join("") ||
-      `<div class="muted">${current.id ? (R ? "Nothing yet." : "Starting the review session…") : "Start a review to see its session here."}</div>`}</div>` +
-    (R ? `<div class="say"><textarea class="field" id="say" placeholder="Write to the review's session… (⌘↵ sends)"></textarea>` +
-      `<button class="btn primary" data-rv="say">Send</button></div>` : "");
-  const lb = document.getElementById("lines");
-  if (atBottom) lb.scrollTop = lb.scrollHeight;
+// ================================================================ render
+function busy() {
+  return document.getElementById("pop").style.display === "flex" ||
+    (getSelection().toString() !== "" && !["TEXTAREA", "INPUT"].includes(document.activeElement?.tagName));
 }
-
-// ---------------------------------------------------------------- render
 function render() {
-  // what the developer is typing survives a refresh of the page around it
+  // a refresh never takes away a selection or a popover the developer is using; it waits until they are done
+  if (busy()) { deferred = true; return; }
+  deferred = false;
   const typed = {}, focused = document.activeElement && document.activeElement.id;
-  document.querySelectorAll("input.field[id], textarea.field[id]").forEach(el => typed[el.id] = [el.value, el.selectionStart, el.selectionEnd]);
-  const c = document.getElementById("centre"); const y = c.scrollTop;
-  let body;
-  if (current.section === "new") body = viewNew();
-  else if (!R) body = `<h1>${esc(current.id || "")}</h1><div class="sub">Starting the review session… the console on the right shows what it does.</div>`;
-  else body = { overview: viewOverview, structure: viewStructure, rules: viewRules, map: viewMap,
-    explanations: viewExplanations, findings: viewFindings, sent: viewSent }[current.section]?.() ?? viewOverview();
-  c.innerHTML = `<div class="head">${renderHead()}</div><div class="view">${body}</div>`;
-  c.scrollTop = y;
-  renderMenu(); renderSide();
+  document.querySelectorAll("input[id], textarea[id]").forEach(el => typed[el.id] = [el.value, el.selectionStart, el.selectionEnd]);
+  const main = document.getElementById("main"), panel = document.getElementById("panel"), side = document.getElementById("ucpanel");
+  const y = main.scrollTop, py = panel.scrollTop, sy = side.scrollTop;
+  renderRail();
+  if (ui.tab !== "structure") ui.uc = null;
+  if (ui.tab === "new" || (!current.id && !R)) main.innerHTML = viewNew();
+  else if (ui.tab === "archived") main.innerHTML = viewArchived();
+  else if (!R) main.innerHTML = `<h1>${esc(current.id)}</h1><div class="sub">Opening the review…</div>`;
+  else main.innerHTML = renderHead() + ({ overview: viewOverview, findings: viewFindings, code: viewCode, structure: viewStructure }[ui.tab] || viewOverview)();
+  main.scrollTop = y;
+  renderPanel(); layoutCards(false); ucPanel();
+  panel.scrollTop = py; side.scrollTop = sy;
   Object.entries(typed).forEach(([id, [value, start, end]]) => {
     const el = document.getElementById(id); if (!el) return;
     el.value = value;
     if (id === focused) { el.focus(); try { el.setSelectionRange(start, end); } catch (_) {} }
   });
+  const search = document.getElementById("fsearch"); if (search && search.value !== ui.search) search.value = ui.search;
 }
 
-// ---------------------------------------------------------------- actions
-async function reviewAction(what) {
-  const k = reviewKey();
-  if (what === "start") {
-    const body = { project: document.getElementById("nr-project").value, source: document.getElementById("nr-source").value.trim() };
-    const out = await api("/api/review/start", body);
-    if (out) go({ project: body.project, id: out.id, section: "overview", category: null });
-    return;
-  }
-  if (what === "resume" || what === "stop") { if (await api("/api/review/" + what, k)) toast(what === "stop" ? "session stopped" : "session started"); return reload(); }
-  if (what === "cli") {
-    if (!(await api("/api/review/stop", k))) return;
-    await reload();
-    document.getElementById("lines").insertAdjacentHTML("beforeend",
-      `<div class="ln you">The session is stopped. Continue it in the CLI:<br>${copyCmd(`cd ${current.project} && claude --resume ${R.state.session}`)}</div>`);
-    return;
-  }
-  if (what === "refresh" || what === "close") {
-    if (what === "close" && !confirm("Close this review? The session ends; the review and its findings stay.")) return;
-    if (await api("/api/review/message", { ...k, type: what })) toast(what === "refresh" ? "asked the session to refresh" : "closing");
-    return;
-  }
-  if (what === "say") {
-    const text = document.getElementById("say").value.trim(); if (!text) return;
-    if (await api("/api/review/message", { ...k, type: "message", text })) { document.getElementById("say").value = ""; reload(); }
-    return;
-  }
-  if (what === "send") {
-    const marked = R.state.findings.filter(f => f.status === "to-send");
-    if (!confirm(`Send ${marked.length} finding(s) to ${sourceLabel(R.state.source)} as comments?\n\n` +
-      marked.map(f => `${f.id} ${f.title}`).join("\n") + `\n\nComments on GitHub cannot be taken back from here.`)) return;
-    toast("sending…");
-    const out = await api("/api/review/send", k);
-    if (out) toast(`sent ${out.sent.length}` + (out.errors.length ? ` · problems: ${out.errors.join("; ")}` : ""));
-    return reload();
-  }
-}
-
-// ---------------------------------------------------------------- events
+// ================================================================ actions
 let toastTimer;
 function toast(msg) {
   const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show");
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 3200);
 }
-function connect() {
-  const es = new EventSource("/api/events");
-  es.addEventListener("hello", () => { live = true; reload(); });
-  es.addEventListener("change", () => reload());
-  es.onerror = () => { live = false; render(); };
+async function compose(spec) {
+  const box = document.getElementById("compose"), text = box.value.trim(); if (!text) return;
+  const { quote, ...about } = spec.about;
+  const out = spec.thread ? await change("reply", { thread: spec.thread, text }) : await change("ask", { about, quote: quote || null, text });
+  if (!out) return;
+  box.value = "";
+  await reload();
+  if (ui.panel && ui.panel.ask) { const t = (S().threads || []).slice(-1)[0]; ui.panel = t ? { thread: t.id } : null; ui.selection = null; render(); }
 }
-document.addEventListener("toggle", e => {
-  const k = e.target.dataset && e.target.dataset.key; if (!k) return;
-  e.target.open ? openKeys.add(k) : openKeys.delete(k);
-}, true);
-document.addEventListener("click", e => {
-  const g = e.target.closest("[data-gnode],[data-link]");
-  if (g) {
-    if (g.dataset.link !== undefined) { graphInfo = graphInfo === +g.dataset.link ? null : +g.dataset.link; return render(); }
-    const [kind, id] = g.dataset.gnode.split(/:(.*)/s);
-    const st = R.state.structure;
-    const name = ((kind === "uc" ? st["use-cases"] : st.contexts).find(x => x.id === id) || {}).name || id;
-    if (kind === "ctx" && (st["use-cases"] || []).length + (st.contexts || []).length > 12) openContext = openContext === id ? null : id;
-    rFilter = rFilter && rFilter.key === g.dataset.gnode ? null : { key: g.dataset.gnode, name, files: filesOf(kind, id) };
+function hidePop() {
+  document.getElementById("pop").style.display = "none";
+  if (deferred) setTimeout(render, 0);
+}
+const stepIn = (list, at, by) => list[Math.min(list.length - 1, Math.max(0, list.indexOf(at) + by))];
+
+const CLICKABLE = ["tab", "finding", "thread", "close-panel", "edit", "save", "status", "set-sev", "resolve", "compose", "view", "pick-file",
+  "open-file", "step-file", "step-uc", "code-filter", "fsev", "fby", "fquestions", "fstatus", "answer", "live", "refresh", "send", "power",
+  "close-review", "uccard", "close-uc", "ask-uc", "open-review", "archive", "new", "archived", "unarchive", "start", "pop", "new-finding",
+  "nf-sev", "nf-save"].map(name => `[data-${name}]`).join(",");
+document.addEventListener("click", async e => {
+  if (!e.target.closest("#pop")) hidePop();
+  const t = e.target.closest(CLICKABLE); if (!t) return;
+  const d = t.dataset;
+  if (d.view !== undefined) { e.stopPropagation(); return change(fileInfo(d.view).viewed ? "unview" : "view", { path: d.view }).then(o => o && reload()); }
+  if (d.tab) {
+    const extra = { tab: d.tab };
+    if (d.fsev !== undefined) Object.assign(extra, { fsev: d.fsev || null, fby: null, fcat: "", fquestions: false, fstatus: "open" });
+    if (d.fcat !== undefined) Object.assign(extra, { fcat: d.fcat, fsev: null, fstatus: "open" });
+    if (d.fstatus) Object.assign(extra, { fstatus: d.fstatus, fsev: null });
+    if (d.uc) Object.assign(extra, { uc: d.uc, ucFile: null });
+    if (!(ui.panel && ui.panel.log)) ui.panel = null;
+    return go({ ui: extra });
+  }
+  if (d.fsev !== undefined) { ui.fsev = d.fsev || null; return render(); }
+  if (d.fby) { ui.fby = ui.fby === d.fby ? null : d.fby; return render(); }
+  if (d.fquestions !== undefined) { ui.fquestions = !ui.fquestions; return render(); }
+  if (d.fstatus) { ui.fstatus = d.fstatus; return render(); }
+  if (d.finding) { ui.panel = { finding: d.finding }; ui.editing = null; return render(); }
+  if (d.thread) { ui.panel = { thread: d.thread }; return render(); }
+  if (d.closePanel !== undefined) { ui.panel = null; ui.selection = null; return render(); }
+  if (d.edit !== undefined) { ui.editing = d.edit || null; return render(); }
+  if (d.save) {
+    const f = S().findings.find(x => x.id === d.save), fields = {};
+    for (const n of ["title", "description", "comment"]) { const v = document.getElementById("edit-" + n).value; if (v !== f[n]) fields[n] = v; }
+    if (Object.keys(fields).length && !(await change("edit", { finding: d.save, fields }))) return;
+    ui.editing = null; return reload();
+  }
+  if (d.status) return change("status", { finding: ui.panel.finding, status: d.status }).then(o => o && reload());
+  if (d.setSev) return change("edit", { finding: ui.panel.finding, fields: { severity: d.setSev } }).then(o => o && reload());
+  if (d.resolve) return change("resolve", { thread: d.resolve }).then(o => o && reload());
+  if (d.compose) return compose(JSON.parse(d.compose));
+  if (d.pickFile) {
+    if (ui.tab === "structure" && ui.uc) { ui.ucFile = d.pickFile; return ucPanel(); }
+    return go({ ui: { tab: "code", file: d.pickFile } });
+  }
+  if (d.openFile) { ui.uc = null; return go({ ui: { tab: "code", file: d.openFile, codeFilter: "all" } }); }
+  if (d.stepFile) return go({ ui: { file: stepIn(codeFiles().map(f => f.path), ui.file, +d.stepFile) } });
+  if (d.stepUc) { const u = cards().find(x => x.id === ui.uc); ui.ucFile = stepIn(u.files, ui.ucFile, +d.stepUc); return ucPanel(); }
+  if (d.codeFilter) { ui.codeFilter = d.codeFilter; return render(); }
+  if (d.answer !== undefined) return change("answer", { option: d.answer, note: document.getElementById("cp-note").value || null }).then(o => o && reload());
+  if (d.live !== undefined) {
+    if (!R.running && !S().closed) return api("/api/review/resume", K()).then(() => reload());
+    ui.panel = ui.panel && ui.panel.log ? null : { log: true }; return render();
+  }
+  if (d.refresh !== undefined) return api("/api/review/message", { ...K(), type: "refresh" }).then(o => o && toast("asked AI Agent to read the PR again"));
+  if (d.power !== undefined) return api("/api/review/" + (R.running ? "stop" : "resume"), K()).then(() => reload());
+  if (d.closeReview !== undefined) {
+    if (!confirm("Close this review? The session ends; the review and its findings stay.")) return;
+    return api("/api/review/message", { ...K(), type: "close" }).then(o => o && toast("closing the review"));
+  }
+  if (d.send !== undefined) {
+    const marked = S().findings.filter(f => f.status === "to-send");
+    if (!confirm(`Send ${marked.length} comment(s) to ${sourceLabel(S().source)}?\n\n` + marked.map(f => `${f.id} ${f.title}`).join("\n") +
+      "\n\nComments on GitHub cannot be taken back from here.")) return;
+    toast("sending…");
+    const out = await api("/api/review/send", K());
+    if (out) toast(`sent ${out.sent.length}` + (out.errors.length ? ` · problems: ${out.errors.join("; ")}` : ""));
+    return reload();
+  }
+  if (d.uccard) return openUseCase(d.uccard);
+  if (d.closeUc !== undefined) return openUseCase(ui.uc);
+  if (d.askUc) { ui.panel = { ask: { about: { kind: "use-case", id: d.askUc }, quote: null } }; return render(); }
+  if (d.openReview !== undefined) {
+    const r = reviewsList.filter(x => !x.archived)[+d.openReview];
+    document.getElementById("hover").style.display = "none";
+    return go({ project: r.project, id: r.id, ui: { tab: "overview" } });
+  }
+  if (d.archive !== undefined) {
+    const r = reviewsList.filter(x => !x.archived)[+d.archive];
+    document.getElementById("hover").style.display = "none";
+    const ok = await api("/api/review/change", { project: r.project, id: r.id, action: "archive", archived: true });
+    if (ok && r.id === current.id && r.project === current.project) { current = { project: null, id: null }; R = null; }
+    return reload();
+  }
+  if (d.unarchive) {
+    const [project, id] = d.unarchive.split("|");
+    return api("/api/review/change", { project, id, action: "archive", archived: false }).then(() => go({ project, id, ui: { tab: "overview" } }));
+  }
+  if (d.new !== undefined) { ui.tab = "new"; ui.panel = null; return render(); }
+  if (d.archived !== undefined) { ui.tab = "archived"; ui.panel = null; return render(); }
+  if (d.start !== undefined) {
+    const body = { project: document.getElementById("nr-project").value, source: document.getElementById("nr-source").value.trim() };
+    const out = await api("/api/review/start", body);
+    if (out) go({ project: body.project, id: out.id, ui: { tab: "overview" } });
+    return;
+  }
+  if (d.pop) {
+    const s = ui.selection;
+    getSelection().removeAllRanges(); hidePop();
+    if (d.pop === "ask") ui.panel = { ask: { about: s.about, quote: s.quote } };
+    if (d.pop === "finding") ui.panel = { newFinding: { path: s.about.path, lines: s.about.lines, side: s.side, quote: s.quote, severity: "should-fix" } };
+    if (d.pop === "quote") { ui.editing = ui.panel.finding; render(); const box = document.getElementById("edit-comment"); box.value = `> ${s.quote}\n\n` + box.value; return box.focus(); }
     return render();
   }
-  const t = e.target.closest("[data-new],[data-review],[data-section],[data-rv],[data-answer],[data-fstatus],[data-fedit],[data-fsave],[data-explain],[data-hunk],[data-clear-filter],[data-copy]");
-  if (!t) return;
-  const k = reviewKey(), d = t.dataset;
-  if (d.copy) {
-    navigator.clipboard?.writeText(d.copy); t.classList.add("done"); setTimeout(() => t.classList.remove("done"), 1200);
-    return toast("copied");
+  if (d.newFinding !== undefined) { const a = ui.panel.ask; ui.panel = { newFinding: { path: a.about.path, lines: a.about.lines, side: "RIGHT", quote: a.quote, severity: "should-fix" } }; return render(); }
+  if (d.nfSev) { ui.panel.newFinding.severity = d.nfSev; return render(); }
+  if (d.nfSave !== undefined) {
+    const p = ui.panel.newFinding, fields = { title: document.getElementById("nf-title").value.trim(), comment: document.getElementById("nf-comment").value.trim(),
+      severity: p.severity, locations: [{ path: p.path, line: p.lines[1], side: p.side || "RIGHT", commit: S().head }] };
+    if (!(await change("add-finding", { fields }))) return;
+    ui.selection = null; await reload();
+    ui.panel = { finding: S().findings[S().findings.length - 1].id }; return render();
   }
-  e.preventDefault();
-  if (d.new) return go({ id: null, section: "new", category: null });
-  if (d.review) return go({ project: d.rproject, id: d.review, section: "overview", category: null });
-  if (d.section) return go({ section: d.section, category: d.category || null });
-  if (d.rv) return reviewAction(d.rv);
-  if (d.clearFilter) { rFilter = null; return render(); }
-  if (d.hunk) { shownHunks.has(d.hunk) ? shownHunks.delete(d.hunk) : shownHunks.add(d.hunk); return render(); }
-  if (d.answer !== undefined) return api("/api/review/change", { ...k, action: "answer", option: d.answer,
-    note: document.getElementById("cp-note").value || null }).then(o => o && reload());
-  if (d.fstatus) return api("/api/review/change", { ...k, action: "status", finding: d.fid, status: d.fstatus }).then(o => o && reload());
-  if (d.fedit !== undefined) { editing = d.fedit || null; return render(); }
-  if (d.fsave) {
-    const f = R.state.findings.find(x => x.id === d.fsave), fields = {};
-    for (const name of ["title", "description", "comment"]) {
-      const v = document.getElementById("edit-" + name).value; if (v !== f[name]) fields[name] = v;
-    }
-    if (!Object.keys(fields).length) { editing = null; return render(); }
-    return api("/api/review/change", { ...k, action: "edit", finding: d.fsave, fields }).then(o => { if (o) { editing = null; reload(); } });
-  }
-  if (d.explain) return api("/api/review/message", { ...k, type: "explain", about: { kind: d.explain, id: d.eid } })
-    .then(o => o && toast("asked the session to explain " + d.eid + " — it shows under Explanations"));
+});
+document.addEventListener("change", e => { if (e.target.id === "fcat") { ui.fcat = e.target.value; render(); } });
+document.addEventListener("input", e => { if (e.target.id === "fsearch") { ui.search = e.target.value; render(); } });
+document.addEventListener("keydown", e => {
+  if (e.target.id === "compose" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); document.querySelector("[data-compose]")?.click(); }
+  if (e.key === "Escape") { hidePop(); if (ui.uc) openUseCase(ui.uc); }
+});
+document.addEventListener("selectionchange", () => { if (deferred && !busy()) render(); });
+// Selecting lines of a diff, or words of a finding's text, offers to ask AI Agent about them.
+document.addEventListener("mouseup", e => {
+  if (e.target.closest("#pop")) return;
+  setTimeout(() => {
+    const sel = getSelection(), text = sel.toString().trim();
+    if (!text || !sel.rangeCount) return;
+    const range = sel.getRangeAt(0), node = n => n.nodeType === 1 ? n : n.parentElement;
+    const start = node(range.startContainer), end = node(range.endContainer);
+    const pop = document.getElementById("pop"), at = range.getBoundingClientRect();
+    const diff = start && start.closest("[data-diff]"), about = start && start.closest("[data-quote-about]");
+    if (diff && end && end.closest("[data-diff]") === diff && start.closest(".ln") && end.closest(".ln")) {
+      const rows = [start.closest(".ln"), end.closest(".ln")], side = rows[0].dataset.side;
+      const first = Math.min(...rows.map(r => +r.dataset.line)), last = Math.max(...rows.map(r => +r.dataset.line));
+      ui.selection = { path: diff.dataset.diff, lines: [first, last], side, quote: text, about: { kind: "file", path: diff.dataset.diff, lines: [first, last] } };
+      diff.querySelectorAll(".ln").forEach(l => l.classList.toggle("sel", l.dataset.side === side && +l.dataset.line >= first && +l.dataset.line <= last));
+      pop.innerHTML = `<button class="btn go sm" data-pop="ask">✦ Ask AI Agent</button><button class="btn ghost sm" data-pop="finding">Add finding</button>`;
+    } else if (about) {
+      const [kind, id] = about.dataset.quoteAbout.split(":");
+      ui.selection = { quote: text, about: { kind, id } };
+      pop.innerHTML = `<button class="btn go sm" data-pop="ask">✦ Ask AI Agent</button>` + (kind === "finding" ? `<button class="btn ghost sm" data-pop="quote">Quote in comment</button>` : "");
+    } else return;
+    pop.style.display = "flex";
+    pop.style.left = Math.min(innerWidth - 260, Math.max(8, at.right - 200)) + "px";
+    pop.style.top = Math.max(8, at.top - 44) + "px";
+  }, 0);
 });
 document.addEventListener("mouseover", e => {
-  const graph = document.getElementById("graph"); if (!graph) return;
-  const n = e.target.closest("[data-gnode]");
-  graph.querySelectorAll(".hl").forEach(x => x.classList.remove("hl"));
-  if (!n) return graph.classList.remove("hovering");
-  const id = n.dataset.gnode; graph.classList.add("hovering"); n.classList.add("hl");
-  graph.querySelectorAll("[data-a],[data-b]").forEach(x => {
-    if (x.dataset.a === id || x.dataset.b === id) {
-      x.classList.add("hl");
-      const other = x.dataset.a === id ? x.dataset.b : x.dataset.a;
-      graph.querySelectorAll(`[data-gnode="${CSS.escape(other)}"]`).forEach(o => o.classList.add("hl"));
-    }
-  });
+  const tile = e.target.closest("[data-hoverr]");
+  if (tile) return showHover(+tile.dataset.hoverr, tile);
+  if (!e.target.closest("#hover") && !e.target.closest(".rail")) document.getElementById("hover").style.display = "none";
+  const card = e.target.closest("[data-uccard]"), tip = document.getElementById("tip");
+  if (card) return showTip(card);
+  if (tip && tip.style.display === "block") { tip.style.display = "none"; document.querySelectorAll(".uc.related").forEach(x => x.classList.remove("related")); }
 });
-// the console's width: drag its left edge; the width is remembered in this browser
-const WIDTH_KEY = "craftsman.review.console-width";
-function applyWidth(width) { document.getElementById("app").style.gridTemplateColumns = width ? `240px minmax(0, 1fr) ${width}` : ""; }
-applyWidth(localStorage.getItem(WIDTH_KEY));
+// The side panel's left edge resizes it; the width survives a reload.
+const WIDTH_KEY = "craftsman.review.panel-width";
+if (localStorage.getItem(WIDTH_KEY)) document.getElementById("app").style.setProperty("--panel-w", localStorage.getItem(WIDTH_KEY));
 document.addEventListener("mousedown", e => {
   if (e.target.id !== "grip") return;
   e.preventDefault();
-  const grip = e.target; let width = null;
-  grip.classList.add("dragging");
-  const move = ev => { width = Math.min(Math.max(window.innerWidth - ev.clientX, 320), window.innerWidth - 560) + "px"; applyWidth(width); };
-  const up = () => {
-    document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up);
-    grip.classList.remove("dragging"); if (width) localStorage.setItem(WIDTH_KEY, width);
-  };
-  document.addEventListener("mousemove", move); document.addEventListener("mouseup", up);
+  const grip = e.target; grip.classList.add("drag");
+  const move = ev => { const w = Math.min(Math.max(innerWidth - ev.clientX, 380), innerWidth * .7) + "px";
+    document.getElementById("app").style.setProperty("--panel-w", w); localStorage.setItem(WIDTH_KEY, w); };
+  const up = () => { grip.classList.remove("drag"); removeEventListener("mousemove", move); removeEventListener("mouseup", up); };
+  addEventListener("mousemove", move); addEventListener("mouseup", up);
 });
-document.addEventListener("keydown", e => {
-  if (e.target.id === "say" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); reviewAction("say"); }
-});
-connect();
+addEventListener("resize", () => { layoutCards(false); ucPanel(); });
+const events = new EventSource("/api/events");
+events.addEventListener("hello", () => reload());
+events.addEventListener("change", () => reload());
 </script>
 </body>
 </html>

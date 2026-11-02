@@ -25,9 +25,10 @@ time; this is what keeps either of them from losing the other's change.
 
 ### Source and revision
 
-- `source` — either `{"kind": "pull-request", "url", "repository", "number"}` or `{"kind": "branches", "target",
-  "source", "pull-request": <the same object, or null>}`. `pull-request` is null when no PR exists for the source
-  branch; sending is then disabled and the page says why.
+- `source` — either `{"kind": "pull-request", "url", "repository", "number", "title", "base-branch", "head-branch"}`
+  or `{"kind": "branches", "target", "source", "pull-request": <the same object, or null>}`. `pull-request` is null
+  when no PR exists for the source branch; sending is then disabled and the page says why. The page shows the PR's
+  title as the review's title.
 - `base` and `head` — the commit shas the review was made against.
 - `refreshed` — when `base`/`head` were last read.
 - `closed` — when the developer closed the review, or null while it is open.
