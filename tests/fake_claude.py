@@ -3,7 +3,7 @@
 
 It records its arguments and every message it receives in $FAKE_CLAUDE_LOG, answers each message with one assistant
 text and one result, and acts like the review skill just enough to be observed: the first message creates the review
-state, and a message from the review page is recorded as handled.
+state with the checkout it names, and a message from the review page is recorded as handled.
 """
 import json
 import os
@@ -29,7 +29,7 @@ def log(entry):
         out.write(json.dumps(entry) + "\n")
 
 
-log({"argv": sys.argv[1:]})
+log({"argv": sys.argv[1:], "cwd": os.getcwd()})
 for line in sys.stdin:
     text = json.loads(line)["message"]["content"]
     log({"received": text})
@@ -38,8 +38,9 @@ for line in sys.stdin:
         diff = REVIEW.parent / "fake.diff"
         diff.parent.mkdir(parents=True, exist_ok=True)
         diff.write_text("diff\n")
+        checkout = re.search(r"--checkout (\S+)", text)
         review_state.change(REVIEW, "init", {"source": {"kind": "pull-request"}, "base": "a", "head": "b",
-                                             "diff": str(diff)})
+                                             "diff": str(diff), "checkout": checkout and checkout.group(1)})
     if '"type": "close"' in text:
         review_state.change(REVIEW, "set", {"closed": "2026-10-30T12:00:00+00:00"})
     handled = re.search(r"\bhandled (m\d+)", text)

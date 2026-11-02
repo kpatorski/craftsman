@@ -203,8 +203,8 @@ page; once stopped, `claude --resume` continues the same conversation in the CLI
 inline comment on its first place, with a pointer from each further place; a comment the PR already has is never
 posted twice.
 
-Each review keeps its state in `.claude/reviews/<review-id>/` of the repository and reads the code from its own
-`git worktree`, so your checkout is never touched and several reviews can run at once. A review needs the
+Each review keeps its state in `~/.craftsman/reviews/<review-id>/`, outside the repository, and reads the code from its
+own `git worktree`, so your checkout is never touched and several reviews can run at once. A review needs the
 `code-review` bundle of the workshop and `gh` logged in to the PR's repository; the state it keeps is described in
 [`REVIEW.md`](plugins/craftsman/REVIEW.md).
 

@@ -9,7 +9,7 @@ Usage:
     dashboard_server.py off|stop
     dashboard_server.py remove [--project <dir>]
     dashboard_server.py status
-    dashboard_server.py review --source <PR URL | target:source> [--project <repository>]   (prints its /review URL)
+    dashboard_server.py review --source <PR URL | target:source> --checkout <repository>   (prints its /review URL)
 
 `start` runs the server in the background, detached from the calling shell, and prints its URL. If one is already
 running, it adds the project to it instead of starting a second one -- one server, every project it was started
@@ -79,13 +79,12 @@ class Hub:
         self.last_client = time.time()
         self.sessions = {}
 
-    def session(self, project, review_id):
+    def session(self, review_id, checkout=None):
         """The Claude session of one review, created on first use; one per review for the server's lifetime."""
         with self.lock:
-            key = (str(project), review_id)
-            if key not in self.sessions:
-                self.sessions[key] = _review_session.ReviewSession(project, review_id)
-            return self.sessions[key]
+            if review_id not in self.sessions:
+                self.sessions[review_id] = _review_session.ReviewSession(review_id, checkout)
+            return self.sessions[review_id]
 
     def stop_sessions(self):
         for runner in list(self.sessions.values()):
@@ -134,7 +133,7 @@ class Hub:
 
     def snapshot(self):
         stamps = {}
-        for path in data.watched_paths(self.project_list(), self.content):
+        for path in data.watched_paths(self.project_list(), self.content) + reviews.watched():
             try:
                 stamps[str(path)] = path.stat().st_mtime
             except OSError:
@@ -217,9 +216,9 @@ class Handler(BaseHTTPRequestHandler):
         if url.path == "/api/events":
             return self.stream()
         if url.path == "/api/reviews":
-            listed = reviews.list_reviews(self.hub.project_list())
+            listed = reviews.list_reviews()
             for review in listed:
-                runner = self.hub.sessions.get((review["project"], review["id"]))
+                runner = self.hub.sessions.get(review["id"])
                 review["running"] = bool(runner and runner.running())
             return self.send(200, dict(reviews=listed))
         if url.path in ("/api/review", "/api/review/diff", "/api/review/references"):
@@ -228,30 +227,27 @@ class Handler(BaseHTTPRequestHandler):
         return self.send(404, dict(error="not found"))
 
     def review_request(self, body, path):
-        """Every review endpoint: the project must be on the dashboard; a refused change answers 409 with why."""
-        wanted = pathlib.Path(body.get("project") or "").expanduser().resolve()
-        project = next((p for p in self.hub.project_list() if p.resolve() == wanted), None)
-        if project is None:
-            return self.send(404, dict(error=f"not on the dashboard: {wanted}"))
+        """Every review endpoint, by the review's id; a refused change answers 409 with why."""
         review_id = str(body.get("id", ""))
         try:
             if path == "/api/review/start":
-                review_id = reviews.review_id_for(body.get("source"))
-                if not (project / ".git").exists():
-                    raise review_state.Refused(f"not a git repository: {project}; a review runs at its top level")
-                if (reviews.reviews_root(project) / review_id / "review.json").exists():
+                checkout = pathlib.Path(body.get("checkout") or "").expanduser().resolve()
+                review_id = reviews.review_id_for(body.get("source"), checkout)
+                if not (checkout / ".git").exists():
+                    raise review_state.Refused(f"not a git repository: {checkout}; a review runs at its top level")
+                if (reviews.reviews_root() / review_id / "review.json").exists():
                     raise review_state.Refused(f"{review_id} is in progress; resume it instead")
-                self.hub.session(project, review_id).start(body["source"])
+                self.hub.session(review_id, checkout).start(body["source"])
                 return self.send(200, dict(ok=True, id=review_id))
             if path == "/api/review/stop":
                 if not reviews.ID.match(review_id):
                     raise review_state.Refused(f"not a review id: {review_id!r}")
-                self.hub.session(project, review_id).stop()
+                self.hub.session(review_id).stop()
                 return self.send(200, dict(ok=True))
-            reviews.review_dir(project, review_id)
-            runner = self.hub.session(project, review_id)
+            review = reviews.review_dir(review_id)
+            runner = self.hub.session(review_id)
             if path == "/api/review":
-                return self.send(200, dict(reviews.read_review(project, review_id), running=runner.running(),
+                return self.send(200, dict(reviews.read_review(review_id), running=runner.running(),
                                            working=runner.working(), background=runner.background,
                                            quiet=runner.quiet()))
             if path == "/api/review/resume":
@@ -259,18 +255,18 @@ class Handler(BaseHTTPRequestHandler):
                     runner.resume()
                 return self.send(200, dict(ok=True))
             if path == "/api/review/diff":
-                return self.send(200, reviews.diff_text(project, review_id, body.get("path")), "text/plain")
+                return self.send(200, reviews.diff_text(review_id, body.get("path")), "text/plain")
             if path == "/api/review/references":
-                return self.send(200, dict(references=reviews.references(project, review_id, body.get("path", ""))))
+                return self.send(200, dict(references=reviews.references(review_id, body.get("path", ""))))
             if path == "/api/review/send":
-                return self.send(200, send_review.send(reviews.review_dir(project, review_id)))
+                return self.send(200, send_review.send(review))
             if path == "/api/review/change":
-                reviews.developer_change(project, review_id, body.get("action"), body)
+                reviews.developer_change(review_id, body.get("action"), body)
                 runner.deliver()
                 return self.send(200, dict(ok=True))
             if path == "/api/review/message":
-                message = {key: value for key, value in body.items() if key not in ("project", "id")}
-                message_id = reviews.add_message(project, review_id, message)
+                message = {key: value for key, value in body.items() if key != "id"}
+                message_id = reviews.add_message(review_id, message)
                 runner.deliver()
                 return self.send(200, dict(ok=True, id=message_id))
         except review_state.Refused as refusal:
@@ -435,16 +431,17 @@ def start(project, content, port):
     sys.exit(f"the dashboard server did not come up -- see {LOG}")
 
 
-def start_review(port, project, source):
-    """Start the review of `source` on the running server, or resume it when it is in progress; returns its URL."""
-    review_id = reviews.review_id_for(source)
+def start_review(port, checkout, source):
+    """Start the review of `source` in `checkout` on the running server, or resume it when it is in progress; returns
+    its URL."""
+    review_id = reviews.review_id_for(source, checkout)
     try:
-        request(port, "/api/review/start", dict(project=str(project), source=source))
+        request(port, "/api/review/start", dict(checkout=str(checkout), source=source))
     except urllib.error.HTTPError as refusal:
         if refusal.code != 409:
             raise
-        request(port, "/api/review/resume", dict(project=str(project), id=review_id))
-    return f"http://localhost:{port}/review?project={project}&review={review_id}"
+        request(port, "/api/review/resume", dict(id=review_id))
+    return f"http://localhost:{port}/review?review={review_id}"
 
 
 def main():
@@ -452,6 +449,7 @@ def main():
     ap.add_argument("command", choices=["on", "off", "start", "stop", "status", "remove", "serve", "review"])
     ap.add_argument("--source", help="for `review`: a pull request URL, or <target>:<source>")
     ap.add_argument("--project", action="append", default=[])
+    ap.add_argument("--checkout", help="for `review`: the local checkout of the reviewed repository")
     ap.add_argument("--content", default=str(pathlib.Path.home() / ".claude" / "craftsman"))
     ap.add_argument("--port", type=int, default=4747)
     args = ap.parse_args()
@@ -464,9 +462,10 @@ def main():
     if args.command == "start":
         return start(projects[-1], content, args.port)
     if args.command == "review":
+        checkout = pathlib.Path(args.checkout or ".").expanduser().resolve()
         start(projects[-1], content, args.port)
         try:
-            print(f"review: {start_review(running()['port'], projects[-1], args.source)}")
+            print(f"review: {start_review(running()['port'], checkout, args.source)}")
         except (review_state.Refused, urllib.error.HTTPError) as refusal:
             sys.exit(f"the review did not start: {getattr(refusal, 'reason', refusal)}")
         return

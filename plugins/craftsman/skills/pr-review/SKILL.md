@@ -22,19 +22,21 @@ page can talk to it — see `REVIEW.md`.
 
 1. The repository is the top level of the current directory's git checkout: `git rev-parse --show-toplevel`. Not a git
    checkout → stop and say the review runs from inside the repository it reviews.
-2. Run `scripts/dashboard_server.py review --project <repository> --source <$ARGUMENTS>`. It starts the dashboard
+2. Run `scripts/dashboard_server.py review --checkout <repository> --source <$ARGUMENTS>`. It starts the dashboard
    if needed, then starts the review — or resumes it, when that pull request or those branches are already under
    review — and prints the review's URL.
 3. Print the URL on its own line, and say that everything else happens on that page: the questions, the findings, the
    console. Nothing more happens in this session.
 
-## Started by the dashboard server (`--headless <source>`)
+## Started by the dashboard server (`--headless <source> --review <folder> --checkout <path>`)
 
-This session is the review. Nobody reads its terminal: the developer sees it on the review page.
+This session is the review. Nobody reads its terminal: the developer sees it on the review page. It runs in the
+repository's checkout; the review's state lives in the folder after `--review`, the `<review dir>` of every
+`review_state.py` command.
 
 1. **Load [EXECUTION.md](../../EXECUTION.md)** and **[REVIEW.md](../../REVIEW.md)**.
 2. **Resolve the `pr-review` entry-point protocol and execute it** per EXECUTION.md's dispatch rules, with the source
-   after `--headless` as its input.
+   after `--headless`, the review's folder and the checkout as its input.
 3. Every change to the review's state goes through `scripts/review_state.py`, never by editing `review.json`. Its
    payload is one JSON argument in single quotes, an apostrophe inside it written as `\u0027`; this session refuses a
    heredoc or a pipe.
@@ -54,8 +56,8 @@ This session is the review. Nobody reads its terminal: the developer sees it on 
 
 ## Notes
 
-- One review per pull request or pair of branches, in `.claude/reviews/<review-id>/` of the repository. Starting the
-  same one again resumes it.
+- One review per pull request or pair of branches, in `~/.craftsman/reviews/<review-id>/` (see `REVIEW.md`). Starting
+  the same one again resumes it.
 - `claude --resume <session id>` opens the review's conversation in the CLI; the page's "Continue in CLI" stops the
   server's session first, so two processes never write to one session.
 - Nothing here duplicates EXECUTION.md. If this file and EXECUTION.md ever seem to disagree on mechanics, EXECUTION.md

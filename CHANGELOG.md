@@ -12,8 +12,9 @@ not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets s
   Each review has its own state and `git worktree`, so several can run at once. Needs the workshop's `code-review`
   bundle and `gh`. The review state is described in `REVIEW.md`; the README's "Reviewing a pull request" describes the
   page.
-- A project with reviews in `.claude/reviews/` is a craftsman project on the dashboard, and the dashboard finds a
-  project registered through a symlink.
+- Reviews live in `~/.craftsman/reviews/`, apart from the repositories they review; one dashboard server lists them
+  all. A review's id names its repository: `<owner>-<repo>-pr-<number>`, or `<checkout folder>-<target>..<source>`.
+- The dashboard finds a project registered through a symlink.
 - The dashboard server loads its code once, when it starts: after updating the plugin, stop it
   (`/craftsman:dashboard off`) and start it again.
 
