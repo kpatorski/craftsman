@@ -130,7 +130,12 @@ def init(review, payload, by):
     if (review / "review.json").exists():
         raise Refused(f"{review.name} is already in progress; it is resumed, never overwritten")
     (review / "diff").mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(payload["diff"], review / "diff" / f"{payload['head']}.diff")
+    diff = pathlib.Path(payload["diff"]).resolve()
+    kept = review / "diff" / f"{payload['head']}.diff"
+    if pathlib.Path(review).resolve() in diff.parents:
+        shutil.move(diff, kept)  # written into the review folder for this: nothing is left behind
+    else:
+        shutil.copyfile(diff, kept)
     return empty_state(payload["source"], payload["base"], payload["head"], payload.get("checkout")), None
 
 

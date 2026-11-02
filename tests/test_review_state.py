@@ -62,6 +62,21 @@ class ReviewStateTest(unittest.TestCase):
         self.assertEqual(state["findings"], [])
         self.assertEqual((self.review / "diff" / "bbb.diff").read_text(), self.diff.read_text())
 
+    def test_a_diff_written_into_the_review_folder_is_moved_not_left_behind(self):
+        self.review.mkdir(parents=True)
+        written = self.review / "init.diff"
+        written.write_text("diff --git a/B.java b/B.java\n")
+
+        self.run_state("init", payload={"source": SOURCE, "base": "aaa", "head": "bbb", "diff": str(written)})
+
+        self.assertFalse(written.exists())
+        self.assertEqual((self.review / "diff" / "bbb.diff").read_text(), "diff --git a/B.java b/B.java\n")
+
+    def test_a_diff_from_elsewhere_is_copied_and_left_alone(self):
+        self.opened()
+
+        self.assertTrue(self.diff.exists())
+
     def test_a_review_in_progress_is_never_overwritten_by_init(self):
         self.opened()
         self.run_state("add-finding", payload=finding())
