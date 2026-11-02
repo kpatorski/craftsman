@@ -46,4 +46,7 @@ for line in sys.stdin:
     if handled:
         review_state.change(REVIEW, "handled", item_id=handled.group(1))
     emit({"type": "assistant", "message": {"content": [{"type": "text", "text": "got: " + text[:40]}]}})
-    emit({"type": "result", "subtype": "success", "session_id": SESSION})
+    background = int(os.environ.get("FAKE_BACKGROUND", "0"))
+    emit({"type": "result", "subtype": "success", "session_id": SESSION,
+          "subagent_stats": {"spawned": background, "completed": 0, "failed": 0,
+                             "killed": {"parent": 0, "user": 0, "system": 0}}})

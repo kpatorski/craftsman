@@ -63,7 +63,8 @@
   .tag.amber { background: var(--should-bg); color: var(--should); } .tag.blue { background: var(--change-bg); color: var(--change); }
   .live { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 10px; font-size: 13px;
     background: var(--neon-bg); color: var(--neon); cursor: pointer; border: 0; }
-  .live.wait { background: var(--should-bg); color: var(--should); } .live.off { background: var(--nit-bg); color: var(--nit); }
+  .live.wait { background: var(--should-bg); color: var(--should); } .live.idle .pulse { animation: none; }
+  .steps.idle i.now { background: var(--neon); animation: none; } .live.off { background: var(--nit-bg); color: var(--nit); }
   .pulse { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
   .live:not(.off) .pulse { animation: p 1.6s infinite; }
   @keyframes p { 50% { opacity: .3; } }
@@ -270,7 +271,7 @@
   .steps i { height: 5px; border-radius: 3px; background: var(--nit-bg); }
   .steps .cap { grid-row: 2; font-size: 12px; color: var(--muted); margin-top: 4px; }
   .steps i.done { background: var(--neon); } .steps i.now { background: var(--neon-dim); animation: p 1.6s infinite; }
-  .steps.wait i.now { background: var(--should); animation: none; } .steps.off i.now { background: var(--nit-dot); animation: none; }
+  .steps.wait i.now, .steps.stuck i.now { background: var(--should); animation: none; } .steps.off i.now { background: var(--nit-dot); animation: none; }
   .stepline { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--muted); margin: 0 0 6px; }
   .stepline b { font-weight: 400; color: var(--heading); }
   .pending { text-align: left; max-width: 640px; }
@@ -344,7 +345,7 @@ async function reload() {
     const r = await fetch("/api/review?" + q());
     const fresh = r.ok ? await r.json() : null;
     if (fresh && R && fresh.state.head !== R.state.head) Object.keys(diffs).forEach(k => delete diffs[k]);
-    R = fresh;
+    R = fresh; if (R) R.seenAt = Date.now();
   } else R = null;
   render();
 }
@@ -421,23 +422,36 @@ function reviewStep() {
   if (ucs.length && ucs.every(u => u.status === "reviewed")) at = 6;
   if (at === 6 && s.findings.some(f => f.status === "merged")) at = 7;
   if (cp && cp.answer && asked >= 0) at = Math.max(at, asked + 1);
+  if (at >= 6 && idle()) at = 7;
   return Math.min(at, 7);
 }
 function stepsStrip(at, mode) {
   // the step in progress is named under its own bar, so it is clear what the blinking bar stands for
   const cap = at < STEPS.length / 2 ? `grid-column:${at + 1} / -1;text-align:left` : `grid-column:1 / ${at + 2};text-align:right`;
   return `<div class="steps ${mode}">${STEPS.map((_, i) => `<i class="${i < at ? "done" : i === at ? "now" : ""}" title="${i + 1}. ${STEPS[i][1]}${i < at ? " · done" : i === at ? " · now" : ""}"></i>`).join("")}` +
-    `<span class="cap" style="${cap}">${at < STEPS.length / 2 ? "↑ " : ""}${mode === "off" ? "stopped here" : mode === "wait" ? "waits for your answer here" : "now: it " + STEPS[at][2]}${at < STEPS.length / 2 ? "" : " ↑"}</span></div>`;
+    `<span class="cap" style="${cap}">${at < STEPS.length / 2 ? "↑ " : ""}${mode === "off" ? "stopped here" : mode === "wait" ? "waits for your answer here" : mode === "stuck" ? "silent here" : "now: it " + STEPS[at][2]}${at < STEPS.length / 2 ? "" : " ↑"}</span></div>`;
 }
-const sessionMode = () => waiting() ? "wait" : R.running ? "" : "off";
-const doing = () => waiting() ? "waits for your answer" : R.running ? "is working on it" : S().closed ? "— the review is closed" : "— its session is stopped";
+// The session is working while it is in a turn or its reviewers run in the background; between turns, with nothing in
+// the background, it is idle. Silence while working is how a stuck session shows: after a while the page says so.
+const idle = () => R.running && !R.working && !waiting();
+const quietFor = () => R.quiet == null ? 0 : R.quiet + Math.round((Date.now() - R.seenAt) / 1000);
+const SILENT_AFTER = () => (R.background ? 15 : 5) * 60;
+const stuck = () => R.working && quietFor() > SILENT_AFTER();
+const ago = sec => sec < 90 ? `${sec} s` : sec < 5400 ? `${Math.round(sec / 60)} min` : `${Math.round(sec / 3600)} h`;
+const sessionMode = () => waiting() ? "wait" : stuck() ? "stuck" : idle() ? "idle" : R.running ? "" : "off";
+const doing = () => waiting() ? "waits for your answer" : stuck() ? `has been silent for ${ago(quietFor())}` : idle() ? "is idle — ask it anything"
+  : R.running ? "is working on it" : S().closed ? "— the review is closed" : "— its session is stopped";
 // Under the tabs until the review reaches its last step: where it is, and what the AI agent does now.
 function progressLine() {
   const at = reviewStep();
   const ask = waiting() && ui.tab !== "overview" ? `<div class="asks"><span class="pulse"></span><span class="grow"><b>AI Agent asks you</b> · ${esc(S().checkpoint.question.split("\n")[0])}</span>
     <button class="btn sm" data-answer-here>Answer here</button><a class="btn ghost sm" data-tab="overview">Open in Overview</a></div>` : "";
-  if (at >= 7) return ask;
-  return ask + `<div style="margin:-8px 0 18px"><div class="stepline"><span>Step ${at + 1} of ${STEPS.length} · <b>${STEPS[at][1]}</b></span>
+  const silent = stuck() ? `<div class="asks"><span class="pulse"></span><span class="grow"><b>AI Agent has been silent for ${ago(quietFor())}</b>
+    · ${R.background ? `${plural(R.background, "reviewer")} it started still run in the background, or ` : ""}the session may be stuck.
+    Restarting it continues the same conversation.</span>
+    <button class="btn sm" data-restart>Restart the session</button><button class="btn ghost sm" data-live>Open the log</button></div>` : "";
+  if (at >= 7) return ask + silent;
+  return ask + silent + `<div style="margin:-8px 0 18px"><div class="stepline"><span>Step ${at + 1} of ${STEPS.length} · <b>${STEPS[at][1]}</b></span>
     <span>AI Agent ${doing()}</span></div>${stepsStrip(at, sessionMode())}</div>`;
 }
 // What a tab shows before the step that fills it: which step that is, and where the review is now.
@@ -481,7 +495,10 @@ function renderHead() {
   const s = S(), pr = pull(s.source), files = R.files || [];
   const added = files.reduce((a, f) => a + f.added, 0), removed = files.reduce((a, f) => a + f.removed, 0);
   const toSend = s.findings.filter(f => f.status === "to-send").length, now = useCases().find(u => u.status === "reviewing");
-  const status = waiting() ? ["wait", "AI Agent waits for your answer"] : R.running ? ["", now ? `AI Agent · reviewing ${now.name}` : "AI Agent is working"]
+  const bg = R.background ? ` · ${plural(R.background, "reviewer")} in the background` : "";
+  const status = waiting() ? ["wait", "AI Agent waits for your answer"] : stuck() ? ["wait", `AI Agent silent for ${ago(quietFor())}`]
+    : idle() ? ["idle", "AI Agent is idle · ask it anything"]
+    : R.running ? ["", (now ? `AI Agent · reviewing ${now.name}` : "AI Agent is working") + bg]
     : ["off", s.closed ? "Review closed" : "Session stopped · start it"];
   const branches = s.source && (s.source["base-branch"] ? `${s.source["base-branch"]} ← ${s.source["head-branch"]}` :
     s.source.kind === "branches" ? `${s.source.target} ← ${s.source.source}` : "");
@@ -984,7 +1001,7 @@ function dropSelection() {
 }
 const stepIn = (list, at, by) => list[Math.min(list.length - 1, Math.max(0, list.indexOf(at) + by))];
 
-const CLICKABLE = ["tab", "inline", "gutter", "goto", "finding", "thread", "close-panel", "edit", "save", "status", "set-sev", "resolve", "compose", "view", "pick-file",
+const CLICKABLE = ["tab", "restart", "inline", "gutter", "goto", "finding", "thread", "close-panel", "edit", "save", "status", "set-sev", "resolve", "compose", "view", "pick-file",
   "open-file", "step-file", "step-uc", "code-filter", "fsev", "fby", "fquestions", "fstatus", "answer", "live", "refresh", "send", "power",
   "close-review", "uccard", "close-uc", "ask-uc", "open-review", "archive", "new", "archived", "unarchive", "start", "pop", "new-finding",
   "nf-sev", "nf-save", "answer-here"].map(name => `[data-${name}]`).join(",");
@@ -1047,6 +1064,10 @@ document.addEventListener("click", async e => {
     ui.panel = ui.panel && ui.panel.log ? null : { log: true }; return render();
   }
   if (d.refresh !== undefined) return api("/api/review/message", { ...K(), type: "refresh" }).then(o => o && toast("asked AI Agent to read the PR again"));
+  if (d.restart !== undefined) {
+    toast("restarting the session");
+    return api("/api/review/stop", K()).then(o => o && api("/api/review/resume", K())).then(() => reload());
+  }
   if (d.power !== undefined) return api("/api/review/" + (R.running ? "stop" : "resume"), K()).then(() => reload());
   if (d.closeReview !== undefined) {
     if (!confirm("Close this review? The session ends; the review and its findings stay.")) return;
@@ -1114,6 +1135,7 @@ document.addEventListener("keydown", e => {
   if (e.key === "Escape") { hidePop(); if (ui.uc) openUseCase(ui.uc); }
 });
 document.addEventListener("selectionchange", () => { if (deferred && !busy()) render(); });
+setInterval(() => { if (R && R.working) render(); }, 30000);
 document.addEventListener("focusout", () => setTimeout(() => { if (deferred && !busy()) render(); }, 0));
 // Selecting lines of a diff, or words of a finding's text, offers to ask AI Agent about them.
 document.addEventListener("mouseup", e => {
