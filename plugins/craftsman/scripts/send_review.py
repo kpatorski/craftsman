@@ -26,7 +26,18 @@ def gh_api(gh, endpoint, payload=None):
                           text=True, timeout=60)
     if done.returncode != 0:
         raise RuntimeError((done.stderr or done.stdout).strip() or f"gh api {endpoint} failed")
-    return json.loads(done.stdout)
+    return pages(done.stdout)
+
+
+def pages(text):
+    """`gh api --paginate` prints one JSON array per page, back to back; a list is joined into one, an object kept."""
+    decoder, text, at, found = json.JSONDecoder(), text.strip(), 0, []
+    while at < len(text):
+        value, at = decoder.raw_decode(text, at)
+        found.append(value)
+        while at < len(text) and text[at].isspace():
+            at += 1
+    return [item for page in found for item in page] if all(isinstance(page, list) for page in found) else found[0]
 
 
 def changed_lines(diff_text):
@@ -73,7 +84,8 @@ def send(review, gh=None):
     def review_with(comments):
         made = gh_api(gh, f"{pulls}/reviews", {"commit_id": state["head"], "event": "COMMENT", "body": "",
                                                "comments": comments})
-        return gh_api(gh, f"{pulls}/reviews/{made['id']}/comments")
+        # the review's own comment list has no `line`; the pull's list has it, and says which review a comment is in
+        return [c for c in gh_api(gh, f"{pulls}/comments") if c.get("pull_request_review_id") == made["id"]]
 
     def general(found, index, body):
         location = found["locations"][index]
