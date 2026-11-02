@@ -3,6 +3,13 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.12.1
+
+- The dashboard and the review page open at `http://craftsman.localhost:4747`. A `.localhost` name always means this
+  machine and browsers resolve it with no entry in `/etc/hosts`; `http://localhost:4747` still works.
+- The rail of the review page: reviews are dragged into your own order, and the card beside a tile stays long enough to
+  reach Open and Archive.
+
 ## 0.12.0
 
 - New: `/craftsman:pr-review [PR URL | target:source]` reviews a pull request on its own page, `/review` on the

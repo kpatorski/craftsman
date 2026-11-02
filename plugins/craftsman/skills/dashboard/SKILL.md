@@ -40,4 +40,5 @@ and why install/update stay commands for Claude CLI. This skill does not load `M
   action: the × next to the project's name.
 - While it runs for a project, the per-write report (`EXECUTION.md`, "Report") prints only the `md:` path of each
   file written — the page already shows it.
-- On WSL 2 the URL opens as is in a Windows browser — `localhost` is forwarded to WSL.
+- The URL is `http://craftsman.localhost:<port>`; `http://localhost:<port>` is the same page, for a browser that does
+  not resolve `.localhost` names. On WSL 2 it opens in a Windows browser — `localhost` is forwarded to WSL.

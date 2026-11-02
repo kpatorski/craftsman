@@ -48,6 +48,9 @@ from _theme import THEME_CSS  # noqa: E402
 STATE = pathlib.Path.home() / ".claude" / "craftsman-dashboard.json"
 LOG = pathlib.Path.home() / ".claude" / "craftsman-dashboard.log"
 PAGES = {"/": HERE / "dashboard_page.html", "/review": HERE / "review_page.html"}
+# The name the pages are opened under: a `.localhost` name always means this machine (RFC 6761), and browsers resolve
+# it without an entry in /etc/hosts. `localhost` and 127.0.0.1 are served too.
+HOST = "craftsman.localhost"
 IDLE_EXIT_SECONDS = 8 * 3600
 POLL_SECONDS = 1.0
 RESCAN_EVERY = 10  # polls between looks for projects newly created inside a root
@@ -174,7 +177,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def allowed_host(self):
         host = self.headers.get("Host", "")
-        return host in (f"localhost:{self.hub.port}", f"127.0.0.1:{self.hub.port}")
+        return host in (f"{HOST}:{self.hub.port}", f"localhost:{self.hub.port}", f"127.0.0.1:{self.hub.port}")
 
     def send(self, code, body, ctype="application/json"):
         raw = body if isinstance(body, bytes) else (json.dumps(body) if ctype == "application/json" else body).encode()
@@ -426,7 +429,7 @@ def start(project, content, port):
     if state and state.get("version") == plugin_version() and state.get("content") == str(content):
         if project is not None:
             request(state["port"], "/api/projects", dict(path=str(project)))
-        print(f"craftsman dashboard: http://localhost:{state['port']}")
+        print(f"craftsman dashboard: http://{HOST}:{state['port']}")
         if project is not None:
             print(f"(already running -- {project} added)")
         return
@@ -443,7 +446,7 @@ def start(project, content, port):
         time.sleep(0.1)
         state = running()
         if state:
-            print(f"craftsman dashboard: http://localhost:{state['port']}")
+            print(f"craftsman dashboard: http://{HOST}:{state['port']}")
             return
     sys.exit(f"the dashboard server did not come up -- see {LOG}")
 
@@ -457,8 +460,8 @@ def review_url(port, source):
             request(port, "/api/review/resume", dict(id=review_id))
         except urllib.error.HTTPError:
             pass  # the page says why the session did not start
-        return f"http://localhost:{port}/review?review={review_id}"
-    return f"http://localhost:{port}/review?new={urllib.parse.quote(source or '', safe='/')}"
+        return f"http://{HOST}:{port}/review?review={review_id}"
+    return f"http://{HOST}:{port}/review?new={urllib.parse.quote(source or '', safe='/')}"
 
 
 def main():
@@ -507,7 +510,7 @@ def main():
     if not state:
         print("no dashboard server running")
         return
-    print(f"craftsman dashboard: http://localhost:{state['port']}  (plugin {state['version']}, pid {state['pid']})")
+    print(f"craftsman dashboard: http://{HOST}:{state['port']}  (plugin {state['version']}, pid {state['pid']})")
     ping = request(state["port"], "/api/ping")
     for root in ping.get("projects", []):
         print(f"  started from: {root}")
