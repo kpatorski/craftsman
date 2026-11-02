@@ -6,14 +6,16 @@ not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets s
 ## 0.12.0
 
 - New: `/craftsman:pr-review <PR URL | target:source>` reviews a pull request on its own page, `/review` on the
-  dashboard server, apart from the dashboard. The page lists the reviews, splits each into sections (overview,
-  structure, rules from the tests, PR map, explanations, findings by category, sent), and keeps the review's console on
-  the right: the review's Claude session runs on the dashboard server. Findings are proposed PR comments to edit,
-  delete or mark to send, and only the marked ones are sent to GitHub, when you press Send. Each review has its own
-  state and `git worktree`, so several can run at once. Needs the workshop's `code-review` bundle and `gh`. The review
-  state is described in `REVIEW.md`.
+  dashboard server. The page has four tabs — Overview, Structure, Code, Findings — and the review's Claude session runs
+  on the server, so its questions and progress show on the page. Findings are proposed PR comments to edit, drop or mark
+  to send; only the marked ones go to GitHub, when you press Send, and a comment the PR already has is not posted again.
+  Each review has its own state and `git worktree`, so several can run at once. Needs the workshop's `code-review`
+  bundle and `gh`. The review state is described in `REVIEW.md`; the README's "Reviewing a pull request" describes the
+  page.
 - A project with reviews in `.claude/reviews/` is a craftsman project on the dashboard, and the dashboard finds a
   project registered through a symlink.
+- The dashboard server loads its code once, when it starts: after updating the plugin, stop it
+  (`/craftsman:dashboard off`) and start it again.
 
 ## 0.11.2
 
