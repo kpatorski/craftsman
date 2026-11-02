@@ -34,6 +34,7 @@
   .rtile .badge { position: absolute; right: -3px; top: -3px; width: 9px; height: 9px; border-radius: 50%; background: var(--should);
     border: 2px solid var(--bg); }
   .rtile.end { margin-top: auto; }
+  .rtile.dragged { opacity: .4; } .rtile.drop { border-color: var(--neon); }
   .rsep { width: 28px; height: 1px; background: var(--line); margin: 4px 0; }
   .hover { position: fixed; left: 72px; width: 300px; background: var(--float); border: 1px solid var(--line2); border-radius: 12px;
     padding: 14px 16px; box-shadow: 0 16px 40px var(--shadow); z-index: 20; font-size: 13px; display: none; }
@@ -496,16 +497,35 @@ function pendingCard(step, what) {
 
 // ================================================================ rail
 function renderRail() {
-  const shown = reviewsList.filter(r => !r.archived), archived = reviewsList.length - shown.length;
+  const shown = shownReviews(), archived = reviewsList.length - shown.length;
   document.getElementById("rail").innerHTML = shown.map((r, i) => {
     const pr = pull(r.source), here = r.id === current.id;
-    return `<div class="rtile${here ? " on" : ""}" data-open-review="${i}" data-hoverr="${i}">${pr ? "#" + pr.number : "⑂"}` +
+    return `<div class="rtile${here ? " on" : ""}" data-open-review="${i}" data-hoverr="${i}" draggable="true">${pr ? "#" + pr.number : "⑂"}` +
       `${r.checkpoint ? '<span class="badge"></span>' : ""}</div>`;
   }).join("") + `<div class="rsep"></div><div class="rtile" data-new title="New review">＋</div>` +
     `<div class="rtile end" data-archived title="Archived reviews · ${archived}">⌫</div>`;
 }
+// The rail's order is the developer's, dragged into place and kept in this browser; a review not placed yet goes last.
+const ORDER_KEY = "craftsman-review-order";
+function shownReviews() {
+  const order = JSON.parse(localStorage.getItem(ORDER_KEY) || "[]"), at = id => { const n = order.indexOf(id); return n < 0 ? Infinity : n; };
+  return reviewsList.filter(r => !r.archived).map((r, n) => [r, n]).sort(([a, n], [b, m]) => at(a.id) - at(b.id) || n - m).map(([r]) => r);
+}
+function moveReview(from, to) {
+  const ids = shownReviews().map(r => r.id), [moved] = ids.splice(from, 1);
+  ids.splice(to, 0, moved);
+  localStorage.setItem(ORDER_KEY, JSON.stringify(ids));
+  renderRail();
+}
+// The card stays a moment after the pointer leaves the tile, so it can cross the gap and reach Open or Archive.
+let hoverTimer;
+function hideHoverSoon() {
+  clearTimeout(hoverTimer);
+  hoverTimer = setTimeout(() => { document.getElementById("hover").style.display = "none"; }, 400);
+}
 function showHover(i, tile) {
-  const r = reviewsList.filter(x => !x.archived)[i], h = document.getElementById("hover"); if (!r) return;
+  const r = shownReviews()[i], h = document.getElementById("hover"); if (!r) return;
+  clearTimeout(hoverTimer);
   const counts = r.findings || {};
   const total = Object.entries(counts).filter(([k]) => !["merged", "deleted"].includes(k)).reduce((a, [, n]) => a + n, 0);
   h.innerHTML = `<div class="muted" style="font-size:12px">${esc(sourceLabel(r.source))}</div>
@@ -1061,7 +1081,7 @@ function viewArchived() {
 // ================================================================ render
 function busy() {
   // nor does it close the list of checkouts while the developer picks one from it
-  return document.getElementById("pop").style.display === "flex" || (document.activeElement?.id || "").startsWith("nr-") ||
+  return dragging !== null || document.getElementById("pop").style.display === "flex" || (document.activeElement?.id || "").startsWith("nr-") ||
     (getSelection().toString() !== "" && !["TEXTAREA", "INPUT"].includes(document.activeElement?.tagName));
 }
 function render() {
@@ -1212,12 +1232,12 @@ document.addEventListener("click", async e => {
   if (d.closeUc !== undefined) return openUseCase(ui.uc);
   if (d.askUc) { ui.panel = { ask: { about: { kind: "use-case", id: d.askUc }, quote: null } }; return render(); }
   if (d.openReview !== undefined) {
-    const r = reviewsList.filter(x => !x.archived)[+d.openReview];
+    const r = shownReviews()[+d.openReview];
     document.getElementById("hover").style.display = "none";
     return go({ id: r.id, ui: { tab: "overview" } });
   }
   if (d.archive !== undefined) {
-    const r = reviewsList.filter(x => !x.archived)[+d.archive];
+    const r = shownReviews()[+d.archive];
     document.getElementById("hover").style.display = "none";
     const ok = await api("/api/review/change", { id: r.id, action: "archive", archived: true });
     if (ok && r.id === current.id) { current = { id: null }; R = null; }
@@ -1304,10 +1324,36 @@ document.addEventListener("mouseup", e => {
     pop.style.top = Math.max(8, at.top - 44) + "px";
   }, 0);
 });
+// dragging a tile of the rail reorders the reviews
+let dragging = null;
+document.addEventListener("dragstart", e => {
+  const tile = e.target.closest && e.target.closest("[data-hoverr]"); if (!tile) return;
+  dragging = +tile.dataset.hoverr;
+  document.getElementById("hover").style.display = "none";
+  e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", String(dragging));
+  tile.classList.add("dragged");
+});
+document.addEventListener("dragover", e => {
+  const tile = e.target.closest && e.target.closest("[data-hoverr]"); if (dragging === null || !tile) return;
+  e.preventDefault();
+  document.querySelectorAll(".rtile.drop").forEach(t => t.classList.remove("drop"));
+  if (+tile.dataset.hoverr !== dragging) tile.classList.add("drop");
+});
+document.addEventListener("drop", e => {
+  const tile = e.target.closest && e.target.closest("[data-hoverr]"); if (dragging === null || !tile) return;
+  e.preventDefault();
+  const from = dragging; dragging = null;
+  if (+tile.dataset.hoverr !== from) moveReview(from, +tile.dataset.hoverr);
+});
+document.addEventListener("dragend", () => {
+  dragging = null;
+  document.querySelectorAll(".rtile.dragged, .rtile.drop").forEach(t => t.classList.remove("dragged", "drop"));
+});
 document.addEventListener("mouseover", e => {
   const tile = e.target.closest("[data-hoverr]");
-  if (tile) return showHover(+tile.dataset.hoverr, tile);
-  if (!e.target.closest("#hover") && !e.target.closest(".rail")) document.getElementById("hover").style.display = "none";
+  if (tile) { if (!dragging) showHover(+tile.dataset.hoverr, tile); return; }
+  if (e.target.closest("#hover")) clearTimeout(hoverTimer);
+  else if (document.getElementById("hover").style.display === "block") hideHoverSoon();
   const dots = e.target.closest("[data-gutter]"), gtip = document.getElementById("gtip");
   if (dots && !dots.closest(".ln.open") && !ui.inline) {
     const at = dots.getBoundingClientRect();
