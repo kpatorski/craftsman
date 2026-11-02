@@ -128,6 +128,13 @@
     cursor: pointer; background: none; }
   .chip:hover { color: var(--text); }
   .chip.on { border-color: var(--neon-dim); color: var(--neon); background: var(--neon-bg); }
+  .wiz .wstep { display: flex; gap: 14px; margin: 6px 0 22px; } .wiz .wstep > .grow { flex: 1; min-width: 0; } .wiz .wl { font-weight: 500; margin-bottom: 8px; }
+  .wiz .wn { width: 24px; height: 24px; flex: none; border-radius: 50%; border: 1px solid var(--neon-dim); color: var(--neon);
+    display: flex; align-items: center; justify-content: center; font-size: 12.5px; }
+  .wiz .chips { display: flex; gap: 8px; flex-wrap: wrap; } .wiz .chip { cursor: pointer; }
+  .wiz .wnote { font-size: 12.5px; margin-top: 10px; line-height: 1.5; } .wiz .wsub { font-size: 12px; display: grid; gap: 4px; }
+  .nr-status { font-size: 12.5px; margin-top: 8px; color: var(--muted); min-height: 18px; }
+  .nr-status.ok { color: var(--neon); } .nr-status.warn { color: var(--should); } .nr-status.error { color: var(--must); }
   .chip b { font-weight: 500; color: inherit; margin-left: 4px; }
   .fsep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
   select.chip { appearance: none; background: var(--bg); }
@@ -320,6 +327,14 @@ let reviewsList = [], R = null, deferred = false;
 const ui = { tab: params.get("tab") || "overview", panel: null, file: params.get("file"), uc: null, ucFile: null,
   fsev: null, fby: null, fstatus: "open", fcat: "", fquestions: false, search: "", codeFilter: "all", editing: null,
   selection: null, sort: { key: "severity", dir: 1 }, inline: localStorage.getItem("craftsman-review-inline") === "1", open: new Set() };
+ui.nr = newReview();
+if (params.has("new")) {
+  // opened by /craftsman:pr-review <source>: the wizard, with the source filled in
+  const given = params.get("new").trim(), branches = !given.startsWith("https://") && given.match(/^([^\s:]+):([^\s:]+)$/);
+  ui.tab = "new";
+  if (branches) Object.assign(ui.nr, { kind: "branches", target: branches[1], source: branches[2] });
+  else ui.nr.url = given;
+}
 const diffs = {}, refs = {};
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -963,21 +978,81 @@ function showTip(card) {
 }
 
 // ================================================================ new and archived reviews
+// The new-review wizard: what is reviewed, then where its code is read from. `ui.nr` holds what is filled in, so a
+// refresh of the page never loses it; the checkout is checked by the server as it is typed or picked.
+const PR_URL = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/\d+\/?$/, BRANCH = /^[^\s:]+$/;
+function newReview() {
+  return { kind: "pr", url: "", target: "", source: "", how: "clone", path: "", check: null, starting: false };
+}
+function nrSource() {
+  const n = ui.nr;
+  return n.kind === "pr" ? n.url.trim() : `${n.target.trim()}:${n.source.trim()}`;
+}
+const nrNeedsPath = () => ui.nr.kind === "branches" || ui.nr.how === "mine";
+function nrReady() {
+  const n = ui.nr, path = !nrNeedsPath() || (n.check && ["ok", "warn"].includes(n.check.state) && n.check.for === n.path.trim());
+  const what = n.kind === "pr" ? PR_URL.test(n.url.trim()) : BRANCH.test(n.target.trim()) && BRANCH.test(n.source.trim());
+  return what && path && !n.starting;
+}
 function viewNew() {
-  return `<div class="card" style="max-width:640px"><h3><span>New review</span></h3>
-    <label class="muted" style="font-size:12.5px">Local checkout</label>
-    <input class="field" id="nr-checkout" list="nr-checkouts" value="${esc((R && S().checkout) || "")}" placeholder="/path/to/the/repository" style="margin:4px 0 4px">
-    <datalist id="nr-checkouts">${[...new Set(reviewsList.map(r => r.checkout).filter(Boolean))].map(c => `<option value="${esc(c)}">`).join("")}</datalist>
-    <div class="muted" style="font-size:12px;margin-bottom:12px">The top folder of the repository's git checkout on this machine.</div>
-    <label class="muted" style="font-size:12.5px">Pull request URL, or <code>target:source</code> branches</label>
-    <input class="field" id="nr-source" placeholder="https://github.com/org/repo/pull/123" style="margin:4px 0 14px">
+  const n = ui.nr, repo = (n.url.trim().match(PR_URL) || []).slice(1).join("/") || "<owner>/<repo>";
+  const chip = (attr, value, on, label) => `<a class="chip${on ? " on" : ""}" data-${attr}="${value}">${label}</a>`;
+  const known = [...new Set(reviewsList.map(r => r.checkout).filter(c => c && !c.startsWith("/tmp/craftsman/")))];
+  const pathField = `<div style="display:flex;gap:8px;margin-top:10px">
+      <input class="field" id="nr-path" list="nr-paths" value="${esc(n.path)}" placeholder="/path/to/the/repository" style="flex:1">
+      <button class="btn" data-nr-browse>Browse…</button></div>
+    <datalist id="nr-paths">${known.map(c => `<option value="${esc(c)}">`).join("")}</datalist>
+    <div class="nr-status" id="nr-status"></div>`;
+  return `<div class="card wiz" style="max-width:720px"><h3><span>New review</span></h3>
+    <div class="wstep"><div class="wn">1</div><div class="grow"><div class="wl">What is reviewed</div>
+      <div class="chips">${chip("nr-kind", "pr", n.kind === "pr", "A pull request")}${chip("nr-kind", "branches", n.kind === "branches", "Two branches of a local repository")}</div>
+      ${n.kind === "pr" ? `<input class="field" id="nr-url" value="${esc(n.url)}" placeholder="https://github.com/org/repo/pull/123" style="margin-top:10px">`
+        : `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+          <label class="muted wsub">Target, merged into<input class="field" id="nr-target" value="${esc(n.target)}" placeholder="main"></label>
+          <label class="muted wsub">Source, under review<input class="field" id="nr-source" value="${esc(n.source)}" placeholder="feature/cancel-reservation"></label></div>`}
+    </div></div>
+    <div class="wstep"><div class="wn">2</div><div class="grow"><div class="wl">Where its code is read from</div>
+      ${n.kind === "pr" ? `<div class="chips">${chip("nr-how", "clone", n.how === "clone", "Clone it for this review")}${chip("nr-how", "mine", n.how === "mine", "My checkout")}</div>
+        ${n.how === "clone" ? `<div class="muted wnote">A partial clone in <code id="nr-clone-to">/tmp/craftsman/repos/${esc(repo)}/</code> — only the files the review reads are
+          downloaded. It is deleted when the review is closed or archived, and made again when the review resumes.</div>`
+          : `<div class="muted wnote">The top folder of a git checkout of the pull request's repository. The review reads the code from its own
+          worktree, so your branch and your changes are never touched.</div>${pathField}`}`
+        : `<div class="muted wnote">The top folder of the git checkout that holds both branches. The review reads the code from its own
+          worktree, so your branch and your changes are never touched.</div>${pathField}`}
+    </div></div>
     <button class="btn go" data-start disabled>Start the review</button></div>`;
 }
-// the same shapes the server accepts: a GitHub pull request URL, or two branches as target:source
-const SOURCE = /^(https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+\/?|[^\s:]+:[^\s:]+)$/;
-function checkNew() {
-  const start = document.querySelector("[data-start]"), checkout = document.getElementById("nr-checkout"), source = document.getElementById("nr-source");
-  if (start) start.disabled = !(checkout && checkout.value.trim() && source && SOURCE.test(source.value.trim()));
+// what changes as the developer types: the checkout's status and the start button, without redrawing the fields
+function paintNew() {
+  const start = document.querySelector("[data-start]"), status = document.getElementById("nr-status"), n = ui.nr;
+  if (start) {
+    start.disabled = !nrReady();
+    start.textContent = n.starting ? (n.kind === "pr" && n.how === "clone" ? "Cloning the repository…" : "Starting…") : "Start the review";
+  }
+  const to = document.getElementById("nr-clone-to"), repo = (n.url.trim().match(PR_URL) || []).slice(1).join("/");
+  if (to) to.textContent = `/tmp/craftsman/repos/${repo || "<owner>/<repo>"}/`;
+  if (!status) return;
+  const c = n.check && n.check.for === n.path.trim() ? n.check : null;
+  status.className = "nr-status" + (c ? " " + c.state : "");
+  status.innerHTML = !n.path.trim() ? "" : !c || c.state === "checking" ? "Checking…"
+    : c.state === "ok" ? `✓ A git repository: <code>${esc(c.checkout)}</code>`
+    : c.state === "warn" ? `⚠ ${esc(c.text)}. Start anyway, or pick another checkout.` : esc(c.text);
+}
+let nrTimer;
+function nrCheck() {
+  clearTimeout(nrTimer);
+  const path = ui.nr.path.trim();
+  if (!path || !nrNeedsPath()) return paintNew();
+  ui.nr.check = { state: "checking", for: path }; paintNew();
+  nrTimer = setTimeout(async () => {
+    const r = await fetch("/api/checkout/check", { method: "POST", headers: { "Content-Type": "application/json", "X-Craftsman": "1" },
+      body: JSON.stringify({ path, source: nrSource() }) });
+    const out = await r.json().catch(() => ({ error: "no answer from the server" }));
+    if (ui.nr.path.trim() !== path) return;
+    ui.nr.check = r.ok ? { state: out.warning ? "warn" : "ok", text: out.warning, checkout: out.checkout, for: path }
+      : { state: "error", text: out.error || "failed", for: path };
+    paintNew();
+  }, 350);
 }
 function viewArchived() {
   const list = reviewsList.filter(r => r.archived);
@@ -1014,11 +1089,11 @@ function render() {
   panel.scrollTop = py; side.scrollTop = sy;
   Object.entries(typed).forEach(([id, [value, start, end]]) => {
     const el = document.getElementById(id); if (!el) return;
-    el.value = value;
+    if (!id.startsWith("nr-")) el.value = value;  // the wizard's fields are drawn from ui.nr, which may be newer
     if (id === focused) { el.focus(); try { el.setSelectionRange(start, end); } catch (_) {} }
   });
   const search = document.getElementById("fsearch"); if (search && search.value !== ui.search) search.value = ui.search;
-  checkNew();
+  paintNew();
 }
 
 // ================================================================ actions
@@ -1050,7 +1125,7 @@ const stepIn = (list, at, by) => list[Math.min(list.length - 1, Math.max(0, list
 
 const CLICKABLE = ["tab", "sort", "restart", "inline", "gutter", "goto", "finding", "thread", "close-panel", "edit", "save", "status", "set-sev", "resolve", "compose", "view", "pick-file",
   "open-file", "step-file", "step-uc", "code-filter", "fsev", "fby", "fquestions", "fstatus", "answer", "live", "refresh", "send", "power",
-  "close-review", "uccard", "close-uc", "ask-uc", "open-review", "archive", "new", "archived", "unarchive", "start", "pop", "new-finding",
+  "close-review", "uccard", "close-uc", "ask-uc", "open-review", "archive", "new", "archived", "unarchive", "start", "pop", "new-finding", "nr-kind", "nr-how", "nr-browse",
   "nf-sev", "nf-save", "answer-here"].map(name => `[data-${name}]`).join(",");
 document.addEventListener("click", async e => {
   if (!e.target.closest("#pop")) { hidePop(); dropSelection(); }
@@ -1155,12 +1230,24 @@ document.addEventListener("click", async e => {
     const id = d.unarchive;
     return api("/api/review/change", { id, action: "archive", archived: false }).then(() => go({ id, ui: { tab: "overview" } }));
   }
-  if (d.new !== undefined) { ui.tab = "new"; ui.panel = null; return render(); }
+  if (d.new !== undefined) { ui.tab = "new"; ui.panel = null; ui.nr = newReview(); return render(); }
+  if (d.nrKind) { ui.nr.kind = d.nrKind; render(); return nrCheck(); }
+  if (d.nrHow) { ui.nr.how = d.nrHow; render(); return nrCheck(); }
+  if (d.nrBrowse !== undefined) {
+    t.disabled = true;
+    const out = await api("/api/checkout/browse", {});
+    t.disabled = false;
+    if (out && out.path) { ui.nr.path = out.path; render(); nrCheck(); }
+    return;
+  }
   if (d.archived !== undefined) { ui.tab = "archived"; ui.panel = null; return render(); }
   if (d.start !== undefined) {
-    const body = { checkout: document.getElementById("nr-checkout").value.trim(), source: document.getElementById("nr-source").value.trim() };
+    if (!nrReady()) return;
+    const n = ui.nr, body = { source: nrSource(), ...(nrNeedsPath() ? { checkout: n.check.checkout } : { clone: true }) };
+    n.starting = true; paintNew();
     const out = await api("/api/review/start", body);
-    if (out) go({ id: out.id, ui: { tab: "overview" } });
+    n.starting = false; paintNew();
+    if (out) { ui.nr = newReview(); go({ id: out.id, ui: { tab: "overview" } }); }
     return;
   }
   if (d.pop) {
@@ -1182,7 +1269,9 @@ document.addEventListener("click", async e => {
   }
 });
 document.addEventListener("change", e => { if (e.target.id === "fcat") { ui.fcat = e.target.value; render(); } });
-document.addEventListener("input", e => { if (e.target.id === "fsearch") { ui.search = e.target.value; render(); } if (e.target.id.startsWith("nr-")) checkNew(); });
+document.addEventListener("input", e => { if (e.target.id === "fsearch") { ui.search = e.target.value; render(); } if (e.target.id.startsWith("nr-")) {
+  const field = { "nr-url": "url", "nr-target": "target", "nr-source": "source", "nr-path": "path" }[e.target.id];
+  if (field) { ui.nr[field] = e.target.value; nrCheck(); } } });
 document.addEventListener("keydown", e => {
   if (e.target.id === "compose" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); document.querySelector("[data-compose]")?.click(); }
   if (e.key === "Escape") { hidePop(); if (ui.uc) openUseCase(ui.uc); }
