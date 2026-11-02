@@ -10,7 +10,7 @@
     font: 300 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
   a { color: inherit; text-decoration: none; cursor: pointer; }
   code, .mono { font-family: var(--mono); font-size: 12.5px; font-weight: 400; }
-  code.inl-c { color: var(--neon); }
+  code.inl-c { color: var(--neon); overflow-wrap: anywhere; }
   b, strong { font-weight: 500; color: var(--heading); }
   button { font: inherit; }
   .muted { color: var(--muted); } .dim { color: var(--dim); }
@@ -288,7 +288,6 @@
   /* where the review is: its steps, and what a tab waits for */
   .steps { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
   .steps i { height: 5px; border-radius: 3px; background: var(--nit-bg); }
-  .steps .cap { grid-row: 2; font-size: 12px; color: var(--muted); margin-top: 4px; }
   .steps i.done { background: var(--neon); } .steps i.now { background: var(--neon-dim); animation: p 1.6s infinite; }
   .steps.wait i.now, .steps.stuck i.now { background: var(--should); animation: none; }
   .steps.restore i.now { background: var(--should); } .steps.off i.now { background: var(--nit-dot); animation: none; }
@@ -455,10 +454,8 @@ function reviewStep() {
   return Math.min(at, 7);
 }
 function stepsStrip(at, mode) {
-  // the step in progress is named under its own bar, so it is clear what the blinking bar stands for
-  const cap = at < STEPS.length / 2 ? `grid-column:${at + 1} / -1;text-align:left` : `grid-column:1 / ${at + 2};text-align:right`;
-  return `<div class="steps ${mode}">${STEPS.map((_, i) => `<i class="${i < at ? "done" : i === at ? "now" : ""}" title="${i + 1}. ${STEPS[i][1]}${i < at ? " · done" : i === at ? " · now" : ""}"></i>`).join("")}` +
-    `<span class="cap" style="${cap}">${at < STEPS.length / 2 ? "↑ " : ""}${mode === "off" ? "stopped here" : mode === "wait" ? "waits for your answer here" : mode === "stuck" ? "silent here" : mode === "restore" ? "restoring the repository…" : "now: it " + STEPS[at][2]}${at < STEPS.length / 2 ? "" : " ↑"}</span></div>`;
+  // one bar per step, always in the same place; the line above the strip says what the AI agent does at the current one
+  return `<div class="steps ${mode}">${STEPS.map((_, i) => `<i class="${i < at ? "done" : i === at ? "now" : ""}" title="${i + 1}. ${STEPS[i][1]}${i < at ? " · done" : i === at ? " · now" : ""}"></i>`).join("")}</div>`;
 }
 // The session is working while it is in a turn or its reviewers run in the background; between turns, with nothing in
 // the background, it is idle. Silence while working is how a stuck session shows: after a while the page says so.
@@ -469,7 +466,7 @@ const stuck = () => R.working && quietFor() > SILENT_AFTER();
 const ago = sec => sec < 90 ? `${sec} s` : sec < 5400 ? `${Math.round(sec / 60)} min` : `${Math.round(sec / 3600)} h`;
 const sessionMode = () => R.restoring ? "restore" : waiting() ? "wait" : stuck() ? "stuck" : idle() ? "idle" : R.running ? "" : "off";
 const doing = () => R.restoring ? "waits while the repository is restored" : waiting() ? "waits for your answer" : stuck() ? `has been silent for ${ago(quietFor())}` : idle() ? "is idle — ask it anything"
-  : R.running ? "is working on it" : S().closed ? "— the review is closed" : "— its session is stopped";
+  : R.running ? STEPS[reviewStep()][2] : S().closed ? "— the review is closed" : "— its session is stopped";
 // Under the tabs until the review reaches its last step: where it is, and what the AI agent does now.
 function progressLine() {
   const at = reviewStep();
@@ -1035,7 +1032,7 @@ function paintNew() {
   const c = n.check && n.check.for === n.path.trim() ? n.check : null;
   status.className = "nr-status" + (c ? " " + c.state : "");
   status.innerHTML = !n.path.trim() ? "" : !c || c.state === "checking" ? "Checking…"
-    : c.state === "ok" ? `✓ A git repository: <code>${esc(c.checkout)}</code>`
+    : c.state === "ok" ? "✓ A git repository" + (c.checkout !== n.path.trim().replace(/\/+$/, "") ? `, read from <code>${esc(c.checkout)}</code>` : "")
     : c.state === "warn" ? `⚠ ${esc(c.text)}. Start anyway, or pick another checkout.` : esc(c.text);
 }
 let nrTimer;
