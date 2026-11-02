@@ -251,7 +251,9 @@ class Handler(BaseHTTPRequestHandler):
             reviews.review_dir(project, review_id)
             runner = self.hub.session(project, review_id)
             if path == "/api/review":
-                return self.send(200, dict(reviews.read_review(project, review_id), running=runner.running()))
+                return self.send(200, dict(reviews.read_review(project, review_id), running=runner.running(),
+                                           working=runner.working(), background=runner.background,
+                                           quiet=runner.quiet()))
             if path == "/api/review/resume":
                 if not runner.running():
                     runner.resume()

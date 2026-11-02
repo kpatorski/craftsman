@@ -11,6 +11,7 @@ import os
 import pathlib
 import subprocess
 import threading
+import time
 
 import _reviews as reviews
 import review_state
@@ -43,6 +44,13 @@ def claude_command():
     return os.environ.get("CRAFTSMAN_CLAUDE", "claude").split()
 
 
+def still_running(stats):
+    """Subagents a turn started in the background that have not finished: the counts are for the whole session."""
+    killed = stats.get("killed") or {}
+    ended = stats.get("completed", 0) + stats.get("failed", 0) + sum(killed.values() if isinstance(killed, dict) else [killed])
+    return max(0, stats.get("spawned", 0) - ended)
+
+
 class ReviewSession:
     def __init__(self, project, review_id, command=None):
         self.project = pathlib.Path(project)
@@ -51,6 +59,7 @@ class ReviewSession:
         self.process = None
         self.lock = threading.Lock()
         self.turn = False
+        self.background = 0
         self.delivered = set()
         self.reader = None
 
@@ -91,6 +100,16 @@ class ReviewSession:
         with self.lock:
             return self.turn
 
+    def working(self):
+        """In a turn, or between turns while subagents it started in the background still run."""
+        with self.lock:
+            return self.running() and (self.turn or self.background > 0)
+
+    def quiet(self):
+        """Seconds since the session last wrote an event, or None when it has written none."""
+        transcript = self.review / "session.jsonl"
+        return round(time.time() - transcript.stat().st_mtime) if transcript.exists() else None
+
     # ---- talking to the session ---------------------------------------------------------------------------------
 
     def deliver(self):
@@ -116,6 +135,7 @@ class ReviewSession:
     def spawn(self, extra):
         self.review.mkdir(parents=True, exist_ok=True)
         self.delivered = set()
+        self.background = 0
         argv = self.command + ["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
                                "--replay-user-messages",
                                "--permission-mode", "dontAsk", "--allowedTools", *allowed_tools(self.project)] + extra
@@ -144,6 +164,7 @@ class ReviewSession:
                     self.record_session(session)
                     with self.lock:
                         self.turn = False
+                        self.background = still_running(event.get("subagent_stats") or {})
                     if self.closed():
                         process.stdin.close()
                     else:

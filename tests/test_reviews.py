@@ -314,6 +314,29 @@ class ReviewEndpointsTest(ReviewsTest):
         self.assertEqual(status, 200)
         self.assertEqual(body["state"]["scope"], "Cancels a reservation.")
 
+    def test_the_page_sees_whether_the_agent_is_in_a_turn_and_how_long_it_has_been_quiet(self):
+        status, body = self.call(f"/api/review?project={self.project}&id=pr-123")
+        self.assertEqual((status, body["working"], body["quiet"]), (200, False, None))
+
+        self.call("/api/review/start", {"project": str(self.project), "source": "main:feature/x"})
+        deadline, body = time.time() + 10, {}
+        while time.time() < deadline and not (body.get("running") and not body.get("working")
+                                              and body.get("quiet") is not None):
+            _, body = self.call(f"/api/review?project={self.project}&id=main..feature-x")
+
+        self.assertEqual((body["running"], body["working"]), (True, False))
+        self.assertGreaterEqual(body["quiet"], 0)
+
+    def test_the_agent_still_works_while_its_reviewers_run_in_the_background(self):
+        os.environ["FAKE_BACKGROUND"] = "2"
+        self.addCleanup(os.environ.pop, "FAKE_BACKGROUND")
+        self.call("/api/review/start", {"project": str(self.project), "source": "main:feature/x"})
+        deadline, body = time.time() + 10, {}
+        while time.time() < deadline and body.get("background") != 2:
+            _, body = self.call(f"/api/review?project={self.project}&id=main..feature-x")
+
+        self.assertEqual((body["background"], body["working"]), (2, True))
+
     def test_the_page_changes_a_finding_and_sends_a_message(self):
         status, _ = self.call("/api/review/change", {"project": str(self.project), "id": "pr-123", "action": "status",
                                                       "finding": "f1", "status": "to-send"})
