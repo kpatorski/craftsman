@@ -20,24 +20,13 @@ SCRIPTS = pathlib.Path(__file__).resolve().parent
 # A `Bash(<prefix>:*)` rule matches whole words of the command, so each script is named by its full path.
 ALLOWED_TOOLS = ["Read", "Grep", "Glob", "Agent", "Skill", "TodoWrite", "Bash(git:*)", "Bash(gh:*)"] + [
     f"Bash(python3 {script}:*)" for script in sorted(SCRIPTS.glob("*.py")) if not script.name.startswith("_")]
-EXCLUDED = ".claude/reviews/"
 
 
-def allowed_tools(project):
-    """The fixed list, plus writing this project's craftsman session files -- by absolute path (`//`), the form a
+def allowed_tools(checkout):
+    """The fixed list, plus writing the checkout's craftsman session files -- by absolute path (`//`), the form a
     headless session matches against the absolute paths the agent writes to."""
-    sessions = f"/{pathlib.Path(project).resolve()}/.claude/sessions/**"
+    sessions = f"/{pathlib.Path(checkout).resolve()}/.claude/sessions/**"
     return ALLOWED_TOOLS + [f"Write({sessions})", f"Edit({sessions})"]
-
-
-def keep_out_of_git_status(project):
-    """Add `.claude/reviews/` to the repository's own `.git/info/exclude`, once; never to its `.gitignore`."""
-    exclude = pathlib.Path(project) / ".git" / "info" / "exclude"
-    if exclude.parent.parent.is_dir():
-        lines = exclude.read_text().splitlines() if exclude.exists() else []
-        if EXCLUDED not in lines:
-            exclude.parent.mkdir(exist_ok=True)
-            exclude.write_text("\n".join(lines + [EXCLUDED]) + "\n")
 
 
 def claude_command():
@@ -52,9 +41,12 @@ def still_running(stats):
 
 
 class ReviewSession:
-    def __init__(self, project, review_id, command=None):
-        self.project = pathlib.Path(project)
-        self.review = reviews.reviews_root(project) / review_id
+    """One review's session. It runs in the developer's checkout of the repository, given when the review starts and
+    read from `review.json` when it resumes."""
+
+    def __init__(self, review_id, checkout=None, command=None):
+        self.review = reviews.reviews_root() / review_id
+        self.checkout = pathlib.Path(checkout) if checkout else None
         self.command = command or claude_command()
         self.process = None
         self.lock = threading.Lock()
@@ -66,15 +58,17 @@ class ReviewSession:
     # ---- lifecycle ----------------------------------------------------------------------------------------------
 
     def start(self, source):
-        """A new review: the session opens it with the review command."""
-        keep_out_of_git_status(self.project)
+        """A new review: the session opens it with the review command, naming the review's folder and the checkout."""
         self.spawn([])
-        self.send(f"/craftsman:pr-review --headless {source}")
+        self.send(f"/craftsman:pr-review --headless {source} --review {self.review} --checkout {self.checkout}")
 
     def resume(self):
         """The same conversation again, e.g. after the server restarted; what it has not handled is passed first."""
-        session = review_state.read(self.review).get("session")
-        keep_out_of_git_status(self.project)
+        state = review_state.read(self.review)
+        session = state.get("session")
+        self.checkout = pathlib.Path(state["checkout"]) if state.get("checkout") else self.checkout
+        if self.checkout is None or not self.checkout.is_dir():
+            raise review_state.Refused(f"the checkout of {self.review.name} is missing: {self.checkout}")
         self.spawn(["--resume", session] if session else [])
         self.deliver()
 
@@ -138,9 +132,9 @@ class ReviewSession:
         self.background = 0
         argv = self.command + ["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
                                "--replay-user-messages",
-                               "--permission-mode", "dontAsk", "--allowedTools", *allowed_tools(self.project)] + extra
+                               "--permission-mode", "dontAsk", "--allowedTools", *allowed_tools(self.checkout)] + extra
         errors = (self.review / "session.stderr").open("a")
-        self.process = subprocess.Popen(argv, cwd=self.project, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+        self.process = subprocess.Popen(argv, cwd=self.checkout, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                         stderr=errors, text=True, bufsize=1)
         errors.close()
         self.reader = threading.Thread(target=self.read, args=(self.process,), daemon=True)

@@ -312,10 +312,10 @@
 <div class="toast" id="toast"></div>
 <script>
 // ================================================================ state
-// One review is shown at a time: `project` + `id` from the address. `ui` is what the developer looks at in it.
+// One review is shown at a time: its `id` from the address. `ui` is what the developer looks at in it.
 const params = new URLSearchParams(location.search);
-let current = { project: params.get("project"), id: params.get("review") };
-let reviewsList = [], projects = [], R = null, deferred = false;
+let current = { id: params.get("review") };
+let reviewsList = [], R = null, deferred = false;
 const ui = { tab: params.get("tab") || "overview", panel: null, file: params.get("file"), uc: null, ucFile: null,
   fsev: null, fby: null, fstatus: "open", fcat: "", fquestions: false, search: "", codeFilter: "all", editing: null,
   selection: null, sort: { key: "severity", dir: 1 }, inline: localStorage.getItem("craftsman-review-inline") === "1", open: new Set() };
@@ -324,8 +324,9 @@ const diffs = {}, refs = {};
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 // one line the agent wrote: escaped, with `code` and **bold** as markdown renders them
 const inline = s => esc(s).replace(/`([^`]+)`/g, '<code class="inl-c">$1</code>').replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
-const K = () => ({ project: current.project, id: current.id });
-const q = () => `project=${encodeURIComponent(current.project)}&id=${encodeURIComponent(current.id)}`;
+const K = () => ({ id: current.id });
+const q = () => `id=${encodeURIComponent(current.id)}`;
+const folder = path => String(path || "").split("/").pop();
 const SEV = { "must-fix": "Must fix", "should-fix": "Should fix", "nit": "Nit" };
 const SEVS = Object.keys(SEV);
 const KIND = { added: "+", modified: "~", renamed: "~", deleted: "−", unchanged: "·" };
@@ -346,13 +347,12 @@ const stepAt = id => STEPS.findIndex(([k]) => k === id);
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 async function reload() {
-  const [list, ping] = await Promise.all([fetch("/api/reviews"), fetch("/api/ping")]);
+  const list = await fetch("/api/reviews");
   reviewsList = list.ok ? (await list.json()).reviews : [];
-  projects = ping.ok ? (await ping.json()).found : [];
   if (!current.id) {
     const open = reviewsList.filter(r => !r.archived && !r.closed);
     const first = open.find(r => r.checkpoint) || open[0];
-    if (first) current = { project: first.project, id: first.id };
+    if (first) current = { id: first.id };
   }
   if (current.id) {
     const r = await fetch("/api/review?" + q());
@@ -383,13 +383,13 @@ const api = async (path, body) => {
 };
 const change = (action, body) => api("/api/review/change", { ...K(), action, ...body });
 function go(target) {
-  const other = target.id !== undefined && (target.id !== current.id || target.project !== current.project);
-  if (target.id !== undefined) current = { project: target.project, id: target.id };
+  const other = target.id !== undefined && target.id !== current.id;
+  if (target.id !== undefined) current = { id: target.id };
   Object.assign(ui, target.ui || {});
   if (other) { R = null; Object.keys(diffs).forEach(k => delete diffs[k]); Object.keys(refs).forEach(k => delete refs[k]);
     Object.assign(ui, { panel: null, uc: null, file: null, selection: null }); }
   const p = new URLSearchParams();
-  if (current.id) { p.set("project", current.project); p.set("review", current.id); }
+  if (current.id) p.set("review", current.id);
   if (ui.tab !== "overview") p.set("tab", ui.tab);
   if (ui.tab === "code" && ui.file) p.set("file", ui.file);
   history.replaceState(null, "", "?" + p.toString());
@@ -481,7 +481,7 @@ function pendingCard(step, what) {
 function renderRail() {
   const shown = reviewsList.filter(r => !r.archived), archived = reviewsList.length - shown.length;
   document.getElementById("rail").innerHTML = shown.map((r, i) => {
-    const pr = pull(r.source), here = r.id === current.id && r.project === current.project;
+    const pr = pull(r.source), here = r.id === current.id;
     return `<div class="rtile${here ? " on" : ""}" data-open-review="${i}" data-hoverr="${i}">${pr ? "#" + pr.number : "⑂"}` +
       `${r.checkpoint ? '<span class="badge"></span>' : ""}</div>`;
   }).join("") + `<div class="rsep"></div><div class="rtile" data-new title="New review">＋</div>` +
@@ -493,7 +493,7 @@ function showHover(i, tile) {
   const total = Object.entries(counts).filter(([k]) => !["merged", "deleted"].includes(k)).reduce((a, [, n]) => a + n, 0);
   h.innerHTML = `<div class="muted" style="font-size:12px">${esc(sourceLabel(r.source))}</div>
     <div class="t">${esc((r.source && r.source.title) || r.id)}</div>
-    <div class="muted">${esc(r.project.split("/").pop())}</div>
+    <div class="muted">${esc(folder(r.checkout))}</div>
     <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">${r.checkpoint ? '<span class="tag amber">AI Agent waits for your answer</span>' : ""}
       ${r.running ? '<span class="tag green">session running</span>' : '<span class="tag">session stopped</span>'}
       <span class="tag">${plural(total, "finding")}</span>${r.closed ? '<span class="tag">closed</span>' : ""}</div>
@@ -704,7 +704,7 @@ function panelLog() {
     <h2>${R.running ? "Running" : "Stopped"}</h2>
     <div class="row-actions">${R.running ? '<button class="btn sm" data-power>Stop the session</button>' : '<button class="btn go sm" data-power>Start the session</button>'}
       <button class="btn danger sm" data-close-review>Close the review</button></div>
-    ${s.session ? `<div class="box"><div class="l">Continue it in the CLI, once the session is stopped</div><code>cd ${esc(current.project)} && claude --resume ${esc(s.session)}</code></div>` : ""}
+    ${s.session ? `<div class="box"><div class="l">Continue it in the CLI, once the session is stopped</div><code>cd ${esc(s.checkout)} && claude --resume ${esc(s.session)}</code></div>` : ""}
     <div class="box log">${(R.console || []).map(l => `<div class="${l.kind}">${esc(l.text)}</div>`).join("") || '<span class="muted">Nothing yet.</span>'}</div>`;
 }
 function renderPanel() {
@@ -960,10 +960,10 @@ function showTip(card) {
 // ================================================================ new and archived reviews
 function viewNew() {
   return `<div class="card" style="max-width:640px"><h3><span>New review</span></h3>
-    <label class="muted" style="font-size:12.5px">Project</label>
-    <input class="field" id="nr-project" list="nr-projects" value="${esc(current.project || projects[0] || "")}" placeholder="/path/to/the/repository" style="margin:4px 0 4px">
-    <datalist id="nr-projects">${projects.map(p => `<option value="${esc(p)}">`).join("")}</datalist>
-    <div class="muted" style="font-size:12px;margin-bottom:12px">The top folder of a git repository on this machine. A new one joins the dashboard.</div>
+    <label class="muted" style="font-size:12.5px">Local checkout</label>
+    <input class="field" id="nr-checkout" list="nr-checkouts" value="${esc((R && S().checkout) || "")}" placeholder="/path/to/the/repository" style="margin:4px 0 4px">
+    <datalist id="nr-checkouts">${[...new Set(reviewsList.map(r => r.checkout).filter(Boolean))].map(c => `<option value="${esc(c)}">`).join("")}</datalist>
+    <div class="muted" style="font-size:12px;margin-bottom:12px">The top folder of the repository's git checkout on this machine.</div>
     <label class="muted" style="font-size:12.5px">Pull request URL, or <code>target:source</code> branches</label>
     <input class="field" id="nr-source" placeholder="https://github.com/org/repo/pull/123" style="margin:4px 0 14px">
     <button class="btn go" data-start disabled>Start the review</button></div>`;
@@ -971,19 +971,19 @@ function viewNew() {
 // the same shapes the server accepts: a GitHub pull request URL, or two branches as target:source
 const SOURCE = /^(https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+\/?|[^\s:]+:[^\s:]+)$/;
 function checkNew() {
-  const start = document.querySelector("[data-start]"), project = document.getElementById("nr-project"), source = document.getElementById("nr-source");
-  if (start) start.disabled = !(project && project.value.trim() && source && SOURCE.test(source.value.trim()));
+  const start = document.querySelector("[data-start]"), checkout = document.getElementById("nr-checkout"), source = document.getElementById("nr-source");
+  if (start) start.disabled = !(checkout && checkout.value.trim() && source && SOURCE.test(source.value.trim()));
 }
 function viewArchived() {
   const list = reviewsList.filter(r => r.archived);
   return `<div class="card" style="max-width:720px"><h3><span>Archived reviews</span></h3>${list.map(r => `<div class="row" style="grid-template-columns:minmax(0,1fr) auto">
-    <span>${esc((r.source && r.source.title) || sourceLabel(r.source))} <span class="muted">· ${esc(r.project.split("/").pop())}</span></span>
-    <button class="btn sm" data-unarchive="${esc(r.project)}|${esc(r.id)}">Bring back</button></div>`).join("") || '<span class="muted">Nothing archived.</span>'}</div>`;
+    <span>${esc((r.source && r.source.title) || sourceLabel(r.source))} <span class="muted">· ${esc(folder(r.checkout))}</span></span>
+    <button class="btn sm" data-unarchive="${esc(r.id)}">Bring back</button></div>`).join("") || '<span class="muted">Nothing archived.</span>'}</div>`;
 }
 
 // ================================================================ render
 function busy() {
-  // nor does it close the list of projects while the developer picks one from it
+  // nor does it close the list of checkouts while the developer picks one from it
   return document.getElementById("pop").style.display === "flex" || (document.activeElement?.id || "").startsWith("nr-") ||
     (getSelection().toString() !== "" && !["TEXTAREA", "INPUT"].includes(document.activeElement?.tagName));
 }
@@ -1137,26 +1137,25 @@ document.addEventListener("click", async e => {
   if (d.openReview !== undefined) {
     const r = reviewsList.filter(x => !x.archived)[+d.openReview];
     document.getElementById("hover").style.display = "none";
-    return go({ project: r.project, id: r.id, ui: { tab: "overview" } });
+    return go({ id: r.id, ui: { tab: "overview" } });
   }
   if (d.archive !== undefined) {
     const r = reviewsList.filter(x => !x.archived)[+d.archive];
     document.getElementById("hover").style.display = "none";
-    const ok = await api("/api/review/change", { project: r.project, id: r.id, action: "archive", archived: true });
-    if (ok && r.id === current.id && r.project === current.project) { current = { project: null, id: null }; R = null; }
+    const ok = await api("/api/review/change", { id: r.id, action: "archive", archived: true });
+    if (ok && r.id === current.id) { current = { id: null }; R = null; }
     return reload();
   }
   if (d.unarchive) {
-    const [project, id] = d.unarchive.split("|");
-    return api("/api/review/change", { project, id, action: "archive", archived: false }).then(() => go({ project, id, ui: { tab: "overview" } }));
+    const id = d.unarchive;
+    return api("/api/review/change", { id, action: "archive", archived: false }).then(() => go({ id, ui: { tab: "overview" } }));
   }
   if (d.new !== undefined) { ui.tab = "new"; ui.panel = null; return render(); }
   if (d.archived !== undefined) { ui.tab = "archived"; ui.panel = null; return render(); }
   if (d.start !== undefined) {
-    const body = { project: document.getElementById("nr-project").value.trim(), source: document.getElementById("nr-source").value.trim() };
-    if (!projects.includes(body.project) && !await api("/api/projects", { path: body.project })) return;
+    const body = { checkout: document.getElementById("nr-checkout").value.trim(), source: document.getElementById("nr-source").value.trim() };
     const out = await api("/api/review/start", body);
-    if (out) go({ project: body.project, id: out.id, ui: { tab: "overview" } });
+    if (out) go({ id: out.id, ui: { tab: "overview" } });
     return;
   }
   if (d.pop) {

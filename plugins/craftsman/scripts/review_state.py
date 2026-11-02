@@ -30,8 +30,8 @@ SEVERITY = ("must-fix", "should-fix", "nit")
 TEXT_FIELDS = ("title", "description", "comment")
 DEVELOPER_FIELDS = TEXT_FIELDS + ("severity",)
 AGENT_FIELDS = DEVELOPER_FIELDS + ("category", "locations", "directive", "kind", "when")
-SETTABLE = ("source", "base", "head", "refreshed", "session", "closed", "language", "scope", "requirements", "tickets",
-            "structure", "rules", "checkpoint")
+SETTABLE = ("source", "checkout", "base", "head", "refreshed", "session", "closed", "language", "scope",
+            "requirements", "tickets", "structure", "rules", "checkpoint")
 STATUS_BY = {
     "agent": ("maybe-resolved", "merged", "proposed"),
     "developer": ("to-send", "deleted", "proposed"),
@@ -45,8 +45,8 @@ class Refused(Exception):
     pass
 
 
-def empty_state(source, base, head):
-    return {"source": source, "base": base, "head": head, "refreshed": None, "session": None, "closed": None,
+def empty_state(source, base, head, checkout=None):
+    return {"source": source, "checkout": checkout, "base": base, "head": head, "refreshed": None, "session": None, "closed": None,
             "language": None, "scope": None, "requirements": None, "tickets": [], "structure": None, "rules": [],
             "checkpoint": None, "findings": [], "threads": [], "viewed": [], "archived": False, "handled": []}
 
@@ -131,7 +131,7 @@ def init(review, payload, by):
         raise Refused(f"{review.name} is already in progress; it is resumed, never overwritten")
     (review / "diff").mkdir(parents=True, exist_ok=True)
     shutil.copyfile(payload["diff"], review / "diff" / f"{payload['head']}.diff")
-    return empty_state(payload["source"], payload["base"], payload["head"]), None
+    return empty_state(payload["source"], payload["base"], payload["head"], payload.get("checkout")), None
 
 
 def set_fields(state, payload, by):

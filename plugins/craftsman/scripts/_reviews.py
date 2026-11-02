@@ -1,7 +1,8 @@
-"""The review side of the dashboard: listing a project's reviews, the changes the page makes as the developer, and
+"""The review side of the dashboard: listing the reviews in the craftsman home, the changes the page makes as the developer, and
 the inbox through which the page's requests reach the review's session -- see REVIEW.md."""
 import datetime
 import json
+import os
 import pathlib
 import re
 
@@ -13,59 +14,66 @@ MESSAGE_FIELDS = {"answer": ("checkpoint", "option"), "refresh": (), "ask": ("th
 DIFF_HEADER = re.compile(r"^diff --git a/(.*) b/(.*)$")
 
 
-PULL_REQUEST = re.compile(r"^https://github\.com/[^/]+/[^/]+/pull/(\d+)/?$")
+PULL_REQUEST = re.compile(r"^https://github\.com/([^/]+)/([^/]+)/pull/(\d+)/?$")
 BRANCHES = re.compile(r"^([^\s:]+):([^\s:]+)$")
 
 
-def review_id_for(source):
-    """`pr-<number>` for a pull request URL, `<target>..<source>` with `/` replaced by `-` for two branches."""
+def review_id_for(source, checkout=None):
+    """Unique across every repository: `<owner>-<repo>-pr-<number>` for a pull request URL; for two branches,
+    `<checkout folder>-<target>..<source>` with `/` replaced by `-`."""
     pull = PULL_REQUEST.match(source or "")
     if pull:
-        return f"pr-{pull.group(1)}"
+        return f"{pull.group(1)}-{pull.group(2)}-pr-{pull.group(3)}"
     branches = BRANCHES.match(source or "")
+    if branches and checkout:
+        return f"{pathlib.Path(checkout).name}-{branches.group(1)}..{branches.group(2)}".replace("/", "-")
     if branches:
-        return f"{branches.group(1)}..{branches.group(2)}".replace("/", "-")
+        raise review_state.Refused("two branches are reviewed in a local checkout; name it")
     raise review_state.Refused(f"not a pull request URL or <target>:<source>: {source!r}")
 
 
-def reviews_root(project):
-    return pathlib.Path(project) / ".claude" / "reviews"
+def home():
+    """The craftsman home, `~/.craftsman`; `CRAFTSMAN_HOME` moves it (the tests do)."""
+    return pathlib.Path(os.environ.get("CRAFTSMAN_HOME") or pathlib.Path.home() / ".craftsman")
 
 
-def review_dir(project, review_id):
-    review = reviews_root(project) / review_id
+def reviews_root():
+    return home() / "reviews"
+
+
+def review_dir(review_id):
+    review = reviews_root() / (review_id or "")
     if not ID.match(review_id or "") or not (review / "review.json").is_file():
-        raise review_state.Refused(f"no review {review_id!r} in {project}")
+        raise review_state.Refused(f"no review {review_id!r}")
     return review
 
 
-def list_reviews(projects):
+def list_reviews():
     listed = []
-    for project in projects:
-        for state_file in sorted(reviews_root(project).glob("*/review.json")):
-            try:
-                state = json.loads(state_file.read_text())
-            except (OSError, ValueError):
-                continue
-            counts = {}
-            for found in state.get("findings", []):
-                counts[found["status"]] = counts.get(found["status"], 0) + 1
-            listed.append({"id": state_file.parent.name, "project": str(project), "source": state.get("source"),
-                           "head": state.get("head"), "closed": state.get("closed"), "findings": counts,
-                           "archived": bool(state.get("archived")),
-                           "checkpoint": bool(state.get("checkpoint") and not state["checkpoint"].get("answer"))})
+    for state_file in sorted(reviews_root().glob("*/review.json")):
+        try:
+            state = json.loads(state_file.read_text())
+        except (OSError, ValueError):
+            continue
+        counts = {}
+        for found in state.get("findings", []):
+            counts[found["status"]] = counts.get(found["status"], 0) + 1
+        listed.append({"id": state_file.parent.name, "checkout": state.get("checkout"), "source": state.get("source"),
+                       "head": state.get("head"), "closed": state.get("closed"), "findings": counts,
+                       "archived": bool(state.get("archived")),
+                       "checkpoint": bool(state.get("checkpoint") and not state["checkpoint"].get("answer"))})
     return listed
 
 
-def read_review(project, review_id):
+def read_review(review_id):
     """The state, plus what the server works out from the diff: every changed file with how it changed, which use
     cases it belongs to and whether the developer viewed it, and the files no use case reaches."""
-    review = review_dir(project, review_id)
+    review = review_dir(review_id)
     state = review_state.read(review)
     use_cases = (state.get("structure") or {}).get("use-cases", [])
     viewed = set(state.get("viewed", []))
     files = [{**changed, "use-cases": [u["id"] for u in use_cases if changed["path"] in u.get("files", [])],
-              "viewed": changed["path"] in viewed} for changed in changed_files(diff_text(project, review_id))]
+              "viewed": changed["path"] in viewed} for changed in changed_files(diff_text(review_id))]
     return {"state": state, "pending": len(pending_messages(review)), "html": rendered(state),
             "console": console_lines(review), "files": files,
             "untied": [changed["path"] for changed in files if not changed["use-cases"]]}
@@ -115,9 +123,9 @@ def console_lines(review, limit=400):
     return lines[-limit:]
 
 
-def diff_text(project, review_id, path=None):
+def diff_text(review_id, path=None):
     """The diff of the reviewed head; with `path`, only that file's part of it."""
-    review = review_dir(project, review_id)
+    review = review_dir(review_id)
     text = (review / "diff" / f"{review_state.read(review)['head']}.diff").read_text()
     if path is None:
         return text
@@ -154,9 +162,9 @@ def changed_files(text):
     return files
 
 
-def references(project, review_id, path, limit=50):
+def references(review_id, path, limit=50):
     """Where the reviewed code still names a deleted file's class or module: `path:line` in the review's worktree."""
-    review = review_dir(project, review_id)
+    review = review_dir(review_id)
     worktree = review / "worktree"
     name = re.compile(r"\b" + re.escape(pathlib.PurePath(path).stem) + r"\b")
     found = []
@@ -174,20 +182,20 @@ def references(project, review_id, path, limit=50):
     return found[:limit]
 
 
-def developer_change(project, review_id, action, body):
+def developer_change(review_id, action, body):
     """A change the page makes as the developer. A question or a reply in a thread also goes to the inbox, so the
     review's session answers it. Raises Refused."""
-    review = review_dir(project, review_id)
+    review = review_dir(review_id)
     if action == "add-finding":
         return review_state.change(review, "add-finding", body.get("fields") or {}, "developer")
     if action == "ask":
         thread = review_state.change(review, "open-thread", {key: body.get(key) for key in ("about", "quote", "text")},
                                      "developer")
-        add_message(project, review_id, {"type": "ask", "thread": thread})
+        add_message(review_id, {"type": "ask", "thread": thread})
         return thread
     if action == "reply":
         review_state.change(review, "reply", {"text": body.get("text")}, "developer", body.get("thread"))
-        return add_message(project, review_id, {"type": "ask", "thread": body.get("thread")})
+        return add_message(review_id, {"type": "ask", "thread": body.get("thread")})
     if action == "resolve":
         return review_state.change(review, "resolve", {}, "developer", body.get("thread"))
     if action in ("view", "unview"):
@@ -202,14 +210,14 @@ def developer_change(project, review_id, action, body):
     if action == "answer":
         checkpoint = review_state.read(review).get("checkpoint") or {}
         review_state.change(review, "answer", {"option": body.get("option"), "note": body.get("note")}, "developer")
-        return add_message(project, review_id, {"type": "answer", "checkpoint": checkpoint.get("id"),
+        return add_message(review_id, {"type": "answer", "checkpoint": checkpoint.get("id"),
                                                 "option": body.get("option"), "note": body.get("note")})
     raise review_state.Refused(f"unknown change {action!r}")
 
 
-def add_message(project, review_id, message):
+def add_message(review_id, message):
     """Append one request for the review's session to its inbox; returns the message id. Raises Refused."""
-    review = review_dir(project, review_id)
+    review = review_dir(review_id)
     kind = message.get("type")
     if kind not in MESSAGE_FIELDS:
         raise review_state.Refused(f"unknown message type {kind!r}")
@@ -235,7 +243,7 @@ def pending_messages(review):
     return [message for message in messages if message["id"] not in handled]
 
 
-def watched(project):
+def watched():
     """The review files whose change should refresh the page."""
-    root = reviews_root(project)
+    root = reviews_root()
     return [root] + sorted(root.glob("*")) + sorted(root.glob("*/review.json")) + sorted(root.glob("*/session.jsonl"))

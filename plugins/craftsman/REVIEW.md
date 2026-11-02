@@ -6,8 +6,9 @@ about the developer's requests from the inbox, which the dashboard server passes
 
 ## Where it lives
 
-`<project>/.claude/reviews/<review-id>/`, where `<project>` is the checked-out repository and `<review-id>` is
-`pr-<number>` for a pull request, or `<target>..<source>` (slashes replaced by `-`) for two branches.
+`~/.craftsman/reviews/<review-id>/`, apart from the repository it reviews. `<review-id>` is `<owner>-<repo>-pr-<number>`
+for a pull request, or `<checkout folder>-<target>..<source>` (slashes replaced by `-`) for two branches. Nothing is
+written into the reviewed repository; `review.json` records the path of its checkout, where the review's session runs.
 
 | File             | Written by                | Holds                                                           |
 |------------------|---------------------------|-----------------------------------------------------------------|

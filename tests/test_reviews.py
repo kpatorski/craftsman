@@ -61,105 +61,129 @@ rename to D.java
 """
 
 
+ID = "org-booking-pr-123"
+BRANCHES = "booking-main..feature-x"
+
+
 class ReviewsTest(unittest.TestCase):
+    """A review lives in the craftsman home, apart from the repository it reviews: `self.home` stands in for
+    `~/.craftsman`, `self.checkout` for the developer's checkout of the repository."""
+
     def setUp(self):
-        self.project = pathlib.Path(tempfile.mkdtemp()).resolve()
-        self.review = self.project / ".claude" / "reviews" / "pr-123"
-        diff = self.project / "change.diff"
+        self.tmp = pathlib.Path(tempfile.mkdtemp()).resolve()
+        self.home, self.checkout = self.tmp / "craftsman-home", self.tmp / "booking"
+        self.checkout.mkdir()
+        self.real_home = os.environ.get("CRAFTSMAN_HOME")
+        os.environ["CRAFTSMAN_HOME"] = str(self.home)
+        self.review = self.home / "reviews" / ID
+        diff = self.tmp / "change.diff"
         diff.write_text(DIFF)
-        review_state.change(self.review, "init", {"source": SOURCE, "base": "aaa", "head": "bbb", "diff": str(diff)})
+        review_state.change(self.review, "init", {"source": SOURCE, "base": "aaa", "head": "bbb", "diff": str(diff),
+                                                  "checkout": str(self.checkout)})
         review_state.change(self.review, "set", {"scope": "Cancels a reservation."})
         review_state.change(self.review, "add-finding", FINDING)
 
     def tearDown(self):
-        shutil.rmtree(self.project)
+        if self.real_home is None:
+            os.environ.pop("CRAFTSMAN_HOME", None)
+        else:
+            os.environ["CRAFTSMAN_HOME"] = self.real_home
+        shutil.rmtree(self.tmp)
 
     def inbox(self):
         path = self.review / "inbox.jsonl"
         return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
 
-    def test_a_project_with_reviews_is_a_craftsman_project(self):
-        self.assertEqual(dashboard_server.data.discover_projects(self.project), [self.project])
+    def test_reviews_live_in_the_craftsman_home(self):
+        os.environ.pop("CRAFTSMAN_HOME")
 
-    def test_the_reviews_of_a_project_are_listed_with_their_counts(self):
-        listed = reviews.list_reviews([self.project])
+        self.assertEqual(reviews.reviews_root(), pathlib.Path.home() / ".craftsman" / "reviews")
+
+    def test_a_review_leaves_nothing_in_the_repository_it_reviews(self):
+        self.assertFalse((self.checkout / ".claude").exists())
+
+    def test_every_review_is_listed_with_its_checkout_and_counts(self):
+        listed = reviews.list_reviews()
 
         self.assertEqual(len(listed), 1)
-        self.assertEqual(listed[0]["id"], "pr-123")
-        self.assertEqual(listed[0]["project"], str(self.project))
+        self.assertEqual(listed[0]["id"], ID)
+        self.assertEqual(listed[0]["checkout"], str(self.checkout))
         self.assertEqual(listed[0]["source"], SOURCE)
         self.assertEqual(listed[0]["findings"], {"proposed": 1})
 
     def test_the_page_edits_a_finding_as_the_developer(self):
-        reviews.developer_change(self.project, "pr-123", "edit", {"finding": "f1", "fields": {"comment": "Mine."}})
+        reviews.developer_change(ID, "edit", {"finding": "f1", "fields": {"comment": "Mine."}})
 
         found = review_state.read(self.review)["findings"][0]
         self.assertEqual((found["comment"], found["edited"]), ("Mine.", ["comment"]))
 
     def test_the_page_cannot_mark_a_finding_sent(self):
         with self.assertRaises(review_state.Refused):
-            reviews.developer_change(self.project, "pr-123", "status", {"finding": "f1", "status": "sent"})
+            reviews.developer_change(ID, "status", {"finding": "f1", "status": "sent"})
 
     def test_a_checkpoint_answer_is_recorded_and_wakes_the_session(self):
         review_state.change(self.review, "set", {"checkpoint": {"id": "c1", "step": "read-pr-scope",
                                                                 "question": "Scope?", "options": ["right"],
                                                                 "answer": None}})
 
-        reviews.developer_change(self.project, "pr-123", "answer", {"option": "right", "note": "ok"})
+        reviews.developer_change(ID, "answer", {"option": "right", "note": "ok"})
 
         self.assertEqual(review_state.read(self.review)["checkpoint"]["answer"]["option"], "right")
         self.assertEqual([(m["id"], m["type"], m["checkpoint"]) for m in self.inbox()], [("m1", "answer", "c1")])
 
     def test_messages_get_ids_in_order_and_wait_until_handled(self):
-        reviews.add_message(self.project, "pr-123", {"type": "refresh"})
-        reviews.add_message(self.project, "pr-123", {"type": "ask", "thread": "t1"})
+        reviews.add_message(ID, {"type": "refresh"})
+        reviews.add_message(ID, {"type": "ask", "thread": "t1"})
         review_state.change(self.review, "handled", item_id="m1")
 
         self.assertEqual([m["id"] for m in reviews.pending_messages(self.review)], ["m2"])
 
     def test_a_message_of_an_unknown_type_or_without_its_fields_is_refused(self):
         with self.assertRaises(review_state.Refused):
-            reviews.add_message(self.project, "pr-123", {"type": "delete-everything"})
+            reviews.add_message(ID, {"type": "delete-everything"})
         with self.assertRaises(review_state.Refused):
-            reviews.add_message(self.project, "pr-123", {"type": "ask"})
+            reviews.add_message(ID, {"type": "ask"})
 
         self.assertEqual(self.inbox(), [])
 
     def test_the_page_adds_the_developers_own_finding(self):
-        reviews.developer_change(self.project, "pr-123", "add-finding", {"fields": {
+        reviews.developer_change(ID, "add-finding", {"fields": {
             "title": "Mine", "comment": "Return a result.", "severity": "nit",
             "locations": [{"path": "A.java", "line": 1, "side": "RIGHT", "commit": "bbb"}]}})
 
         self.assertEqual(review_state.read(self.review)["findings"][1]["by"], "developer")
 
     def test_a_question_on_the_page_opens_a_thread_and_wakes_the_session(self):
-        reviews.developer_change(self.project, "pr-123", "ask", {
+        reviews.developer_change(ID, "ask", {
             "about": {"kind": "file", "path": "A.java", "lines": [1, 2]}, "quote": "class A {}", "text": "Why?"})
-        reviews.developer_change(self.project, "pr-123", "reply", {"thread": "t1", "text": "And?"})
-        reviews.developer_change(self.project, "pr-123", "resolve", {"thread": "t1"})
+        reviews.developer_change(ID, "reply", {"thread": "t1", "text": "And?"})
+        reviews.developer_change(ID, "resolve", {"thread": "t1"})
 
         thread = review_state.read(self.review)["threads"][0]
         self.assertEqual(([m["text"] for m in thread["messages"]], thread["status"]), (["Why?", "And?"], "resolved"))
         self.assertEqual([(m["type"], m["thread"]) for m in self.inbox()], [("ask", "t1"), ("ask", "t1")])
 
     def test_the_page_marks_files_viewed_and_archives_the_review(self):
-        reviews.developer_change(self.project, "pr-123", "view", {"path": "A.java"})
-        reviews.developer_change(self.project, "pr-123", "unview", {"path": "A.java"})
-        reviews.developer_change(self.project, "pr-123", "view", {"path": "B.java"})
-        reviews.developer_change(self.project, "pr-123", "archive", {"archived": True})
+        reviews.developer_change(ID, "view", {"path": "A.java"})
+        reviews.developer_change(ID, "unview", {"path": "A.java"})
+        reviews.developer_change(ID, "view", {"path": "B.java"})
+        reviews.developer_change(ID, "archive", {"archived": True})
 
         self.assertEqual(review_state.read(self.review)["viewed"], ["B.java"])
-        self.assertTrue(reviews.list_reviews([self.project])[0]["archived"])
+        self.assertTrue(reviews.list_reviews()[0]["archived"])
 
     def test_a_review_id_never_reaches_outside_the_reviews_folder(self):
         with self.assertRaises(review_state.Refused):
-            reviews.review_dir(self.project, "../../etc")
+            reviews.review_dir("../../etc")
         with self.assertRaises(review_state.Refused):
-            reviews.review_dir(self.project, "pr-999")
+            reviews.review_dir("org-booking-pr-999")
 
-    def test_a_review_is_named_after_its_pull_request_or_its_branches(self):
-        self.assertEqual(reviews.review_id_for("https://github.com/org/booking/pull/130"), "pr-130")
-        self.assertEqual(reviews.review_id_for("main:feature/cancel-reservation"), "main..feature-cancel-reservation")
+    def test_a_review_is_named_after_its_pull_request_or_its_repository_and_branches(self):
+        self.assertEqual(reviews.review_id_for("https://github.com/org/booking/pull/130"), "org-booking-pr-130")
+        self.assertEqual(reviews.review_id_for("main:feature/cancel-reservation", self.checkout),
+                         "booking-main..feature-cancel-reservation")
+        with self.assertRaises(review_state.Refused):
+            reviews.review_id_for("main:feature/cancel-reservation")
         with self.assertRaises(review_state.Refused):
             reviews.review_id_for("not a source")
 
@@ -193,16 +217,16 @@ class ReviewsTest(unittest.TestCase):
     def test_markdown_in_the_review_reaches_the_page_rendered(self):
         review_state.change(self.review, "update-finding", {"comment": "Use `ReservationId`."}, item_id="f1")
 
-        html = reviews.read_review(self.project, "pr-123")["html"]
+        html = reviews.read_review(ID)["html"]
 
         self.assertIn("<code>ReservationId</code>", html["finding:f1:comment"])
         self.assertIn("Cancels a reservation.", html["scope"])
 
     def test_the_diff_of_the_reviewed_head_is_served(self):
-        self.assertIn("+class A {}", reviews.diff_text(self.project, "pr-123"))
+        self.assertIn("+class A {}", reviews.diff_text(ID))
 
     def test_the_diff_of_one_file_is_served_alone(self):
-        one = reviews.diff_text(self.project, "pr-123", "B.java")
+        one = reviews.diff_text(ID, "B.java")
 
         self.assertTrue(one.startswith("diff --git a/B.java b/B.java"))
         self.assertIn("+  long x;", one)
@@ -222,7 +246,7 @@ class ReviewsTest(unittest.TestCase):
             {"id": "u2", "name": "Release", "says": "Releases.", "entry": "B.java:1", "files": ["B.java"]}]}})
         review_state.change(self.review, "view", {"path": "B.java"}, "developer")
 
-        read = reviews.read_review(self.project, "pr-123")
+        read = reviews.read_review(ID)
 
         files = {f["path"]: f for f in read["files"]}
         self.assertEqual(files["B.java"]["use-cases"], ["u1", "u2"])
@@ -235,25 +259,24 @@ class ReviewsTest(unittest.TestCase):
         (worktree / "src" / "Uses.java").write_text("class Uses {\n  Old old;\n  OldStyle style;\n}\n")
         (worktree / "src" / "Clean.java").write_text("class Clean {}\n")
 
-        self.assertEqual(reviews.references(self.project, "pr-123", "Old.java"), ["src/Uses.java:2"])
+        self.assertEqual(reviews.references(ID, "Old.java"), ["src/Uses.java:2"])
 
 
 class ReviewEndpointsTest(ReviewsTest):
-    """The same through HTTP, as the page does it -- only for projects on the dashboard."""
+    """The same through HTTP, as the page does it."""
 
     def setUp(self):
         super().setUp()
-        (self.project / ".git").mkdir()
+        (self.checkout / ".git").mkdir()
         self.real_state = dashboard_server.STATE
-        dashboard_server.STATE = self.project / "dashboard-state.json"
+        dashboard_server.STATE = self.tmp / "dashboard-state.json"
         fake = pathlib.Path(__file__).resolve().parent / "fake_claude.py"
         os.environ["CRAFTSMAN_CLAUDE"] = f"{sys.executable} {fake}"
-        os.environ.update(FAKE_CLAUDE_LOG=str(self.project / "fake.log"), CRAFTSMAN_SCRIPTS=str(SCRIPTS),
-                          FAKE_REVIEW_DIR=str(self.project / ".claude" / "reviews" / "main..feature-x"))
+        os.environ.update(FAKE_CLAUDE_LOG=str(self.tmp / "fake.log"), CRAFTSMAN_SCRIPTS=str(SCRIPTS),
+                          FAKE_REVIEW_DIR=str(self.home / "reviews" / BRANCHES))
         self.server = dashboard_server.ThreadingHTTPServer(("127.0.0.1", 0), dashboard_server.Handler)
         self.port = self.server.server_address[1]
-        dashboard_server.Handler.hub = dashboard_server.Hub(pathlib.Path(tempfile.mkdtemp()), [self.project],
-                                                            self.port)
+        dashboard_server.Handler.hub = dashboard_server.Hub(self.tmp / "content", [], self.port)
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
 
     def tearDown(self):
@@ -294,35 +317,35 @@ class ReviewEndpointsTest(ReviewsTest):
         self.assertNotIn("/api/review", dashboard_page)
 
     def test_the_tests_never_touch_the_real_dashboard_state(self):
-        dashboard_server.Handler.hub.add_project(self.project)
+        dashboard_server.Handler.hub.add_project(self.tmp)
 
-        self.assertTrue((self.project / "dashboard-state.json").exists())
+        self.assertTrue((self.tmp / "dashboard-state.json").exists())
 
     def test_the_list_says_which_reviews_have_their_session_running(self):
-        self.call("/api/review/start", {"project": str(self.project), "source": "main:feature/x"})
+        self.call("/api/review/start", {"checkout": str(self.checkout), "source": "main:feature/x"})
 
         deadline, running = time.time() + 10, {}
         while len(running) < 2 and time.time() < deadline:
             status, body = self.call("/api/reviews")
             running = {review["id"]: review["running"] for review in body["reviews"]}
 
-        self.assertEqual((status, running), (200, {"main..feature-x": True, "pr-123": False}))
+        self.assertEqual((status, running), (200, {BRANCHES: True, ID: False}))
 
     def test_the_page_reads_a_review(self):
-        status, body = self.call(f"/api/review?project={self.project}&id=pr-123")
+        status, body = self.call(f"/api/review?id={ID}")
 
         self.assertEqual(status, 200)
         self.assertEqual(body["state"]["scope"], "Cancels a reservation.")
 
     def test_the_page_sees_whether_the_agent_is_in_a_turn_and_how_long_it_has_been_quiet(self):
-        status, body = self.call(f"/api/review?project={self.project}&id=pr-123")
+        status, body = self.call(f"/api/review?id={ID}")
         self.assertEqual((status, body["working"], body["quiet"]), (200, False, None))
 
-        self.call("/api/review/start", {"project": str(self.project), "source": "main:feature/x"})
+        self.call("/api/review/start", {"checkout": str(self.checkout), "source": "main:feature/x"})
         deadline, body = time.time() + 10, {}
         while time.time() < deadline and not (body.get("running") and not body.get("working")
                                               and body.get("quiet") is not None):
-            _, body = self.call(f"/api/review?project={self.project}&id=main..feature-x")
+            _, body = self.call(f"/api/review?id={BRANCHES}")
 
         self.assertEqual((body["running"], body["working"]), (True, False))
         self.assertGreaterEqual(body["quiet"], 0)
@@ -330,18 +353,18 @@ class ReviewEndpointsTest(ReviewsTest):
     def test_the_agent_still_works_while_its_reviewers_run_in_the_background(self):
         os.environ["FAKE_BACKGROUND"] = "2"
         self.addCleanup(os.environ.pop, "FAKE_BACKGROUND")
-        self.call("/api/review/start", {"project": str(self.project), "source": "main:feature/x"})
+        self.call("/api/review/start", {"checkout": str(self.checkout), "source": "main:feature/x"})
         deadline, body = time.time() + 10, {}
         while time.time() < deadline and body.get("background") != 2:
-            _, body = self.call(f"/api/review?project={self.project}&id=main..feature-x")
+            _, body = self.call(f"/api/review?id={BRANCHES}")
 
         self.assertEqual((body["background"], body["working"]), (2, True))
 
     def test_the_page_changes_a_finding_and_sends_a_message(self):
-        status, _ = self.call("/api/review/change", {"project": str(self.project), "id": "pr-123", "action": "status",
+        status, _ = self.call("/api/review/change", {"id": ID, "action": "status",
                                                       "finding": "f1", "status": "to-send"})
         self.assertEqual(status, 200)
-        status, body = self.call("/api/review/message", {"project": str(self.project), "id": "pr-123",
+        status, body = self.call("/api/review/message", {"id": ID,
                                                          "type": "refresh"})
         self.assertEqual((status, body["id"]), (200, "m1"))
 
@@ -351,14 +374,14 @@ class ReviewEndpointsTest(ReviewsTest):
         (self.review / "worktree").mkdir()
         (self.review / "worktree" / "Uses.java").write_text("Old old;\n")
 
-        diff = self.text(f"/api/review/diff?project={self.project}&id=pr-123&path=B.java")
-        status, body = self.call(f"/api/review/references?project={self.project}&id=pr-123&path=Old.java")
+        diff = self.text(f"/api/review/diff?id={ID}&path=B.java")
+        status, body = self.call(f"/api/review/references?id={ID}&path=Old.java")
 
         self.assertTrue(diff.startswith("diff --git a/B.java"))
         self.assertEqual((status, body["references"]), (200, ["Uses.java:1"]))
 
     def test_a_refused_change_says_why(self):
-        status, body = self.call("/api/review/change", {"project": str(self.project), "id": "pr-123",
+        status, body = self.call("/api/review/change", {"id": ID,
                                                          "action": "status", "finding": "f1", "status": "sent"})
 
         self.assertEqual(status, 409)
@@ -366,25 +389,25 @@ class ReviewEndpointsTest(ReviewsTest):
 
     def test_the_page_starts_a_review_session_and_stops_it(self):
         fresh = "main:feature/x"
-        status, body = self.call("/api/review/start", {"project": str(self.project), "source": fresh})
-        self.assertEqual((status, body["id"]), (200, "main..feature-x"))
-        self.assertTrue(dashboard_server.Handler.hub.session(self.project, "main..feature-x").running())
+        status, body = self.call("/api/review/start", {"checkout": str(self.checkout), "source": fresh})
+        self.assertEqual((status, body["id"]), (200, BRANCHES))
+        self.assertTrue(dashboard_server.Handler.hub.session(BRANCHES).running())
 
-        status, _ = self.call("/api/review/stop", {"project": str(self.project), "id": "main..feature-x"})
+        status, _ = self.call("/api/review/stop", {"id": BRANCHES})
 
         self.assertEqual(status, 200)
-        self.assertFalse(dashboard_server.Handler.hub.session(self.project, "main..feature-x").running())
+        self.assertFalse(dashboard_server.Handler.hub.session(BRANCHES).running())
 
     def test_a_review_starts_only_inside_a_git_repository(self):
-        shutil.rmtree(self.project / ".git")
+        shutil.rmtree(self.checkout / ".git")
 
-        status, body = self.call("/api/review/start", {"project": str(self.project), "source": "main:feature/x"})
+        status, body = self.call("/api/review/start", {"checkout": str(self.checkout), "source": "main:feature/x"})
 
         self.assertEqual(status, 409)
         self.assertIn("not a git repository", body["error"])
 
     def test_a_review_already_in_progress_is_not_started_again(self):
-        status, body = self.call("/api/review/start", {"project": str(self.project),
+        status, body = self.call("/api/review/start", {"checkout": str(self.checkout),
                                                        "source": "https://github.com/org/booking/pull/123"})
 
         self.assertEqual(status, 409)
@@ -393,44 +416,40 @@ class ReviewEndpointsTest(ReviewsTest):
     def test_the_page_sends_what_is_marked_to_send(self):
         review_state.change(self.review, "set-status", {"status": "to-send"}, "developer", "f1")
         os.environ.update(CRAFTSMAN_GH=f"{sys.executable} {pathlib.Path(__file__).resolve().parent / 'fake_gh.py'}",
-                          FAKE_GH_LOG=str(self.project / "gh.log"), FAKE_GH_STATE=str(self.project / "gh.json"))
+                          FAKE_GH_LOG=str(self.tmp / "gh.log"), FAKE_GH_STATE=str(self.tmp / "gh.json"))
 
-        status, body = self.call("/api/review/send", {"project": str(self.project), "id": "pr-123"})
+        status, body = self.call("/api/review/send", {"id": ID})
 
         self.assertEqual((status, body["sent"]), (200, ["f1"]))
         self.assertEqual(review_state.read(self.review)["findings"][0]["status"], "sent")
 
     def test_the_cli_starts_a_review_and_prints_where_to_watch_it(self):
-        printed = dashboard_server.start_review(self.port, self.project, "main:feature/x")
+        printed = dashboard_server.start_review(self.port, self.checkout, "main:feature/x")
 
-        self.assertEqual(printed, f"http://localhost:{self.port}/review?project={self.project}&review=main..feature-x")
-        self.assertTrue(dashboard_server.Handler.hub.session(self.project, "main..feature-x").running())
+        self.assertEqual(printed, f"http://localhost:{self.port}/review?review={BRANCHES}")
+        self.assertTrue(dashboard_server.Handler.hub.session(BRANCHES).running())
 
     def test_the_cli_resumes_a_review_already_in_progress(self):
-        printed = dashboard_server.start_review(self.port, self.project, "https://github.com/org/booking/pull/123")
+        printed = dashboard_server.start_review(self.port, self.checkout, "https://github.com/org/booking/pull/123")
 
-        self.assertTrue(printed.endswith("&review=pr-123"))
-        self.assertTrue(dashboard_server.Handler.hub.session(self.project, "pr-123").running())
+        self.assertTrue(printed.endswith(f"?review={ID}"))
+        self.assertTrue(dashboard_server.Handler.hub.session(ID).running())
 
-    def test_a_project_registered_through_a_symlink_is_found(self):
-        link = pathlib.Path(tempfile.mkdtemp()) / "link"
-        link.symlink_to(self.project)
-        hub = dashboard_server.Handler.hub
-        hub.add_project(link)
-        hub.remove_project(self.project)
-        self.assertEqual(hub.project_list(), [link])
+    def test_a_started_review_records_the_checkout_it_runs_in(self):
+        self.call("/api/review/start", {"checkout": str(self.checkout), "source": "main:feature/x"})
+        deadline, listed = time.time() + 10, {}
+        while BRANCHES not in listed and time.time() < deadline:
+            listed = {review["id"]: review for review in self.call("/api/reviews")[1]["reviews"]}
 
-        status, _ = self.call(f"/api/review?project={link}&id=pr-123")
+        self.assertEqual(listed[BRANCHES]["checkout"], str(self.checkout))
+        cwd = [json.loads(line) for line in (self.tmp / "fake.log").read_text().splitlines()][0]["cwd"]
+        self.assertEqual(pathlib.Path(cwd).resolve(), self.checkout)
 
-        self.assertEqual(status, 200)
-        shutil.rmtree(link.parent)
+    def test_an_unknown_review_is_not_found(self):
+        status, body = self.call("/api/review/message", {"id": "org-booking-pr-999", "type": "refresh"})
 
-    def test_a_project_not_on_the_dashboard_is_refused(self):
-        elsewhere = tempfile.mkdtemp()
-        status, _ = self.call("/api/review/message", {"project": elsewhere, "id": "pr-123", "type": "refresh"})
-
-        self.assertEqual(status, 404)
-        shutil.rmtree(elsewhere)
+        self.assertEqual(status, 409)
+        self.assertIn("no review", body["error"])
 
 
 if __name__ == "__main__":
