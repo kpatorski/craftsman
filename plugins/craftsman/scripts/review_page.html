@@ -525,7 +525,7 @@ function renderHead() {
     <div class="actions">
       <button class="live ${status[0]}" data-live title="Click for the session's log"><span class="pulse"></span>${esc(status[1])}</button>
       <button class="btn ghost" data-refresh>⟳ Refresh PR</button>
-      <button class="btn go" data-send ${toSend && pr ? "" : "disabled"} title="${pr ? "" : "No pull request to send to"}">Send ${plural(toSend, "comment")}</button>
+      <button class="btn go" data-send ${toSend && pr && !ui.sending ? "" : "disabled"} title="${pr ? "" : "No pull request to send to"}">${ui.sending ? "Sending…" : `Send ${plural(toSend, "comment")}`}</button>
       <button class="btn ghost" data-power title="${R.running ? "Stop the session" : "Start the session"}">⏻</button>
     </div></div>
     <div class="tabs">${tabs.map(([id, name, n]) => `<a class="tab${id === ui.tab ? " on" : ""}" data-tab="${id}">${id === "overview" && waiting() ? '<span class="qdot" title="The AI agent waits for your answer"></span>' : ""}${name}${n !== "" ? `<span class="n">${n}</span>` : ""}</a>`).join("")}</div>`;
@@ -1125,8 +1125,9 @@ document.addEventListener("click", async e => {
         `<span class="w">${(f.locations || []).map(l => esc(l.path.split("/").pop()) + ":" + l.line).join(", ")}</span></div>`).join(""),
       `Send ${plural(marked.length, "comment")}`);
     if (!ok) return;
-    toast("sending…");
-    const out = await api("/api/review/send", K());
+    // one send at a time: the button stays disabled, through every re-render, until GitHub has answered
+    ui.sending = true; render(); toast("sending…");
+    const out = await api("/api/review/send", K()).finally(() => { ui.sending = false; });
     if (out) toast(`sent ${out.sent.length}` + (out.errors.length ? ` · problems: ${out.errors.join("; ")}` : ""));
     return reload();
   }
