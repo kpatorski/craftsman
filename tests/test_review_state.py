@@ -284,6 +284,21 @@ class ReviewStateTest(unittest.TestCase):
         stored = self.state()["structure"]["use-cases"][0]
         self.assertEqual((stored["before"], stored["after"]), (use_case["before"], use_case["after"]))
 
+    def test_a_flow_step_says_where_it_is_called_from(self):
+        self.opened()
+        step = {"call": "ReservationRepository.save", "path": "R.java", "line": 11, "change": "unchanged",
+                "from": {"path": "S.java", "line": 35}}
+        use_case = {"id": "u1", "name": "Cancel", "says": "The owner cancels.", "entry": "S.java:25",
+                    "files": ["S.java"], "flow": {"steps": [step], "branches": []}}
+
+        for wrong in ({"path": "S.java"}, {"path": "S.java", "line": "35"}, "S.java:35"):
+            self.run_state("set", payload={"structure": {"use-cases": [
+                {**use_case, "flow": {"steps": [{**step, "from": wrong}], "branches": []}}]}}, expect_ok=False)
+        self.run_state("set", payload={"structure": {"use-cases": [use_case]}})
+
+        self.assertEqual(self.state()["structure"]["use-cases"][0]["flow"]["steps"][0]["from"],
+                         {"path": "S.java", "line": 35})
+
     def test_the_developer_archives_a_review(self):
         self.opened()
 

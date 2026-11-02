@@ -10,6 +10,7 @@
     font: 300 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
   a { color: inherit; text-decoration: none; cursor: pointer; }
   code, .mono { font-family: var(--mono); font-size: 12.5px; font-weight: 400; }
+  code.inl-c { color: var(--neon); }
   b, strong { font-weight: 500; color: var(--heading); }
   button { font: inherit; }
   .muted { color: var(--muted); } .dim { color: var(--dim); }
@@ -70,6 +71,7 @@
   .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px; font-size: 13.5px; font-weight: 400;
     background: var(--card2); border: 1px solid var(--line); color: var(--text); cursor: pointer; white-space: nowrap; }
   .btn:hover { border-color: var(--line2); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
   .btn.go { background: var(--neon-strong); border-color: var(--neon-strong); color: var(--heading); }
   .btn.ghost { background: none; } .btn.sm { padding: 5px 10px; font-size: 12.5px; }
   .btn.danger { color: var(--must); background: none; }
@@ -240,9 +242,12 @@
     border: 1px solid var(--line2); font-size: 12px; cursor: pointer; }
   .harr { color: var(--muted); font-size: 12px; } .harr.bad { color: var(--must); }
   .hstep.still { cursor: default; border-style: dashed; color: var(--muted); }
+  .hstep.still.go { cursor: pointer; } .hstep.still.go:hover { color: var(--text); border-color: var(--line2); }
+  .ln.lit { outline: 1px solid var(--neon); outline-offset: -1px; }
   .hstep.cross { border-color: var(--must); }
   .xtag { font-size: 11px; padding: 1px 7px; border-radius: 6px; background: var(--must-bg); color: var(--must); white-space: nowrap; }
   .hbr { margin-top: 10px; font-size: 12.5px; } .hbr div { padding: 2px 0; }
+  .fnotes { margin-top: 14px; } .fnotes .ann { cursor: pointer; margin: 0 0 6px; } .fnotes .ann b { font-weight: 500; } .fnotes .where { margin-left: auto; color: var(--dim); white-space: nowrap; }
 
   /* where the review is: its steps, and what a tab waits for */
   .steps { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
@@ -285,6 +290,8 @@ const ui = { tab: params.get("tab") || "overview", panel: null, file: params.get
 const diffs = {}, refs = {};
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// one line the agent wrote: escaped, with `code` and **bold** as markdown renders them
+const inline = s => esc(s).replace(/`([^`]+)`/g, '<code class="inl-c">$1</code>').replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
 const K = () => ({ project: current.project, id: current.id });
 const q = () => `project=${encodeURIComponent(current.project)}&id=${encodeURIComponent(current.id)}`;
 const SEV = { "must-fix": "Must fix", "should-fix": "Should fix", "nit": "Nit" };
@@ -513,7 +520,7 @@ function findingTable(list) {
       const st = { "to-send": '<span class="tag green">to send</span>', sent: '<span class="tag blue">sent</span>',
         "maybe-resolved": '<span class="tag amber">maybe resolved</span>', deleted: '<span class="tag">dropped</span>' }[f.status] || '<span class="tag">not yet</span>';
       return `<tr data-finding="${esc(f.id)}"${ui.panel && ui.panel.finding === f.id ? ' class="sel"' : ""}><td>${sev(f.severity)}</td>
-        <td><div class="t">${esc(f.title)}</div><div class="w mono" title="${esc(loc.path || "")}">${esc(shortPath(loc.path || ""))}${loc.line ? ":" + loc.line : ""}</div></td>
+        <td><div class="t">${inline(f.title)}</div><div class="w mono" title="${esc(loc.path || "")}">${esc(shortPath(loc.path || ""))}${loc.line ? ":" + loc.line : ""}</div></td>
         <td>${who(f.by)}</td><td class="muted">${esc(f.category)}</td>
         <td class="muted">${threads.length ? `💬 ${threads.reduce((a, t) => a + t.messages.length, 0)}` : '<span class="dim">—</span>'}</td><td>${st}</td></tr>`;
     }).join("")}</tbody></table>`;
@@ -548,7 +555,7 @@ function panelFinding(id) {
     : (f.status === "to-send" ? `<button class="btn sm" data-status="proposed">✓ Marked to send</button>` : `<button class="btn go sm" data-status="to-send">Mark to send</button>`) +
       (f.status === "deleted" ? `<button class="btn ghost sm" data-status="proposed">Bring back</button>` : `<button class="btn danger sm" data-status="deleted">Drop</button>`);
   return `<div class="crumb"><span>Finding ${esc(f.id)} · ${esc(f.category)} · ${who(f.by)}</span><a data-close-panel>✕</a></div>
-    ${editing ? `<input class="field" id="edit-title" value="${esc(f.title)}" style="margin-top:8px">` : `<h2>${esc(f.title)}</h2>`}
+    ${editing ? `<input class="field" id="edit-title" value="${esc(f.title)}" style="margin-top:8px">` : `<h2>${inline(f.title)}</h2>`}
     <div class="filters" style="margin:6px 0 0">${SEVS.map(k => `<button class="chip${f.severity === k ? " on" : ""}" data-set-sev="${k}" ${sent ? "disabled" : ""}>${SEV[k]}</button>`).join("")}</div>
     ${f.status === "maybe-resolved" ? `<div class="banner" style="margin:12px 0 0">AI Agent no longer sees this problem at the PR's head. Drop it, or keep it.</div>` : ""}
     ${editing || f.description ? `<div class="box" data-quote-about="finding:${esc(f.id)}"><div class="l">Why</div>${editing ? `<textarea class="field" id="edit-description">${esc(f.description)}</textarea>` : `<div class="md">${md(`finding:${f.id}:description`)}</div>`}</div>` : ""}
@@ -696,7 +703,7 @@ function diffView(path, position) {
     const inSel = sel && side === "RIGHT" && n >= sel[0] && n <= sel[1];
     return `<div class="ln ${l.kind}${whole ? " whole" : ""}${inSel ? " sel" : ""}" data-line="${n}" data-side="${side}">` +
       `<span class="no">${l.old ?? ""}</span><span class="no">${l.now ?? ""}</span><span class="sg">${l.kind === "add" ? "+" : l.kind === "del" ? "−" : ""}</span><span class="c">${esc(l.text)}</span></div>` +
-      here.map(f => `<div class="ann" data-finding="${esc(f.id)}">${sev(f.severity)}<span>${who(f.by)} · ${esc(f.id)} · ${esc(f.title)}</span></div>`).join("") +
+      here.map(f => `<div class="ann" data-finding="${esc(f.id)}">${sev(f.severity)}<span>${who(f.by)} · ${esc(f.id)} · ${inline(f.title)}</span></div>`).join("") +
       talk.map(t => `<div class="ann" data-thread="${esc(t.id)}"><span class="tag">💬 ${t.messages.length}</span><span>${esc(t.messages[0].text.replace(/[*_`#>]/g, "").replace(/\s+/g, " ").slice(0, 140))}</span></div>`).join("");
   }).join("")).join("");
   return `<div class="diffcard">${head}${banner}<div class="diffbody" data-diff="${esc(path)}">${body || '<div class="banner">No lines changed.</div>'}</div></div>`;
@@ -779,25 +786,47 @@ function ucPanel() {
   const at = u.files.indexOf(ui.ucFile), seen = u.files.filter(p => fileInfo(p).viewed).length, flow = u.flow || { steps: [], branches: [] };
   const how = u.untied ? `<div class="muted" style="font-size:13px;margin-top:8px">No entry point reaches these files — nothing in the PR's use cases calls them.</div>`
     : `<div class="hflow">${(flow.steps || []).map((st, i) => {
-        const inPr = (R.files || []).some(f => f.path === st.path);
-        return `${i ? `<span class="harr${st.crosses ? " bad" : ""}">→</span>` : ""}<span class="hstep${st.crosses ? " cross" : ""}${inPr ? "" : " still"}"` +
-          `${inPr ? ` data-pick-file="${esc(st.path)}"` : ""} title="${esc(shortPath(st.path))}${st.line ? ":" + st.line : ""}${inPr ? "" : " · not changed by this PR"}${st.crosses ? "\nCrosses " + esc(st.crosses) : ""}">` +
+        const changed = path => (R.files || []).some(f => f.path === path), inPr = changed(st.path);
+        // a unit the PR leaves alone opens where the PR calls it; one the PR changes opens itself
+        const to = inPr ? { path: st.path, line: st.line } : st.from && changed(st.from.path) ? st.from : null;
+        const at = x => `${esc(x.path.split("/").pop())}${x.line ? ":" + x.line : ""}`;
+        return `${i ? `<span class="harr${st.crosses ? " bad" : ""}">→</span>` : ""}<span class="hstep${st.crosses ? " cross" : ""}${inPr ? "" : " still"}${to ? " go" : ""}"` +
+          `${to ? ` data-pick-file="${esc(to.path)}" data-pick-line="${to.line || ""}"` : ""} title="${st.from ? `Called from ${at(st.from)}\n` : ""}Defined in ${at(st)}${inPr ? "" : " · not changed by this PR"}${st.crosses ? "\nCrosses " + esc(st.crosses) : ""}">` +
           `<span class="kd ${st.change}">${KIND[st.change] || "·"}</span><span class="mono">${esc(st.call)}</span>` +
           `${st.crosses ? `<span class="xtag" title="${esc(st.crosses)}">crosses ${esc(st.crosses.split(/[\s—,(]/)[0])}</span>` : ""}</span>`;
       }).join("") || '<span class="muted">AI Agent did not record how it runs.</span>'}</div>
-      <div class="hbr">${(flow.branches || []).map(b => `<div><span class="${b.tested ? "ok" : "no"}">${b.tested ? "✓" : "✕"}</span> ${esc(b.what)} <span class="dim">· ${b.tested ? "tested" : "not tested"}</span></div>`).join("")}</div>`;
+      <div class="hbr">${(flow.branches || []).map(b => `<div><span class="${b.tested ? "ok" : "no"}">${b.tested ? "✓" : "✕"}</span> ${inline(b.what)} <span class="dim">· ${b.tested ? "tested" : "not tested"}</span></div>`).join("")}</div>`;
   const notes = u.untied ? [] : threadsOf("use-case", u.id);
+  // what was said about lines of this use case's files lives with those lines; here it is listed so it is not missed
+  const lineNotes = u.files.flatMap(path => threadsOf("file", path));
+  const onLines = lineNotes.length ? `<div class="fnotes"><div class="muted" style="font-size:12px;margin-bottom:6px">Notes and questions on lines of its files · ${lineNotes.length} · click one to read it beside its lines</div>` +
+    lineNotes.map(t => `<div class="ann" data-thread="${esc(t.id)}" data-thread-file="${esc(t.about.path)}"><span class="tag">${t.messages[0].by === "agent" ? "✦" : "💬"} ${t.messages.length}</span>` +
+      `<span>${noteTitle(t.messages[0].text)}</span>` +
+      `<span class="where mono">${esc(t.about.path.split("/").pop())}${t.about.lines ? ":" + t.about.lines.join("–") : ""}${t.status === "resolved" ? " · resolved" : ""}</span></div>`).join("") + `</div>` : "";
   el.innerHTML = `<div class="crumb"><span title="${esc(u.entry || "")}">${esc(shortPath(u.entry || ""))}</span><a data-close-uc>✕</a></div>
-    <h2>${esc(u.name)}</h2><div class="muted" style="font-size:13.5px">${esc(u.says || "")}</div>
-    ${u.before || u.after ? `<div class="change"><div><div class="l">Before</div>${esc(u.before || "—")}</div>
-      <div><div class="l">After</div>${esc(u.after || "—")}</div></div>` : ""}
+    <h2>${esc(u.name)}</h2><div class="muted" style="font-size:13.5px">${inline(u.says)}</div>
+    ${u.before || u.after ? `<div class="change"><div><div class="l">Before</div>${inline(u.before || "—")}</div>
+      <div><div class="l">After</div>${inline(u.after || "—")}</div></div>` : ""}
     <details class="how" open><summary>How it runs</summary>${how}</details>
+    ${onLines}
     ${notes.length ? threadsBlock(notes, { kind: "use-case", id: u.id }, "Ask about this use case…") : ""}
     <div style="display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;margin-top:14px;align-items:start">
       <div><div class="muted" style="font-size:12px;margin-bottom:6px">${seen} of ${u.files.length} viewed</div>${fileList(u.files, ui.ucFile, { shared: true })}
         ${u.untied || notes.length ? "" : `<button class="btn ghost sm" style="margin-top:12px" data-ask-uc="${esc(u.id)}">Ask about this use case</button>`}</div>
       <div>${ui.ucFile ? diffView(ui.ucFile, `file ${at + 1} of ${u.files.length} &nbsp;<a data-step-uc="-1">← prev</a> · <a data-step-uc="1" style="color:var(--neon)">next →</a> · <a data-open-file="${esc(ui.ucFile)}">Full screen ⤢</a>`) : ""}</div></div>`;
   el.classList.add("shown");
+}
+// A note opens with a bold heading; that heading, or else its first sentence, names it in a list.
+function noteTitle(text) {
+  const head = text.match(/^\s*\*\*(.+?)\*\*/);
+  return `<b>${inline(head ? head[1] : text.split(/(?<=[.?!])\s|\n/)[0].replace(/[*_#>]/g, "").slice(0, 120))}</b>`;
+}
+// The diff may still be loading: the line is looked for a few times, then scrolled to and lit for a moment.
+function showLine(n, tries = 20) {
+  const line = document.querySelector(`#ucpanel .ln[data-line="${n}"][data-side="RIGHT"]`) || document.querySelector(`#ucpanel .ln[data-line="${n}"]`);
+  if (!line) return tries && setTimeout(() => showLine(n, tries - 1), 100);
+  line.scrollIntoView({ block: "center", behavior: "smooth" });
+  line.classList.add("lit"); setTimeout(() => line.classList.remove("lit"), 1600);
 }
 // A click opens the use case beside the cards; another card reloads the panel in place; the same card closes it.
 function openUseCase(id) {
@@ -815,7 +844,7 @@ function showTip(card) {
   const u = cards().find(x => x.id === card.dataset.uccard), tip = document.getElementById("tip"); if (!u || !tip || ui.uc === u.id) return;
   const shares = cards().filter(x => x !== u).map(x => [x, u.files.filter(p => x.files.includes(p)).map(p => p.split("/").pop())]).filter(([, fs]) => fs.length);
   document.querySelectorAll(".uc").forEach(x => x.classList.toggle("related", shares.some(([y]) => y.id === x.dataset.uccard)));
-  tip.innerHTML = `<div class="say">${esc(u.says || "")}</div>${u.after ? `<div class="muted" style="margin:-4px 0 8px">After: ${esc(u.after)}</div>` : ""}${fileList(u.files, null)}${shares.length ? `<div class="shares">⇄ shares files with ${shares.map(([x, fs]) =>
+  tip.innerHTML = `<div class="say">${inline(u.says)}</div>${u.after ? `<div class="muted" style="margin:-4px 0 8px">After: ${inline(u.after)}</div>` : ""}${fileList(u.files, null)}${shares.length ? `<div class="shares">⇄ shares files with ${shares.map(([x, fs]) =>
     `<b>${esc(x.name)}</b> <span class="mono" style="font-size:11px">(${esc(fs.join(", "))})</span>`).join(", ")}</div>` : ""}`;
   // beside the panel the cards stand in a column, so the preview opens to the right and never covers the cards below
   if (ui.uc) { tip.style.left = card.offsetLeft + card.offsetWidth + 12 + "px"; tip.style.top = card.offsetTop + "px"; }
@@ -827,10 +856,18 @@ function showTip(card) {
 function viewNew() {
   return `<div class="card" style="max-width:640px"><h3><span>New review</span></h3>
     <label class="muted" style="font-size:12.5px">Project</label>
-    <select class="field" id="nr-project" style="margin:4px 0 12px">${projects.map(p => `<option${p === current.project ? " selected" : ""}>${esc(p)}</option>`).join("")}</select>
+    <input class="field" id="nr-project" list="nr-projects" value="${esc(current.project || projects[0] || "")}" placeholder="/path/to/the/repository" style="margin:4px 0 4px">
+    <datalist id="nr-projects">${projects.map(p => `<option value="${esc(p)}">`).join("")}</datalist>
+    <div class="muted" style="font-size:12px;margin-bottom:12px">The top folder of a git repository on this machine. A new one joins the dashboard.</div>
     <label class="muted" style="font-size:12.5px">Pull request URL, or <code>target:source</code> branches</label>
     <input class="field" id="nr-source" placeholder="https://github.com/org/repo/pull/123" style="margin:4px 0 14px">
-    <button class="btn go" data-start>Start the review</button></div>`;
+    <button class="btn go" data-start disabled>Start the review</button></div>`;
+}
+// the same shapes the server accepts: a GitHub pull request URL, or two branches as target:source
+const SOURCE = /^(https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+\/?|[^\s:]+:[^\s:]+)$/;
+function checkNew() {
+  const start = document.querySelector("[data-start]"), project = document.getElementById("nr-project"), source = document.getElementById("nr-source");
+  if (start) start.disabled = !(project && project.value.trim() && source && SOURCE.test(source.value.trim()));
 }
 function viewArchived() {
   const list = reviewsList.filter(r => r.archived);
@@ -841,7 +878,8 @@ function viewArchived() {
 
 // ================================================================ render
 function busy() {
-  return document.getElementById("pop").style.display === "flex" ||
+  // nor does it close the list of projects while the developer picks one from it
+  return document.getElementById("pop").style.display === "flex" || (document.activeElement?.id || "").startsWith("nr-") ||
     (getSelection().toString() !== "" && !["TEXTAREA", "INPUT"].includes(document.activeElement?.tagName));
 }
 function render() {
@@ -870,6 +908,7 @@ function render() {
     if (id === focused) { el.focus(); try { el.setSelectionRange(start, end); } catch (_) {} }
   });
   const search = document.getElementById("fsearch"); if (search && search.value !== ui.search) search.value = ui.search;
+  checkNew();
 }
 
 // ================================================================ actions
@@ -922,6 +961,7 @@ document.addEventListener("click", async e => {
   if (d.fquestions !== undefined) { ui.fquestions = !ui.fquestions; return render(); }
   if (d.fstatus) { ui.fstatus = d.fstatus; return render(); }
   if (d.finding) { ui.panel = ui.panel && ui.panel.finding === d.finding ? null : { finding: d.finding }; ui.editing = null; return render(); }
+  if (d.threadFile && ui.tab === "structure" && ui.uc) { ui.ucFile = d.threadFile; ucPanel(); }
   if (d.thread) { ui.panel = ui.panel && ui.panel.thread === d.thread ? null : { thread: d.thread }; return render(); }
   if (d.closePanel !== undefined) { ui.panel = null; ui.selection = null; document.querySelectorAll(".ln.sel").forEach(l => { if (!l.closest(".snip")) l.classList.remove("sel"); }); return render(); }
   if (d.edit !== undefined) { ui.editing = d.edit || null; return render(); }
@@ -936,7 +976,7 @@ document.addEventListener("click", async e => {
   if (d.resolve) return change("resolve", { thread: d.resolve }).then(o => o && reload());
   if (d.compose) return compose(JSON.parse(d.compose));
   if (d.pickFile) {
-    if (ui.tab === "structure" && ui.uc) { ui.ucFile = d.pickFile; return ucPanel(); }
+    if (ui.tab === "structure" && ui.uc) { ui.ucFile = d.pickFile; ucPanel(); return d.pickLine && showLine(+d.pickLine); }
     return go({ ui: { tab: "code", file: d.pickFile } });
   }
   if (d.openFile) { ui.uc = null; return go({ ui: { tab: "code", file: d.openFile, codeFilter: "all" } }); }
@@ -989,7 +1029,8 @@ document.addEventListener("click", async e => {
   if (d.new !== undefined) { ui.tab = "new"; ui.panel = null; return render(); }
   if (d.archived !== undefined) { ui.tab = "archived"; ui.panel = null; return render(); }
   if (d.start !== undefined) {
-    const body = { project: document.getElementById("nr-project").value, source: document.getElementById("nr-source").value.trim() };
+    const body = { project: document.getElementById("nr-project").value.trim(), source: document.getElementById("nr-source").value.trim() };
+    if (!projects.includes(body.project) && !await api("/api/projects", { path: body.project })) return;
     const out = await api("/api/review/start", body);
     if (out) go({ project: body.project, id: out.id, ui: { tab: "overview" } });
     return;
@@ -1013,12 +1054,13 @@ document.addEventListener("click", async e => {
   }
 });
 document.addEventListener("change", e => { if (e.target.id === "fcat") { ui.fcat = e.target.value; render(); } });
-document.addEventListener("input", e => { if (e.target.id === "fsearch") { ui.search = e.target.value; render(); } });
+document.addEventListener("input", e => { if (e.target.id === "fsearch") { ui.search = e.target.value; render(); } if (e.target.id.startsWith("nr-")) checkNew(); });
 document.addEventListener("keydown", e => {
   if (e.target.id === "compose" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); document.querySelector("[data-compose]")?.click(); }
   if (e.key === "Escape") { hidePop(); if (ui.uc) openUseCase(ui.uc); }
 });
 document.addEventListener("selectionchange", () => { if (deferred && !busy()) render(); });
+document.addEventListener("focusout", () => setTimeout(() => { if (deferred && !busy()) render(); }, 0));
 // Selecting lines of a diff, or words of a finding's text, offers to ask AI Agent about them.
 document.addEventListener("mouseup", e => {
   if (e.target.closest("#pop")) return;
