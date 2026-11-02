@@ -243,6 +243,7 @@ class ReviewEndpointsTest(ReviewsTest):
 
     def setUp(self):
         super().setUp()
+        (self.project / ".git").mkdir()
         self.real_state = dashboard_server.STATE
         dashboard_server.STATE = self.project / "dashboard-state.json"
         fake = pathlib.Path(__file__).resolve().parent / "fake_claude.py"
@@ -350,6 +351,14 @@ class ReviewEndpointsTest(ReviewsTest):
 
         self.assertEqual(status, 200)
         self.assertFalse(dashboard_server.Handler.hub.session(self.project, "main..feature-x").running())
+
+    def test_a_review_starts_only_inside_a_git_repository(self):
+        shutil.rmtree(self.project / ".git")
+
+        status, body = self.call("/api/review/start", {"project": str(self.project), "source": "main:feature/x"})
+
+        self.assertEqual(status, 409)
+        self.assertIn("not a git repository", body["error"])
 
     def test_a_review_already_in_progress_is_not_started_again(self):
         status, body = self.call("/api/review/start", {"project": str(self.project),

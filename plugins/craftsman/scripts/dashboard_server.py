@@ -237,6 +237,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if path == "/api/review/start":
                 review_id = reviews.review_id_for(body.get("source"))
+                if not (project / ".git").exists():
+                    raise review_state.Refused(f"not a git repository: {project}; a review runs at its top level")
                 if (reviews.reviews_root(project) / review_id / "review.json").exists():
                     raise review_state.Refused(f"{review_id} is in progress; resume it instead")
                 self.hub.session(project, review_id).start(body["source"])

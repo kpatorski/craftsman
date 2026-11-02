@@ -52,10 +52,11 @@ What the page shows above the findings. Every text field is GitHub markdown.
   - `entry` — the file and line where the use case starts;
   - `files` — every changed file the use case reaches; a file reached by several use cases is in each of them;
   - `status` — `pending`, `reviewing` or `reviewed`;
-  - `flow` — how the use case runs: `steps`, each `{"call", "path", "line", "change", "crosses"}`, from the entry
-    point down through the change, where `change` is `added`, `modified`, `deleted` or `unchanged` and `crosses` is
-    null or the boundary the call should not cross; and `branches`, each `{"what", "tested"}`, the ways the use case
-    can end and whether a test covers each.
+  - `flow` — how the use case runs: `steps`, each `{"call", "path", "line", "change", "crosses", "from"}`, from the
+    entry point down through the change, where `path` and `line` are where the called unit is defined, `change` is
+    `added`, `modified`, `deleted` or `unchanged`, `crosses` is null or the boundary the call should not cross, and
+    `from` is `{"path", "line"}` of the call itself, absent on the entry point; and `branches`, each
+    `{"what", "tested"}`, the ways the use case can end and whether a test covers each.
 - `rules` — business rules read from the test suites, each `{"id", "rule", "test", "requirement"}`; `test` is
   `path:line`, `requirement` says which requirement it covers, or that none does.
 

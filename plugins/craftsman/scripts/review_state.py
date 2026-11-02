@@ -95,7 +95,7 @@ def check_severity(found):
 
 def check_structure(structure):
     """Every use case says what it does, and may say how it worked before the change and how it works after; its flow,
-    when given, is calls through the change and the branches they take."""
+    when given, is calls through the change, each with where it is called from, and the branches they take."""
     for use_case in (structure or {}).get("use-cases", []):
         missing = [field for field in ("id", "name", "says", "entry") if not use_case.get(field)]
         if missing or not isinstance(use_case.get("files"), list):
@@ -108,6 +108,10 @@ def check_structure(structure):
         for step in flow.get("steps", []):
             if not step.get("call") or not step.get("path") or step.get("change") not in CHANGES:
                 raise Refused(f"a flow step needs call, path, and change: one of {', '.join(CHANGES)}")
+            called_from = step.get("from", {"path": "-", "line": 1})
+            if not isinstance(called_from, dict) or not called_from.get("path") or \
+                    not isinstance(called_from.get("line"), int):
+                raise Refused("a flow step's from is the path and line of the call")
         for branch in flow.get("branches", []):
             if not branch.get("what") or not isinstance(branch.get("tested"), bool):
                 raise Refused("a branch needs what, and tested: true or false")
