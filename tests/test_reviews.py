@@ -7,6 +7,7 @@ import json
 import os
 import pathlib
 import shutil
+import subprocess
 import sys
 import tempfile
 import threading
@@ -267,7 +268,9 @@ class ReviewEndpointsTest(ReviewsTest):
 
     def setUp(self):
         super().setUp()
-        (self.checkout / ".git").mkdir()
+        subprocess.run(["git", "init", "-q", str(self.checkout)], check=True)
+        self.saved_env = {key: os.environ.get(key) for key in ("CRAFTSMAN_CLONES", "CRAFTSMAN_GITHUB",
+                                                                "CRAFTSMAN_BROWSE")}
         self.real_state = dashboard_server.STATE
         dashboard_server.STATE = self.tmp / "dashboard-state.json"
         fake = pathlib.Path(__file__).resolve().parent / "fake_claude.py"
@@ -284,6 +287,11 @@ class ReviewEndpointsTest(ReviewsTest):
         self.server.shutdown()
         self.server.server_close()
         dashboard_server.STATE = self.real_state
+        for key, value in self.saved_env.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
         super().tearDown()
 
     def call(self, path, body=None):
@@ -444,6 +452,37 @@ class ReviewEndpointsTest(ReviewsTest):
         self.assertEqual(listed[BRANCHES]["checkout"], str(self.checkout))
         cwd = [json.loads(line) for line in (self.tmp / "fake.log").read_text().splitlines()][0]["cwd"]
         self.assertEqual(pathlib.Path(cwd).resolve(), self.checkout)
+
+    def test_the_page_checks_a_checkout_before_starting(self):
+        status, body = self.call("/api/checkout/check", {"path": str(self.checkout),
+                                                         "source": "https://github.com/org/booking/pull/7"})
+        self.assertEqual(status, 200)
+        self.assertEqual(body["checkout"], str(self.checkout))
+        self.assertIn("org/booking", body["warning"])
+
+        status, body = self.call("/api/checkout/check", {"path": str(self.tmp), "source": "main:feature/x"})
+        self.assertEqual(status, 409)
+        self.assertIn("not a git repository", body["error"])
+
+    def test_the_page_asks_the_server_to_open_the_folder_dialog(self):
+        os.environ["CRAFTSMAN_BROWSE"] = f"echo {self.checkout}"
+        self.assertEqual(self.call("/api/checkout/browse", {}), (200, {"path": str(self.checkout)}))
+
+        os.environ["CRAFTSMAN_BROWSE"] = "false"
+        self.assertEqual(self.call("/api/checkout/browse", {}), (200, {"path": None}))
+
+    def test_a_pull_request_review_may_run_in_a_clone_the_server_makes(self):
+        origin = self.tmp / "github" / "org" / "booking.git"
+        subprocess.run(["git", "clone", "-q", "--bare", str(self.checkout), str(origin)], check=True,
+                       capture_output=True)
+        os.environ.update(CRAFTSMAN_CLONES=str(self.tmp / "clones"), CRAFTSMAN_GITHUB=f"file://{self.tmp / 'github'}")
+
+        status, body = self.call("/api/review/start", {"clone": True,
+                                                       "source": "https://github.com/org/booking/pull/124"})
+
+        self.assertEqual((status, body["id"]), (200, "org-booking-pr-124"))
+        self.assertEqual(dashboard_server.Handler.hub.session("org-booking-pr-124").checkout,
+                         self.tmp / "clones" / "org" / "booking")
 
     def test_an_unknown_review_is_not_found(self):
         status, body = self.call("/api/review/message", {"id": "org-booking-pr-999", "type": "refresh"})
