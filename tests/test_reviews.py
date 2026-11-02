@@ -431,19 +431,33 @@ class ReviewEndpointsTest(ReviewsTest):
         self.assertEqual((status, body["sent"]), (200, ["f1"]))
         self.assertEqual(review_state.read(self.review)["findings"][0]["status"], "sent")
 
+    def test_the_page_is_served_under_craftsman_localhost_and_localhost(self):
+        for host in (f"craftsman.localhost:{self.port}", f"localhost:{self.port}", f"127.0.0.1:{self.port}"):
+            request = urllib.request.Request(f"http://127.0.0.1:{self.port}/api/reviews", headers={"Host": host})
+            with urllib.request.urlopen(request, timeout=5) as response:
+                self.assertEqual(response.status, 200, host)
+
+    def test_a_request_naming_another_host_is_refused(self):
+        request = urllib.request.Request(f"http://127.0.0.1:{self.port}/api/reviews",
+                                         headers={"Host": f"evil.example:{self.port}"})
+        with self.assertRaises(urllib.error.HTTPError) as refused:
+            urllib.request.urlopen(request, timeout=5)
+
+        self.assertEqual(refused.exception.code, 403)
+
     def test_the_skill_opens_the_wizard_when_nothing_is_given(self):
-        self.assertEqual(dashboard_server.review_url(self.port, None), f"http://localhost:{self.port}/review?new=")
+        self.assertEqual(dashboard_server.review_url(self.port, None), f"http://craftsman.localhost:{self.port}/review?new=")
 
     def test_the_skill_opens_the_wizard_with_a_new_source_filled_in(self):
         self.assertEqual(dashboard_server.review_url(self.port, "https://github.com/org/booking/pull/130"),
-                         f"http://localhost:{self.port}/review?new=https%3A//github.com/org/booking/pull/130")
+                         f"http://craftsman.localhost:{self.port}/review?new=https%3A//github.com/org/booking/pull/130")
         self.assertEqual(dashboard_server.review_url(self.port, "main:feature/x"),
-                         f"http://localhost:{self.port}/review?new=main%3Afeature/x")
+                         f"http://craftsman.localhost:{self.port}/review?new=main%3Afeature/x")
 
     def test_the_skill_opens_and_resumes_a_pull_request_already_under_review(self):
         printed = dashboard_server.review_url(self.port, "https://github.com/org/booking/pull/123")
 
-        self.assertEqual(printed, f"http://localhost:{self.port}/review?review={ID}")
+        self.assertEqual(printed, f"http://craftsman.localhost:{self.port}/review?review={ID}")
         runner = dashboard_server.Handler.hub.session(ID)
         deadline = time.time() + 10
         while not runner.running() and time.time() < deadline:
