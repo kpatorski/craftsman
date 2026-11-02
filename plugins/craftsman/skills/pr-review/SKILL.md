@@ -38,6 +38,10 @@ This session is the review. Nobody reads its terminal: the developer sees it on 
 3. Every change to the review's state goes through `scripts/review_state.py`, never by editing `review.json`. Its
    payload is one JSON argument in single quotes, an apostrophe inside it written as `\u0027`; this session refuses a
    heredoc or a pipe.
+   This session runs only `git`, `gh` and the plugin's scripts, each named by its full path at the start of the
+   command. It refuses a command that starts with a variable (`S=...; python3 $S`), writes a file with `>`, or runs
+   any other program (`sed`, `cat`). Files are read with Read, searched with Grep; a diff is read from the review's
+   `diff/` folder or printed by `git diff`, never saved to `/tmp`.
 4. **Checkpoints go through the review page, not `AskUserQuestion`** — that tool has no one to ask here:
     - `ask`: write the question with `review_state.py <review dir> set` as `checkpoint` — `{"id", "step", "question",
       "options", "answer": null}` — say in one line that the question is on the page, and end the turn. The answer
