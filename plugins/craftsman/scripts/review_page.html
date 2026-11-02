@@ -196,12 +196,28 @@
     border-bottom: 1px solid var(--line); flex-wrap: wrap; }
   .diffbody { overflow-x: auto; padding: 6px 0; }
   .hunk { font-family: var(--mono); font-size: 12px; color: var(--muted); background: var(--change-bg); padding: 4px 16px; }
-  .ln { display: grid; grid-template-columns: 44px 44px 18px max-content; line-height: 1.9; white-space: pre; font-family: var(--mono);
+  .ln { display: grid; grid-template-columns: 44px 44px 44px 18px max-content; line-height: 1.9; white-space: pre; font-family: var(--mono);
     font-size: 12.5px; min-width: 100%; }
   .ln .no, .ln .sg { color: var(--dim); user-select: none; } .ln .no { text-align: right; padding-right: 8px; } .ln .sg { text-align: center; }
   .ln.add { background: var(--added-bg); } .ln.add .sg { color: var(--neon); }
   .ln.del { background: var(--removed-bg); } .ln.del .sg { color: var(--must); } .ln.del .c { color: var(--removed-text); }
   .ln.whole { background: none; }
+  .ln .gd { display: flex; gap: 3px; align-items: center; padding-left: 4px; cursor: pointer; user-select: none; }
+  .ln .gd i { width: 7px; height: 7px; border-radius: 50%; } .ln .gd .more { font-size: 10.5px; color: var(--muted); font-style: normal; }
+  .gd i.must { background: var(--must); } .gd i.should { background: var(--should); } .gd i.nit { background: var(--nit-dot); }
+  .ln .gd:hover, .ln.open .gd { background: var(--float); border-radius: 6px; }
+  .ln .gl { display: none; }
+  .ln.lf-must-fix { outline: 1px solid var(--must); outline-offset: -1px; } .ln.lf-should-fix { outline: 1px solid var(--should); outline-offset: -1px; }
+  .ln.lf-nit { outline: 1px solid var(--nit); outline-offset: -1px; }
+  .ann.on { border-color: var(--line2); background: var(--float); }
+  .gtip { position: fixed; display: none; z-index: 30; max-width: 520px; padding: 8px 12px; border-radius: 10px; background: var(--float);
+    border: 1px solid var(--line2); box-shadow: 0 10px 30px var(--shadow); font-size: 12.5px; pointer-events: none; }
+  .gtip div { display: flex; gap: 8px; align-items: center; padding: 2px 0; } .gtip .hint { color: var(--dim); font-size: 12px; margin-top: 4px; }
+  .switch { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; color: var(--muted); }
+  .switch i { width: 28px; height: 16px; border-radius: 999px; background: var(--switch-off); position: relative; }
+  .switch i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--knob); }
+  .switch.on i { background: var(--neon-strong); } .switch.on i::after { left: 14px; }
+  .sevn { display: inline-flex; gap: 4px; align-items: center; color: var(--muted); } .sevn i { width: 7px; height: 7px; border-radius: 50%; margin-left: 4px; }
   .ln.sel { background: var(--select-bg); box-shadow: 2px 0 0 var(--select) inset; }
   .ann { margin: 4px 16px 8px 106px; padding: 8px 12px; border-radius: 10px; background: var(--card2); border: 1px solid var(--line);
     font-size: 13px; display: flex; gap: 10px; align-items: baseline; cursor: pointer; white-space: normal; }
@@ -252,6 +268,7 @@
   /* where the review is: its steps, and what a tab waits for */
   .steps { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
   .steps i { height: 5px; border-radius: 3px; background: var(--nit-bg); }
+  .steps .cap { grid-row: 2; font-size: 12px; color: var(--muted); margin-top: 4px; }
   .steps i.done { background: var(--neon); } .steps i.now { background: var(--neon-dim); animation: p 1.6s infinite; }
   .steps.wait i.now { background: var(--should); animation: none; } .steps.off i.now { background: var(--nit-dot); animation: none; }
   .stepline { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--muted); margin: 0 0 6px; }
@@ -277,6 +294,7 @@
 <aside class="panel slide" id="ucpanel"></aside>
 <div class="hover" id="hover"></div>
 <div class="pop" id="pop"></div>
+<div class="gtip" id="gtip"></div>
 <div class="toast" id="toast"></div>
 <script>
 // ================================================================ state
@@ -286,7 +304,7 @@ let current = { project: params.get("project"), id: params.get("review") };
 let reviewsList = [], projects = [], R = null, deferred = false;
 const ui = { tab: params.get("tab") || "overview", panel: null, file: params.get("file"), uc: null, ucFile: null,
   fsev: null, fby: null, fstatus: "open", fcat: "", fquestions: false, search: "", codeFilter: "all", editing: null,
-  selection: null };
+  selection: null, inline: localStorage.getItem("craftsman-review-inline") === "1", open: new Set() };
 const diffs = {}, refs = {};
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -301,9 +319,15 @@ const STATUS = { open: f => !["deleted", "sent"].includes(f.status), "to-send": 
   sent: f => f.status === "sent", deleted: f => f.status === "deleted" };
 // The review's steps, as the code-review bundle runs them. The page works out the step from what the state already
 // holds; a checkpoint names its step exactly.
-const STEPS = [["open-review", "Open the review"], ["read-pr-scope", "Read what the PR is for"], ["map-change-structure", "Map the use cases"],
-  ["read-test-rules", "Read the rules from the tests"], ["triage-explanations", "Note the places that are hard to follow"],
-  ["review-use-cases", "Review the use cases"], ["deduplicate-findings", "Join findings about one problem"], ["serve-page", "Answer your questions"]];
+// each step: its protocol, its name, and what the AI agent is doing while the review is at it
+const STEPS = [["open-review", "Open the review", "fetches the PR, checks out its code, and stores the diff"],
+  ["read-pr-scope", "Read what the PR is for", "reads the PR's description and tickets: how it was, how it will be"],
+  ["map-change-structure", "Map the use cases", "follows each entry point through the change"],
+  ["read-test-rules", "Read the rules from the tests", "reads the business rules the tests check"],
+  ["triage-explanations", "Note the places that are hard to follow", "writes notes on the places a reviewer stops at"],
+  ["review-use-cases", "Review the use cases", "reviews the code use case by use case and writes findings"],
+  ["deduplicate-findings", "Merge findings that repeat one problem", "merges findings that say the same thing, so each problem is one comment"],
+  ["serve-page", "Answer your questions", "answers what you ask on this page"]];
 const stepAt = id => STEPS.findIndex(([k]) => k === id);
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
@@ -400,7 +424,10 @@ function reviewStep() {
   return Math.min(at, 7);
 }
 function stepsStrip(at, mode) {
-  return `<div class="steps ${mode}">${STEPS.map((_, i) => `<i class="${i < at ? "done" : i === at ? "now" : ""}" title="${i + 1}. ${STEPS[i][1]}"></i>`).join("")}</div>`;
+  // the step in progress is named under its own bar, so it is clear what the blinking bar stands for
+  const cap = at < STEPS.length / 2 ? `grid-column:${at + 1} / -1;text-align:left` : `grid-column:1 / ${at + 2};text-align:right`;
+  return `<div class="steps ${mode}">${STEPS.map((_, i) => `<i class="${i < at ? "done" : i === at ? "now" : ""}" title="${i + 1}. ${STEPS[i][1]}${i < at ? " · done" : i === at ? " · now" : ""}"></i>`).join("")}` +
+    `<span class="cap" style="${cap}">${at < STEPS.length / 2 ? "↑ " : ""}${mode === "off" ? "stopped here" : mode === "wait" ? "waits for your answer here" : "now: it " + STEPS[at][2]}${at < STEPS.length / 2 ? "" : " ↑"}</span></div>`;
 }
 const sessionMode = () => waiting() ? "wait" : R.running ? "" : "off";
 const doing = () => waiting() ? "waits for your answer" : R.running ? "is working on it" : S().closed ? "— the review is closed" : "— its session is stopped";
@@ -471,8 +498,7 @@ function renderHead() {
       <button class="btn go" data-send ${toSend && pr ? "" : "disabled"} title="${pr ? "" : "No pull request to send to"}">Send ${plural(toSend, "comment")}</button>
       <button class="btn ghost" data-power title="${R.running ? "Stop the session" : "Start the session"}">⏻</button>
     </div></div>
-    <div class="tabs">${tabs.map(([id, name, n]) => `<a class="tab${id === ui.tab ? " on" : ""}" data-tab="${id}">${id === "overview" && waiting() ? '<span class="qdot" title="The AI agent waits for your answer"></span>' : ""}${name}${n !== "" ? `<span class="n">${n}</span>` : ""}</a>`).join("")}</div>
-    ${progressLine()}`;
+    <div class="tabs">${tabs.map(([id, name, n]) => `<a class="tab${id === ui.tab ? " on" : ""}" data-tab="${id}">${id === "overview" && waiting() ? '<span class="qdot" title="The AI agent waits for your answer"></span>' : ""}${name}${n !== "" ? `<span class="n">${n}</span>` : ""}</a>`).join("")}</div>`;
 }
 
 // ================================================================ overview
@@ -554,7 +580,11 @@ function panelFinding(id) {
     : sent ? (f.sent || []).map(x => `<a class="btn sm" href="${esc(x.url)}" target="_blank">On GitHub ↗</a>`).join("")
     : (f.status === "to-send" ? `<button class="btn sm" data-status="proposed">✓ Marked to send</button>` : `<button class="btn go sm" data-status="to-send">Mark to send</button>`) +
       (f.status === "deleted" ? `<button class="btn ghost sm" data-status="proposed">Bring back</button>` : `<button class="btn danger sm" data-status="deleted">Drop</button>`);
-  return `<div class="crumb"><span>Finding ${esc(f.id)} · ${esc(f.category)} · ${who(f.by)}</span><a data-close-panel>✕</a></div>
+  // every place it points at, grouped by file; a line number scrolls the diff to it
+  const byFile = new Map(); (f.locations || []).forEach(l => byFile.set(l.path, [...(byFile.get(l.path) || []), l.line]));
+  const places = [...byFile].map(([path, lines]) => `<span title="${esc(path)}">${esc(path.split("/").pop())}</span> ` +
+    lines.map(n => `<a data-goto="${esc(path)}|${n}" style="color:var(--neon)">${n}</a>`).join(", ")).join(" · ");
+  return `<div class="crumb"><span>Finding ${esc(f.id)} · ${esc(f.category)} · ${who(f.by)}${places ? " · " + places : ""}</span><a data-close-panel>✕</a></div>
     ${editing ? `<input class="field" id="edit-title" value="${esc(f.title)}" style="margin-top:8px">` : `<h2>${inline(f.title)}</h2>`}
     <div class="filters" style="margin:6px 0 0">${SEVS.map(k => `<button class="chip${f.severity === k ? " on" : ""}" data-set-sev="${k}" ${sent ? "disabled" : ""}>${SEV[k]}</button>`).join("")}</div>
     ${f.status === "maybe-resolved" ? `<div class="banner" style="margin:12px 0 0">AI Agent no longer sees this problem at the PR's head. Drop it, or keep it.</div>` : ""}
@@ -681,7 +711,8 @@ function diffView(path, position) {
   const counts = [info.added ? "+" + info.added : "", info.removed ? "−" + info.removed : ""].filter(Boolean).join(" ");
   const head = `<div class="diffhead"><span>${position ? `<span class="muted" style="font-size:12.5px">${position}</span><br>` : ""}<b class="mono">${esc(path)}</b>
       <span class="tag ${{ added: "green", deleted: "red" }[info.change] || "blue"}" style="margin-left:6px">${info.change}${counts ? " · " + counts : ""}</span></span>
-    <span style="display:flex;gap:14px;align-items:center;font-size:12.5px"><span class="muted">select lines to ask AI Agent or add a finding</span>
+    <span style="display:flex;gap:14px;align-items:center;font-size:12.5px"><span class="muted">select lines to ask AI Agent or add a finding</span>${sevCounts(findingsAt(path))}
+      <span class="switch${ui.inline ? " on" : ""}" data-inline title="Every finding under its line, or dots beside the line number"><i></i>Show all inline</span>
       <span style="display:inline-flex;gap:6px;align-items:center;cursor:pointer" data-view="${esc(path)}"><span class="vbox${info.viewed ? " on" : ""}">${info.viewed ? "✓" : ""}</span>Viewed</span></span></div>`;
   if (!hunks) { fileDiff(path); return `<div class="diffcard">${head}<div class="banner">Loading…</div></div>`; }
   let banner = "";
@@ -696,17 +727,31 @@ function diffView(path, position) {
   }
   const notes = threadsOf("file", path), anchored = findingsAt(path), whole = ["added", "deleted"].includes(info.change);
   const sel = ui.selection && ui.selection.path === path ? ui.selection.lines : null;
+  const opened = ui.panel && ui.panel.finding ? S().findings.find(f => f.id === ui.panel.finding) : null;
   const body = hunks.map(h => `<div class="hunk">${esc(h.header)}</div>` + h.lines.map(l => {
     const n = l.now ?? l.old, side = l.now === null ? "LEFT" : "RIGHT";
     const here = anchored.filter(f => f.locations.some(x => x.path === path && x.line === n && (x.side || "RIGHT") === side));
     const talk = notes.filter(t => t.about.lines && t.about.lines[1] === n && (side === "RIGHT" || info.change === "deleted"));
-    const inSel = sel && side === "RIGHT" && n >= sel[0] && n <= sel[1];
-    return `<div class="ln ${l.kind}${whole ? " whole" : ""}${inSel ? " sel" : ""}" data-line="${n}" data-side="${side}">` +
-      `<span class="no">${l.old ?? ""}</span><span class="no">${l.now ?? ""}</span><span class="sg">${l.kind === "add" ? "+" : l.kind === "del" ? "−" : ""}</span><span class="c">${esc(l.text)}</span></div>` +
-      here.map(f => `<div class="ann" data-finding="${esc(f.id)}">${sev(f.severity)}<span>${who(f.by)} · ${esc(f.id)} · ${inline(f.title)}</span></div>`).join("") +
-      talk.map(t => `<div class="ann" data-thread="${esc(t.id)}"><span class="tag">💬 ${t.messages.length}</span><span>${esc(t.messages[0].text.replace(/[*_`#>]/g, "").replace(/\s+/g, " ").slice(0, 140))}</span></div>`).join("");
+    const inSel = sel && side === "RIGHT" && n >= sel[0] && n <= sel[1], key = `${path}|${side}|${n}`;
+    const shown = here.length && (ui.inline || ui.open.has(key)), lit = opened && here.includes(opened) ? " lf-" + opened.severity : "";
+    return `<div class="ln ${l.kind}${whole ? " whole" : ""}${inSel ? " sel" : ""}${shown && !ui.inline ? " open" : ""}${lit}" data-line="${n}" data-side="${side}">` +
+      `<span class="no">${l.old ?? ""}</span><span class="no">${l.now ?? ""}</span>${gutter(here, key)}<span class="sg">${l.kind === "add" ? "+" : l.kind === "del" ? "−" : ""}</span><span class="c">${esc(l.text)}</span></div>` +
+      (shown ? here.map(f => `<div class="ann${f === opened ? " on" : ""}" data-finding="${esc(f.id)}">${sev(f.severity)}<span>${who(f.by)} · ${esc(f.id)} · ${inline(f.title)}</span></div>`).join("") : "") +
+      talk.map(t => `<div class="ann" data-thread="${esc(t.id)}"><span class="tag">${t.messages[0].by === "agent" ? "✦" : "💬"} ${t.messages.length}</span><span>${noteTitle(t.messages[0].text)}</span></div>`).join("");
   }).join("")).join("");
   return `<div class="diffcard">${head}${banner}<div class="diffbody" data-diff="${esc(path)}">${body || '<div class="banner">No lines changed.</div>'}</div></div>`;
+}
+// A line's findings as dots beside its number, worst first; the list behind them shows on hover, and a click opens it.
+function gutter(here, key) {
+  if (!here.length) return `<span class="gd"></span>`;
+  const worst = [...here].sort((a, b) => SEVS.indexOf(a.severity) - SEVS.indexOf(b.severity));
+  return `<span class="gd" data-gutter="${esc(key)}">${worst.slice(0, 4).map(f => `<i class="${f.severity.split("-")[0]}"></i>`).join("")}` +
+    `${worst.length > 4 ? `<em class="more">+${worst.length - 4}</em>` : ""}<span class="gl">${worst.map(f =>
+      `<div>${sev(f.severity)}<b>${esc(f.id)}</b> ${inline(f.title)}</div>`).join("")}<div class="hint">click to open them under the line</div></span></span>`;
+}
+function sevCounts(list) {
+  const n = k => list.filter(f => f.severity === k).length;
+  return list.length ? `<span class="sevn" title="Findings in this file">${SEVS.filter(n).map(k => `<i class="gd-${k}" style="background:var(--${k.split("-")[0] === "nit" ? "nit-dot" : k.split("-")[0]})"></i>${n(k)}`).join("")}</span>` : "";
 }
 // Files under their folders, the folders shortened: the common root once, a long folder as its first and last two parts.
 function fileList(paths, selected, opts = {}) {
@@ -822,9 +867,10 @@ function noteTitle(text) {
   return `<b>${inline(head ? head[1] : text.split(/(?<=[.?!])\s|\n/)[0].replace(/[*_#>]/g, "").slice(0, 120))}</b>`;
 }
 // The diff may still be loading: the line is looked for a few times, then scrolled to and lit for a moment.
-function showLine(n, tries = 20) {
-  const line = document.querySelector(`#ucpanel .ln[data-line="${n}"][data-side="RIGHT"]`) || document.querySelector(`#ucpanel .ln[data-line="${n}"]`);
-  if (!line) return tries && setTimeout(() => showLine(n, tries - 1), 100);
+function showLine(path, n, tries = 20) {
+  const body = [...document.querySelectorAll(".diffbody")].find(x => x.dataset.diff === path && x.offsetParent);
+  const line = body && (body.querySelector(`.ln[data-line="${n}"][data-side="RIGHT"]`) || body.querySelector(`.ln[data-line="${n}"]`));
+  if (!line) return tries && setTimeout(() => showLine(path, n, tries - 1), 100);
   line.scrollIntoView({ block: "center", behavior: "smooth" });
   line.classList.add("lit"); setTimeout(() => line.classList.remove("lit"), 1600);
 }
@@ -897,7 +943,7 @@ function render() {
   else if (!R) main.innerHTML = `<h1>${esc(current.id)}</h1><div class="card pending" style="margin-top:20px"><h3><span>Step 1 of ${STEPS.length} · Open the review</span></h3>
     <div>The AI agent reads the pull request, gives the review its own copy of the code, and stores the diff. The page fills in as soon as it has.</div>
     <div class="indeterminate"></div></div>`;
-  else main.innerHTML = renderHead() + `<div class="view">${({ overview: viewOverview, findings: viewFindings, code: viewCode, structure: viewStructure }[ui.tab] || viewOverview)()}</div>`;
+  else main.innerHTML = renderHead() + `<div class="view">${progressLine()}${({ overview: viewOverview, findings: viewFindings, code: viewCode, structure: viewStructure }[ui.tab] || viewOverview)()}</div>`;
   main.scrollTop = y;
   document.title = (R && waiting() ? "● " : "") + "craftsman review";
   renderPanel(); layoutCards(false); ucPanel();
@@ -938,7 +984,7 @@ function dropSelection() {
 }
 const stepIn = (list, at, by) => list[Math.min(list.length - 1, Math.max(0, list.indexOf(at) + by))];
 
-const CLICKABLE = ["tab", "finding", "thread", "close-panel", "edit", "save", "status", "set-sev", "resolve", "compose", "view", "pick-file",
+const CLICKABLE = ["tab", "inline", "gutter", "goto", "finding", "thread", "close-panel", "edit", "save", "status", "set-sev", "resolve", "compose", "view", "pick-file",
   "open-file", "step-file", "step-uc", "code-filter", "fsev", "fby", "fquestions", "fstatus", "answer", "live", "refresh", "send", "power",
   "close-review", "uccard", "close-uc", "ask-uc", "open-review", "archive", "new", "archived", "unarchive", "start", "pop", "new-finding",
   "nf-sev", "nf-save", "answer-here"].map(name => `[data-${name}]`).join(",");
@@ -961,6 +1007,14 @@ document.addEventListener("click", async e => {
   if (d.fquestions !== undefined) { ui.fquestions = !ui.fquestions; return render(); }
   if (d.fstatus) { ui.fstatus = d.fstatus; return render(); }
   if (d.finding) { ui.panel = ui.panel && ui.panel.finding === d.finding ? null : { finding: d.finding }; ui.editing = null; return render(); }
+  if (d.inline !== undefined) { ui.inline = !ui.inline; localStorage.setItem("craftsman-review-inline", ui.inline ? "1" : "0"); return render(); }
+  if (d.gutter) { ui.open.has(d.gutter) ? ui.open.delete(d.gutter) : ui.open.add(d.gutter); document.getElementById("gtip").style.display = "none"; return ui.uc ? ucPanel() : render(); }
+  if (d.goto) {
+    const [path, line] = [d.goto.slice(0, d.goto.lastIndexOf("|")), +d.goto.slice(d.goto.lastIndexOf("|") + 1)];
+    if (ui.tab === "structure" && ui.uc && cards().find(x => x.id === ui.uc)?.files.includes(path)) { ui.ucFile = path; ucPanel(); }
+    else if (!(ui.tab === "code" && ui.file === path)) go({ ui: { tab: "code", file: path, codeFilter: "all" } });
+    return showLine(path, line);
+  }
   if (d.threadFile && ui.tab === "structure" && ui.uc) { ui.ucFile = d.threadFile; ucPanel(); }
   if (d.thread) { ui.panel = ui.panel && ui.panel.thread === d.thread ? null : { thread: d.thread }; return render(); }
   if (d.closePanel !== undefined) { ui.panel = null; ui.selection = null; document.querySelectorAll(".ln.sel").forEach(l => { if (!l.closest(".snip")) l.classList.remove("sel"); }); return render(); }
@@ -976,7 +1030,7 @@ document.addEventListener("click", async e => {
   if (d.resolve) return change("resolve", { thread: d.resolve }).then(o => o && reload());
   if (d.compose) return compose(JSON.parse(d.compose));
   if (d.pickFile) {
-    if (ui.tab === "structure" && ui.uc) { ui.ucFile = d.pickFile; ucPanel(); return d.pickLine && showLine(+d.pickLine); }
+    if (ui.tab === "structure" && ui.uc) { ui.ucFile = d.pickFile; ucPanel(); return d.pickLine && showLine(d.pickFile, +d.pickLine); }
     return go({ ui: { tab: "code", file: d.pickFile } });
   }
   if (d.openFile) { ui.uc = null; return go({ ui: { tab: "code", file: d.openFile, codeFilter: "all" } }); }
@@ -1091,6 +1145,12 @@ document.addEventListener("mouseover", e => {
   const tile = e.target.closest("[data-hoverr]");
   if (tile) return showHover(+tile.dataset.hoverr, tile);
   if (!e.target.closest("#hover") && !e.target.closest(".rail")) document.getElementById("hover").style.display = "none";
+  const dots = e.target.closest("[data-gutter]"), gtip = document.getElementById("gtip");
+  if (dots && !dots.closest(".ln.open") && !ui.inline) {
+    const at = dots.getBoundingClientRect();
+    gtip.innerHTML = dots.querySelector(".gl").innerHTML; gtip.style.display = "block";
+    gtip.style.left = at.left + "px"; gtip.style.top = Math.min(at.bottom + 4, innerHeight - gtip.offsetHeight - 8) + "px";
+  } else gtip.style.display = "none";
   const card = e.target.closest("[data-uccard]"), tip = document.getElementById("tip");
   if (card) return showTip(card);
   if (tip && tip.style.display === "block") { tip.style.display = "none"; document.querySelectorAll(".uc.related").forEach(x => x.classList.remove("related")); }
