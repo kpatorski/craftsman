@@ -283,7 +283,8 @@
   .steps i { height: 5px; border-radius: 3px; background: var(--nit-bg); }
   .steps .cap { grid-row: 2; font-size: 12px; color: var(--muted); margin-top: 4px; }
   .steps i.done { background: var(--neon); } .steps i.now { background: var(--neon-dim); animation: p 1.6s infinite; }
-  .steps.wait i.now, .steps.stuck i.now { background: var(--should); animation: none; } .steps.off i.now { background: var(--nit-dot); animation: none; }
+  .steps.wait i.now, .steps.stuck i.now { background: var(--should); animation: none; }
+  .steps.restore i.now { background: var(--should); } .steps.off i.now { background: var(--nit-dot); animation: none; }
   .stepline { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--muted); margin: 0 0 6px; }
   .stepline b { font-weight: 400; color: var(--heading); }
   .pending { text-align: left; max-width: 640px; }
@@ -442,7 +443,7 @@ function stepsStrip(at, mode) {
   // the step in progress is named under its own bar, so it is clear what the blinking bar stands for
   const cap = at < STEPS.length / 2 ? `grid-column:${at + 1} / -1;text-align:left` : `grid-column:1 / ${at + 2};text-align:right`;
   return `<div class="steps ${mode}">${STEPS.map((_, i) => `<i class="${i < at ? "done" : i === at ? "now" : ""}" title="${i + 1}. ${STEPS[i][1]}${i < at ? " · done" : i === at ? " · now" : ""}"></i>`).join("")}` +
-    `<span class="cap" style="${cap}">${at < STEPS.length / 2 ? "↑ " : ""}${mode === "off" ? "stopped here" : mode === "wait" ? "waits for your answer here" : mode === "stuck" ? "silent here" : "now: it " + STEPS[at][2]}${at < STEPS.length / 2 ? "" : " ↑"}</span></div>`;
+    `<span class="cap" style="${cap}">${at < STEPS.length / 2 ? "↑ " : ""}${mode === "off" ? "stopped here" : mode === "wait" ? "waits for your answer here" : mode === "stuck" ? "silent here" : mode === "restore" ? "restoring the repository…" : "now: it " + STEPS[at][2]}${at < STEPS.length / 2 ? "" : " ↑"}</span></div>`;
 }
 // The session is working while it is in a turn or its reviewers run in the background; between turns, with nothing in
 // the background, it is idle. Silence while working is how a stuck session shows: after a while the page says so.
@@ -451,8 +452,8 @@ const quietFor = () => R.quiet == null ? 0 : R.quiet + Math.round((Date.now() - 
 const SILENT_AFTER = () => (R.background ? 15 : 5) * 60;
 const stuck = () => R.working && quietFor() > SILENT_AFTER();
 const ago = sec => sec < 90 ? `${sec} s` : sec < 5400 ? `${Math.round(sec / 60)} min` : `${Math.round(sec / 3600)} h`;
-const sessionMode = () => waiting() ? "wait" : stuck() ? "stuck" : idle() ? "idle" : R.running ? "" : "off";
-const doing = () => waiting() ? "waits for your answer" : stuck() ? `has been silent for ${ago(quietFor())}` : idle() ? "is idle — ask it anything"
+const sessionMode = () => R.restoring ? "restore" : waiting() ? "wait" : stuck() ? "stuck" : idle() ? "idle" : R.running ? "" : "off";
+const doing = () => R.restoring ? "waits while the repository is restored" : waiting() ? "waits for your answer" : stuck() ? `has been silent for ${ago(quietFor())}` : idle() ? "is idle — ask it anything"
   : R.running ? "is working on it" : S().closed ? "— the review is closed" : "— its session is stopped";
 // Under the tabs until the review reaches its last step: where it is, and what the AI agent does now.
 function progressLine() {
@@ -463,8 +464,12 @@ function progressLine() {
     · ${R.background ? `${plural(R.background, "reviewer")} it started still run in the background, or ` : ""}the session may be stuck.
     Restarting it continues the same conversation.</span>
     <button class="btn sm" data-restart>Restart the session</button><button class="btn ghost sm" data-live>Open the log</button></div>` : "";
-  if (at >= 7) return ask + silent;
-  return ask + silent + `<div style="margin:-8px 0 18px"><div class="stepline"><span>Step ${at + 1} of ${STEPS.length} · <b>${STEPS[at][1]}</b></span>
+  // the clone in /tmp, or the review's worktree, was gone: it is made again before the session resumes
+  const restoring = R.restoring ? `<div class="asks"><span class="pulse"></span><span class="grow"><b>Restoring the repository…</b>
+    · its clone or the review's worktree was gone; it is made again at the reviewed commit, then the session resumes.</span></div>` : "";
+  const problem = R.problem ? `<div class="banner red" style="margin:0 0 14px"><b>The repository could not be restored</b> · ${esc(R.problem)}</div>` : "";
+  if (at >= 7) return restoring + problem + ask + silent;
+  return restoring + problem + ask + silent + `<div style="margin:-8px 0 18px"><div class="stepline"><span>Step ${at + 1} of ${STEPS.length} · <b>${STEPS[at][1]}</b></span>
     <span>AI Agent ${doing()}</span></div>${stepsStrip(at, sessionMode())}</div>`;
 }
 // What a tab shows before the step that fills it: which step that is, and where the review is now.
@@ -495,7 +500,7 @@ function showHover(i, tile) {
     <div class="t">${esc((r.source && r.source.title) || r.id)}</div>
     <div class="muted">${esc(folder(r.checkout))}</div>
     <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">${r.checkpoint ? '<span class="tag amber">AI Agent waits for your answer</span>' : ""}
-      ${r.running ? '<span class="tag green">session running</span>' : '<span class="tag">session stopped</span>'}
+      ${r.restoring ? '<span class="tag amber">restoring the repository…</span>' : r.running ? '<span class="tag green">session running</span>' : '<span class="tag">session stopped</span>'}
       <span class="tag">${plural(total, "finding")}</span>${r.closed ? '<span class="tag">closed</span>' : ""}</div>
     <div class="row-actions"><button class="btn sm" data-open-review="${i}">Open</button>
       <button class="btn ghost sm" data-archive="${i}">Archive</button></div>`;
@@ -509,7 +514,7 @@ function renderHead() {
   const added = files.reduce((a, f) => a + f.added, 0), removed = files.reduce((a, f) => a + f.removed, 0);
   const toSend = s.findings.filter(f => f.status === "to-send").length, now = useCases().find(u => u.status === "reviewing");
   const bg = R.background ? ` · ${plural(R.background, "reviewer")} in the background` : "";
-  const status = waiting() ? ["wait", "AI Agent waits for your answer"] : stuck() ? ["wait", `AI Agent silent for ${ago(quietFor())}`]
+  const status = R.restoring ? ["", "Restoring the repository…"] : waiting() ? ["wait", "AI Agent waits for your answer"] : stuck() ? ["wait", `AI Agent silent for ${ago(quietFor())}`]
     : idle() ? ["idle", "AI Agent is idle · ask it anything"]
     : R.running ? ["", (now ? `AI Agent · reviewing ${now.name}` : "AI Agent is working") + bg]
     : ["off", s.closed ? "Review closed" : "Session stopped · start it"];
@@ -1184,6 +1189,8 @@ document.addEventListener("keydown", e => {
 });
 document.addEventListener("selectionchange", () => { if (deferred && !busy()) render(); });
 setInterval(() => { if (R && R.working) render(); }, 30000);
+// restoring writes nothing the server watches until the session starts, so the page asks
+setInterval(() => { if (R && R.restoring && !busy()) reload(); }, 2000);
 document.addEventListener("focusout", () => setTimeout(() => { if (deferred && !busy()) render(); }, 0));
 // Selecting lines of a diff, or words of a finding's text, offers to ask AI Agent about them.
 document.addEventListener("mouseup", e => {

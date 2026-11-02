@@ -441,7 +441,11 @@ class ReviewEndpointsTest(ReviewsTest):
         printed = dashboard_server.start_review(self.port, self.checkout, "https://github.com/org/booking/pull/123")
 
         self.assertTrue(printed.endswith(f"?review={ID}"))
-        self.assertTrue(dashboard_server.Handler.hub.session(ID).running())
+        runner = dashboard_server.Handler.hub.session(ID)
+        deadline = time.time() + 10
+        while not runner.running() and time.time() < deadline:
+            time.sleep(0.05)
+        self.assertTrue(runner.running())
 
     def test_a_started_review_records_the_checkout_it_runs_in(self):
         self.call("/api/review/start", {"checkout": str(self.checkout), "source": "main:feature/x"})
@@ -483,6 +487,20 @@ class ReviewEndpointsTest(ReviewsTest):
         self.assertEqual((status, body["id"]), (200, "org-booking-pr-124"))
         self.assertEqual(dashboard_server.Handler.hub.session("org-booking-pr-124").checkout,
                          self.tmp / "clones" / "org" / "booking")
+
+    def test_archiving_a_review_stops_its_session_and_deletes_its_worktree(self):
+        (self.review / "worktree").mkdir()
+
+        status, _ = self.call("/api/review/change", {"id": ID, "action": "archive", "archived": True})
+
+        self.assertEqual(status, 200)
+        self.assertFalse((self.review / "worktree").exists())
+        self.assertFalse(dashboard_server.Handler.hub.session(ID).running())
+
+    def test_the_page_sees_a_review_being_restored(self):
+        status, body = self.call(f"/api/review?id={ID}")
+
+        self.assertEqual((status, body["restoring"], body["problem"]), (200, False, None))
 
     def test_an_unknown_review_is_not_found(self):
         status, body = self.call("/api/review/message", {"id": "org-booking-pr-999", "type": "refresh"})

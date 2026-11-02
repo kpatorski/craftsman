@@ -8,6 +8,7 @@ import json
 import os
 import pathlib
 import shutil
+import subprocess
 import sys
 import tempfile
 import time
@@ -153,6 +154,62 @@ class ReviewSessionTest(unittest.TestCase):
         self.runner.stop()
 
         self.assertFalse(self.runner.running())
+
+
+class RestoreOnResumeTest(unittest.TestCase):
+    """A review read from a clone in /tmp resumes after the clone is gone: the repository is made again first, and the
+    page can say so while it happens."""
+
+    def setUp(self):
+        self.tmp = pathlib.Path(tempfile.mkdtemp()).resolve()
+        self.saved = {key: os.environ.get(key) for key in ("CRAFTSMAN_CLONES", "CRAFTSMAN_GITHUB", "CRAFTSMAN_HOME")}
+        os.environ.update(CRAFTSMAN_CLONES=str(self.tmp / "clones"), CRAFTSMAN_GITHUB=f"file://{self.tmp / 'github'}",
+                          CRAFTSMAN_HOME=str(self.tmp / "home"), FAKE_CLAUDE_LOG=str(self.tmp / "fake.log"),
+                          FAKE_REVIEW_DIR=str(self.tmp / "home" / "reviews" / ID), CRAFTSMAN_SCRIPTS=str(SCRIPTS))
+        work = self.tmp / "work"
+        for args in (["init", "-q", "-b", "main", str(work)], ["-C", str(work), "commit", "-q", "--allow-empty",
+                                                                "-m", "a"]):
+            subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args], check=True)
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=work, capture_output=True, text=True).stdout.strip()
+        origin = self.tmp / "github" / "org" / "booking.git"
+        subprocess.run(["git", "clone", "-q", "--bare", str(work), str(origin)], check=True, capture_output=True)
+        subprocess.run(["git", "update-ref", "refs/pull/123/head", head], cwd=origin, check=True)
+        diff = self.tmp / "change.diff"
+        diff.write_text("diff\n")
+        self.review = self.tmp / "home" / "reviews" / ID
+        review_state.change(self.review, "init", {
+            "source": {"kind": "pull-request", "url": "https://github.com/org/booking/pull/123", "number": 123},
+            "base": head, "head": head, "diff": str(diff),
+            "checkout": str(self.tmp / "clones" / "org" / "booking")})
+        self.runner = sessions.ReviewSession(ID, command=[sys.executable, str(TESTS / "fake_claude.py")])
+
+    def tearDown(self):
+        self.runner.stop()
+        for key, value in self.saved.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+        shutil.rmtree(self.tmp)
+
+    def test_a_resumed_review_restores_its_clone_and_worktree_first(self):
+        self.runner.resume()
+
+        self.assertTrue(self.runner.restoring)
+        self.assertTrue(eventually(self.runner.running), self.runner.problem)
+        self.assertFalse(self.runner.restoring)
+        self.assertTrue((self.review / "worktree" / ".git").exists())
+        self.assertTrue((self.tmp / "clones" / "org" / "booking" / ".git").is_dir())
+
+    def test_closing_a_review_deletes_its_worktree_and_clone(self):
+        self.runner.resume()
+        self.assertTrue(eventually(self.runner.running), self.runner.problem)
+
+        reviews.add_message(ID, {"type": "close"})
+        self.runner.deliver()
+
+        self.assertTrue(eventually(lambda: not (self.tmp / "clones" / "org" / "booking").exists()))
+        self.assertFalse((self.review / "worktree").exists())
 
 
 if __name__ == "__main__":
