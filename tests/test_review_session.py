@@ -112,8 +112,8 @@ class ReviewSessionTest(unittest.TestCase):
     def test_page_messages_reach_the_session_one_at_a_time_in_order(self):
         self.started()
 
-        reviews.add_message(self.project, "pr-123", {"type": "explain", "about": {"kind": "file", "id": "A.java"}})
-        reviews.add_message(self.project, "pr-123", {"type": "message", "text": "Why the retry?"})
+        reviews.add_message(self.project, "pr-123", {"type": "ask", "thread": "t1"})
+        reviews.add_message(self.project, "pr-123", {"type": "refresh"})
         self.runner.deliver()
 
         self.assertTrue(eventually(lambda: len(self.received()) == 3), self.received())

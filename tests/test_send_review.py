@@ -55,7 +55,7 @@ class SendReviewTest(unittest.TestCase):
     def finding(self, comment, locations, to_send=True, kind="violation"):
         found = review_state.change(self.review, "add-finding", {
             "category": "c", "title": "t", "description": "d", "comment": comment, "locations": locations,
-            "kind": kind, **({"when": "later"} if kind == "out-of-scope" else {})})
+            "kind": kind, "severity": "should-fix", **({"when": "later"} if kind == "out-of-scope" else {})})
         if to_send:
             review_state.change(self.review, "set-status", {"status": "to-send"}, "developer", found)
         return found

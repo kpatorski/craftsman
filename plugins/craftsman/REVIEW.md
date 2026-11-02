@@ -42,34 +42,46 @@ What the page shows above the findings. Every text field is GitHub markdown.
 - `scope` — what the PR is about, from its description.
 - `requirements` — what the linked Jira ticket asks for; `tickets` lists the keys found in the description. Empty,
   with the reason in `requirements`, when no ticket is linked or Jira cannot be read.
-- `structure` — the shape of the change:
-  - `use-cases` — `{"id", "name", "entry", "files": [...], "status"}`; `entry` is the file and line where the use
-    case starts; `status` is `pending`, `reviewing` or `reviewed`;
-  - `contexts` — `{"id", "name", "files": [...]}`;
-  - `boundaries` — one markdown text on how the parts talk to each other and where they should not;
-  - `links` — `{"from", "to", "how", "doubt"}` per pair of contexts that talk in this change; `how` is `call`,
-    `event`, `http` or `table`; `doubt` is null, or one sentence on why the direction looks wrong.
-
-The page draws `structure` as one small graph: use cases on the left, each joined to the contexts its files are in,
-and the contexts joined by `links`, a doubtful link marked. Never a node per class or file. With more than 12 use
-cases and contexts together, the graph shows only the contexts and their links, and a context opens to its use cases
-on a click. The graph is a way into the rest of the page:
-
-- pointing at a node lights up everything joined to it;
-- clicking a use case or a context narrows the PR map, the explanations and the findings to its files, until the
-  filter is cleared;
-- clicking a link shows how the two contexts talk and, for a doubtful one, why.
+- `structure` — the shape of the change: `use-cases`, each `{"id", "name", "says", "entry", "files": [...],
+  "status", "flow"}`:
+  - `says` — one sentence on what the use case does, for someone who has not read the code;
+  - `entry` — the file and line where the use case starts;
+  - `files` — every changed file the use case reaches; a file reached by several use cases is in each of them;
+  - `status` — `pending`, `reviewing` or `reviewed`;
+  - `flow` — how the use case runs: `steps`, each `{"call", "path", "line", "change", "crosses"}`, from the entry
+    point down through the change, where `change` is `added`, `modified`, `deleted` or `unchanged` and `crosses` is
+    null or the boundary the call should not cross; and `branches`, each `{"what", "tested"}`, the ways the use case
+    can end and whether a test covers each.
 - `rules` — business rules read from the test suites, each `{"id", "rule", "test", "requirement"}`; `test` is
   `path:line`, `requirement` says which requirement it covers, or that none does.
 
-### Context for the reviewer
+The page lists the use cases as cards. Pointing at a card shows what it says and its files, and marks the use cases
+that share a file with it; clicking a card opens its files, its flow and their diff beside the cards.
 
-- `map` — the PR map: `{"id", "name", "summary", "files": [...]}` per group of files belonging to one use case or
-  component. Every changed file is in exactly one group.
-- `explanations` — `{"id", "about", "origin", "body", "status"}`:
-  - `about` — `{"kind": "group" | "file" | "finding", "id"}`, where a file's `id` is its path;
-  - `origin` — `triage` (written unasked, for a non-obvious place) or `requested` (the developer asked);
-  - `status` — `pending` while the agent writes it, then `ready`.
+### What the server adds
+
+The page reads `review.json` together with what the server works out from the diff of `head`, so no changed file can
+be missed:
+
+- `files` — every changed file: `path`, `change` (`added`, `modified`, `deleted`, or `renamed` with `from`), the
+  lines it adds and removes, the use cases it belongs to, and whether the developer viewed it;
+- `untied` — the changed files no use case reaches. The page shows them as one more card, so every changed file is
+  in a card.
+
+For a deleted file, the server also lists where the reviewed code in `worktree/` still names it.
+
+### The developer's reading
+
+- `viewed` — the paths of the changed files the developer marked as viewed. Only the developer changes it.
+- `archived` — true once the developer archived the review; the page then leaves it out of the list of reviews.
+- `threads` — questions about a part of the review, and notes the agent writes unasked: `{"id", "about", "quote",
+  "status", "messages"}`:
+  - `about` — `{"kind": "review"}`, `{"kind": "finding", "id"}`, `{"kind": "use-case", "id"}`, or `{"kind": "file",
+    "path", "lines": [first, last]}`;
+  - `quote` — the text or the lines the developer selected, or null;
+  - `status` — `open`, or `resolved` once the developer resolves it; a new message from the developer opens it
+    again;
+  - `messages` — `{"by", "at", "text"}`, where `by` is `developer` or `agent` and `text` is GitHub markdown.
 
 ### Checkpoint
 
@@ -83,6 +95,9 @@ on a click. The graph is a way into the rest of the page:
 
 - `id` — `f<number>`, never reused.
 - `category` — the group on the page, e.g. `naming`, `boundaries`, `security`.
+- `by` — `agent`, or `developer` for a finding the developer added; theirs needs only a title, the comment, the
+  locations and the severity, and gets the category `yours`.
+- `severity` — `must-fix`, `should-fix` or `nit`.
 - `title` — a few words.
 - `description` — a short introduction to what it is about.
 - `comment` — the proposed PR comment: what is wrong, why it matters, the proposed solution.
@@ -95,7 +110,7 @@ on a click. The graph is a way into the rest of the page:
 - `status` — `proposed`, `to-send`, `sent`, `deleted`, `maybe-resolved`, or `merged`.
 - `merged-into` — for `merged` only: the id of the finding this one was joined into, as one problem in several
   places. A `merged` finding is never sent; the page shows it folded under that finding.
-- `edited` — the fields the developer changed: any of `title`, `description`, `comment`.
+- `edited` — the fields the developer changed: any of `title`, `description`, `comment`, `severity`.
 - `sent` — `{"location", "url", "replies"}` for each comment posted to GitHub; `replies` are
   `{"author", "at", "body"}`, read from GitHub on every refresh and only shown, never answered by the agent.
 
@@ -116,21 +131,21 @@ Claude session as a message, in order, once the session has finished its current
 records its `id` in `review.json`'s `handled`. When the server starts the session again, for a review that has lines
 not yet in `handled`, it passes those first.
 
-| `type`    | Carries                        | The agent                                              |
-|-----------|--------------------------------|--------------------------------------------------------|
-| `answer`  | `checkpoint`, `option`, `note` | goes on; the server has recorded the answer already    |
-| `explain` | `about`                        | adds a `requested` explanation and writes it           |
-| `refresh` | —                              | reads the PR or branches again, re-checks the findings |
-| `ask`     | `text`, `about`                | answers in a new explanation about the same thing      |
-| `message` | `text`                         | answers in the console, like a message typed in a CLI  |
-| `close`   | —                              | sets `closed` and ends the run                         |
+| `type`    | Carries                        | The agent                                                      |
+|-----------|--------------------------------|----------------------------------------------------------------|
+| `answer`  | `checkpoint`, `option`, `note` | goes on; the server has recorded the answer already            |
+| `ask`     | `thread`                       | reads the thread's last message and replies in the same thread |
+| `refresh` | —                              | reads the PR or branches again, re-checks the findings         |
+| `close`   | —                              | sets `closed` and ends the run                                 |
 
-Edits, deletions and "to send" on the page do not go through the inbox: the server applies them to `review.json`
-through `review_state.py` directly, and the agent sees them the next time it reads the state.
+A question from the page opens a thread, or adds to one, before its `ask` line is written.
+
+Edits, deletions, "to send", "viewed" and archiving on the page do not go through the inbox: the server applies them
+to `review.json` through `review_state.py` directly, and the agent sees them the next time it reads the state.
 
 ## `session.jsonl`
 
 Every event of the review's Claude session (`--output-format stream-json`), appended by the server as it arrives. The
-page's console panel shows it: the agent's text, the tools it calls, refused tools, and the end of each turn. A
-subagent's result arrives in a later turn than the one that started it, so the console never waits for one answer
-per message.
+page shows what the session is doing in its header, and the whole log on request: the agent's text, the tools it
+calls, refused tools, and the end of each turn. A subagent's result arrives in a later turn than the one that started
+it, so the log never waits for one answer per message.

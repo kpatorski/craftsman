@@ -222,10 +222,9 @@ class Handler(BaseHTTPRequestHandler):
                 runner = self.hub.sessions.get((review["project"], review["id"]))
                 review["running"] = bool(runner and runner.running())
             return self.send(200, dict(reviews=listed))
-        if url.path in ("/api/review", "/api/review/diff"):
-            query = urllib.parse.parse_qs(url.query)
-            return self.review_request(dict(project=query.get("project", [""])[0], id=query.get("id", [""])[0]),
-                                       url.path)
+        if url.path in ("/api/review", "/api/review/diff", "/api/review/references"):
+            query = {key: values[0] for key, values in urllib.parse.parse_qs(url.query).items()}
+            return self.review_request(query, url.path)
         return self.send(404, dict(error="not found"))
 
     def review_request(self, body, path):
@@ -256,7 +255,9 @@ class Handler(BaseHTTPRequestHandler):
                     runner.resume()
                 return self.send(200, dict(ok=True))
             if path == "/api/review/diff":
-                return self.send(200, reviews.diff_text(project, review_id), "text/plain")
+                return self.send(200, reviews.diff_text(project, review_id, body.get("path")), "text/plain")
+            if path == "/api/review/references":
+                return self.send(200, dict(references=reviews.references(project, review_id, body.get("path", ""))))
             if path == "/api/review/send":
                 return self.send(200, send_review.send(reviews.review_dir(project, review_id)))
             if path == "/api/review/change":

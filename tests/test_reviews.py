@@ -24,7 +24,41 @@ import review_state  # noqa: E402
 SOURCE = {"kind": "pull-request", "url": "https://github.com/org/booking/pull/123", "repository": "org/booking",
           "number": 123}
 FINDING = {"category": "naming", "title": "Name says nothing", "description": "d", "comment": "c",
-           "locations": [{"path": "A.java", "line": 3, "side": "RIGHT", "commit": "bbb"}], "kind": "violation"}
+           "locations": [{"path": "A.java", "line": 3, "side": "RIGHT", "commit": "bbb"}], "kind": "violation",
+           "severity": "should-fix"}
+DIFF = """diff --git a/A.java b/A.java
+new file mode 100644
+--- /dev/null
++++ b/A.java
+@@ -0,0 +1,2 @@
++class A {}
++// two
+diff --git a/B.java b/B.java
+index 111..222 100644
+--- a/B.java
++++ b/B.java
+@@ -1,3 +1,3 @@
+ class B {
+-  int x;
++  long x;
+ }
+diff --git a/Old.java b/Old.java
+deleted file mode 100644
+--- a/Old.java
++++ /dev/null
+@@ -1,2 +0,0 @@
+-class Old {}
+-// gone
+diff --git a/C.java b/D.java
+similarity index 90%
+rename from C.java
+rename to D.java
+--- a/C.java
++++ b/D.java
+@@ -1 +1 @@
+-class C {}
++class D {}
+"""
 
 
 class ReviewsTest(unittest.TestCase):
@@ -32,7 +66,7 @@ class ReviewsTest(unittest.TestCase):
         self.project = pathlib.Path(tempfile.mkdtemp()).resolve()
         self.review = self.project / ".claude" / "reviews" / "pr-123"
         diff = self.project / "change.diff"
-        diff.write_text("diff --git a/A.java b/A.java\n+class A {}\n")
+        diff.write_text(DIFF)
         review_state.change(self.review, "init", {"source": SOURCE, "base": "aaa", "head": "bbb", "diff": str(diff)})
         review_state.change(self.review, "set", {"scope": "Cancels a reservation."})
         review_state.change(self.review, "add-finding", FINDING)
@@ -77,8 +111,8 @@ class ReviewsTest(unittest.TestCase):
         self.assertEqual([(m["id"], m["type"], m["checkpoint"]) for m in self.inbox()], [("m1", "answer", "c1")])
 
     def test_messages_get_ids_in_order_and_wait_until_handled(self):
-        reviews.add_message(self.project, "pr-123", {"type": "explain", "about": {"kind": "file", "id": "A.java"}})
-        reviews.add_message(self.project, "pr-123", {"type": "message", "text": "Why the retry?"})
+        reviews.add_message(self.project, "pr-123", {"type": "refresh"})
+        reviews.add_message(self.project, "pr-123", {"type": "ask", "thread": "t1"})
         review_state.change(self.review, "handled", item_id="m1")
 
         self.assertEqual([m["id"] for m in reviews.pending_messages(self.review)], ["m2"])
@@ -87,9 +121,35 @@ class ReviewsTest(unittest.TestCase):
         with self.assertRaises(review_state.Refused):
             reviews.add_message(self.project, "pr-123", {"type": "delete-everything"})
         with self.assertRaises(review_state.Refused):
-            reviews.add_message(self.project, "pr-123", {"type": "message"})
+            reviews.add_message(self.project, "pr-123", {"type": "ask"})
 
         self.assertEqual(self.inbox(), [])
+
+    def test_the_page_adds_the_developers_own_finding(self):
+        reviews.developer_change(self.project, "pr-123", "add-finding", {"fields": {
+            "title": "Mine", "comment": "Return a result.", "severity": "nit",
+            "locations": [{"path": "A.java", "line": 1, "side": "RIGHT", "commit": "bbb"}]}})
+
+        self.assertEqual(review_state.read(self.review)["findings"][1]["by"], "developer")
+
+    def test_a_question_on_the_page_opens_a_thread_and_wakes_the_session(self):
+        reviews.developer_change(self.project, "pr-123", "ask", {
+            "about": {"kind": "file", "path": "A.java", "lines": [1, 2]}, "quote": "class A {}", "text": "Why?"})
+        reviews.developer_change(self.project, "pr-123", "reply", {"thread": "t1", "text": "And?"})
+        reviews.developer_change(self.project, "pr-123", "resolve", {"thread": "t1"})
+
+        thread = review_state.read(self.review)["threads"][0]
+        self.assertEqual(([m["text"] for m in thread["messages"]], thread["status"]), (["Why?", "And?"], "resolved"))
+        self.assertEqual([(m["type"], m["thread"]) for m in self.inbox()], [("ask", "t1"), ("ask", "t1")])
+
+    def test_the_page_marks_files_viewed_and_archives_the_review(self):
+        reviews.developer_change(self.project, "pr-123", "view", {"path": "A.java"})
+        reviews.developer_change(self.project, "pr-123", "unview", {"path": "A.java"})
+        reviews.developer_change(self.project, "pr-123", "view", {"path": "B.java"})
+        reviews.developer_change(self.project, "pr-123", "archive", {"archived": True})
+
+        self.assertEqual(review_state.read(self.review)["viewed"], ["B.java"])
+        self.assertTrue(reviews.list_reviews([self.project])[0]["archived"])
 
     def test_a_review_id_never_reaches_outside_the_reviews_folder(self):
         with self.assertRaises(review_state.Refused):
@@ -141,6 +201,42 @@ class ReviewsTest(unittest.TestCase):
     def test_the_diff_of_the_reviewed_head_is_served(self):
         self.assertIn("+class A {}", reviews.diff_text(self.project, "pr-123"))
 
+    def test_the_diff_of_one_file_is_served_alone(self):
+        one = reviews.diff_text(self.project, "pr-123", "B.java")
+
+        self.assertTrue(one.startswith("diff --git a/B.java b/B.java"))
+        self.assertIn("+  long x;", one)
+        self.assertNotIn("class A", one)
+
+    def test_the_changed_files_say_how_each_one_changed(self):
+        files = reviews.changed_files(DIFF)
+
+        self.assertEqual([(f["path"], f["change"], f["added"], f["removed"]) for f in files], [
+            ("A.java", "added", 2, 0), ("B.java", "modified", 1, 1), ("Old.java", "deleted", 0, 2),
+            ("D.java", "renamed", 1, 1)])
+        self.assertEqual(files[3]["from"], "C.java")
+
+    def test_every_changed_file_is_in_a_use_case_or_listed_apart_so_none_is_lost(self):
+        review_state.change(self.review, "set", {"structure": {"use-cases": [
+            {"id": "u1", "name": "Cancel", "says": "Cancels.", "entry": "A.java:1", "files": ["A.java", "B.java"]},
+            {"id": "u2", "name": "Release", "says": "Releases.", "entry": "B.java:1", "files": ["B.java"]}]}})
+        review_state.change(self.review, "view", {"path": "B.java"}, "developer")
+
+        read = reviews.read_review(self.project, "pr-123")
+
+        files = {f["path"]: f for f in read["files"]}
+        self.assertEqual(files["B.java"]["use-cases"], ["u1", "u2"])
+        self.assertTrue(files["B.java"]["viewed"])
+        self.assertEqual(read["untied"], ["Old.java", "D.java"])
+
+    def test_what_still_refers_to_a_deleted_file_is_found_in_the_reviewed_code(self):
+        worktree = self.review / "worktree"
+        (worktree / "src").mkdir(parents=True)
+        (worktree / "src" / "Uses.java").write_text("class Uses {\n  Old old;\n  OldStyle style;\n}\n")
+        (worktree / "src" / "Clean.java").write_text("class Clean {}\n")
+
+        self.assertEqual(reviews.references(self.project, "pr-123", "Old.java"), ["src/Uses.java:2"])
+
 
 class ReviewEndpointsTest(ReviewsTest):
     """The same through HTTP, as the page does it -- only for projects on the dashboard."""
@@ -176,6 +272,12 @@ class ReviewEndpointsTest(ReviewsTest):
                 return response.status, json.loads(response.read())
         except urllib.error.HTTPError as error:
             return error.code, json.loads(error.read())
+
+    def text(self, path):
+        request = urllib.request.Request(f"http://127.0.0.1:{self.port}{path}",
+                                         headers={"Host": f"127.0.0.1:{self.port}", "X-Craftsman": "1"})
+        with urllib.request.urlopen(request, timeout=5) as response:
+            return response.read().decode()
 
     def page(self, path):
         request = urllib.request.Request(f"http://127.0.0.1:{self.port}{path}",
@@ -220,6 +322,16 @@ class ReviewEndpointsTest(ReviewsTest):
         self.assertEqual((status, body["id"]), (200, "m1"))
 
         self.assertEqual(review_state.read(self.review)["findings"][0]["status"], "to-send")
+
+    def test_the_page_reads_one_files_diff_and_what_refers_to_a_deleted_file(self):
+        (self.review / "worktree").mkdir()
+        (self.review / "worktree" / "Uses.java").write_text("Old old;\n")
+
+        diff = self.text(f"/api/review/diff?project={self.project}&id=pr-123&path=B.java")
+        status, body = self.call(f"/api/review/references?project={self.project}&id=pr-123&path=Old.java")
+
+        self.assertTrue(diff.startswith("diff --git a/B.java"))
+        self.assertEqual((status, body["references"]), (200, ["Uses.java:1"]))
 
     def test_a_refused_change_says_why(self):
         status, body = self.call("/api/review/change", {"project": str(self.project), "id": "pr-123",

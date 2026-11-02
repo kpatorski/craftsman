@@ -6,13 +6,15 @@
 The payload is one argument, in single quotes; an apostrophe inside it is written as \\u0027.
 
 Commands: init, set, add-finding, update-finding <id>, set-status <id>, mark-sent <id>, add-replies <id>,
-add-explanation, update-explanation <id>, use-case-status <id>, answer, handled <message id>, show.
+use-case-status <id>, open-thread, reply <thread id>, resolve <thread id>, view, unview, archive, answer,
+handled <message id>, show.
 
 The agent and the review page change review.json at the same time. Every change takes an exclusive lock, reads the
 file fresh, checks the change against REVIEW.md's rules, and replaces the file atomically -- so neither side loses
 the other's change, and neither can break a rule the other relies on. A refused change exits 1 with the reason on
 stderr and leaves the file as it was. `--by` says who asks; it defaults to the agent.
 """
+import datetime
 import fcntl
 import json
 import os
@@ -24,16 +26,19 @@ from contextlib import contextmanager
 
 KINDS = ("violation", "new-convention", "scout", "out-of-scope")
 WHEN = ("now", "later")
+SEVERITY = ("must-fix", "should-fix", "nit")
 TEXT_FIELDS = ("title", "description", "comment")
-AGENT_FIELDS = TEXT_FIELDS + ("category", "locations", "directive", "kind", "when")
+DEVELOPER_FIELDS = TEXT_FIELDS + ("severity",)
+AGENT_FIELDS = DEVELOPER_FIELDS + ("category", "locations", "directive", "kind", "when")
 SETTABLE = ("source", "base", "head", "refreshed", "session", "closed", "language", "scope", "requirements", "tickets",
-            "structure", "rules", "map", "checkpoint")
+            "structure", "rules", "checkpoint")
 STATUS_BY = {
     "agent": ("maybe-resolved", "merged", "proposed"),
     "developer": ("to-send", "deleted", "proposed"),
 }
 USE_CASE_STATUS = ("pending", "reviewing", "reviewed")
-EXPLANATION_STATUS = ("pending", "ready")
+CHANGES = ("added", "modified", "deleted", "unchanged")
+ABOUT = ("review", "finding", "file", "use-case")
 
 
 class Refused(Exception):
@@ -43,7 +48,7 @@ class Refused(Exception):
 def empty_state(source, base, head):
     return {"source": source, "base": base, "head": head, "refreshed": None, "session": None, "closed": None,
             "language": None, "scope": None, "requirements": None, "tickets": [], "structure": None, "rules": [],
-            "map": [], "explanations": [], "checkpoint": None, "findings": [], "handled": []}
+            "checkpoint": None, "findings": [], "threads": [], "viewed": [], "archived": False, "handled": []}
 
 
 @contextmanager
@@ -83,6 +88,32 @@ def check_kind(found):
         raise Refused("an out-of-scope finding needs `when`: now or later")
 
 
+def check_severity(found):
+    if found.get("severity") not in SEVERITY:
+        raise Refused(f"severity must be one of {', '.join(SEVERITY)}")
+
+
+def check_structure(structure):
+    """Every use case says what it does; its flow, when given, is calls through the change and the branches they take."""
+    for use_case in (structure or {}).get("use-cases", []):
+        missing = [field for field in ("id", "name", "says", "entry") if not use_case.get(field)]
+        if missing or not isinstance(use_case.get("files"), list):
+            raise Refused(f"a use case needs {', '.join(missing or ['files'])}")
+        if use_case.get("status", "pending") not in USE_CASE_STATUS:
+            raise Refused(f"a use case's status must be one of {', '.join(USE_CASE_STATUS)}")
+        flow = use_case.get("flow") or {"steps": [], "branches": []}
+        for step in flow.get("steps", []):
+            if not step.get("call") or not step.get("path") or step.get("change") not in CHANGES:
+                raise Refused(f"a flow step needs call, path, and change: one of {', '.join(CHANGES)}")
+        for branch in flow.get("branches", []):
+            if not branch.get("what") or not isinstance(branch.get("tested"), bool):
+                raise Refused("a branch needs what, and tested: true or false")
+
+
+def now():
+    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+
+
 def not_sent(found):
     if found["status"] == "sent":
         raise Refused(f"{found['id']} is sent; a follow-up is a new finding")
@@ -100,18 +131,24 @@ def set_fields(state, payload, by):
     unknown = sorted(set(payload) - set(SETTABLE))
     if unknown:
         raise Refused(f"not settable: {', '.join(unknown)}")
+    if "structure" in payload:
+        check_structure(payload["structure"])
     state.update(payload)
     return state, None
 
 
 def add_finding(state, payload, by):
-    missing = [field for field in ("category", "title", "description", "comment", "locations", "kind")
-               if not payload.get(field)]
+    """The agent's finding names its category and kind; the developer's own needs only what a PR comment needs."""
+    required = ("category", "title", "description", "comment", "locations", "kind", "severity") if by == "agent" \
+        else ("title", "comment", "locations", "severity")
+    missing = [field for field in required if not payload.get(field)]
     if missing:
         raise Refused(f"a finding needs {', '.join(missing)}")
-    check_kind(payload)
-    found = {"id": next_id(state["findings"], "f"), "directive": None, "when": None, **payload,
+    defaults = {"category": "yours", "description": "", "kind": "violation"} if by == "developer" else {}
+    found = {"id": next_id(state["findings"], "f"), "directive": None, "when": None, **defaults, **payload, "by": by,
              "status": "proposed", "edited": [], "sent": []}
+    check_kind(found)
+    check_severity(found)
     state["findings"].append(found)
     return state, found["id"]
 
@@ -119,7 +156,7 @@ def add_finding(state, payload, by):
 def update_finding(state, payload, by, finding_id):
     found = by_id(state["findings"], finding_id)
     not_sent(found)
-    allowed = TEXT_FIELDS if by == "developer" else AGENT_FIELDS
+    allowed = DEVELOPER_FIELDS if by == "developer" else AGENT_FIELDS
     unknown = sorted(set(payload) - set(allowed))
     if unknown:
         raise Refused(f"the {by} cannot change {', '.join(unknown)}")
@@ -129,8 +166,9 @@ def update_finding(state, payload, by, finding_id):
             raise Refused(f"the developer edited {', '.join(protected)} of {finding_id}; propose a new finding instead")
     found.update(payload)
     if by == "developer":
-        found["edited"] = [field for field in TEXT_FIELDS if field in set(found["edited"]) | set(payload)]
+        found["edited"] = [field for field in DEVELOPER_FIELDS if field in set(found["edited"]) | set(payload)]
     check_kind(found)
+    check_severity(found)
     return state, None
 
 
@@ -168,19 +206,69 @@ def add_replies(state, payload, by, finding_id):
     return state, None
 
 
-def add_explanation(state, payload, by):
-    explanation = {"id": next_id(state["explanations"], "e"), "about": payload["about"],
-                   "origin": payload.get("origin", "requested"), "body": payload.get("body"),
-                   "status": payload.get("status", "pending")}
-    state["explanations"].append(explanation)
-    return state, explanation["id"]
+def check_about(state, about):
+    kind = (about or {}).get("kind")
+    if kind not in ABOUT:
+        raise Refused(f"a thread is about one of {', '.join(ABOUT)}")
+    if kind == "finding":
+        by_id(state["findings"], about.get("id"))
+    if kind == "use-case":
+        by_id((state.get("structure") or {}).get("use-cases", []), about.get("id"))
+    if kind == "file" and not about.get("path"):
+        raise Refused("a thread about a file names its path")
 
 
-def update_explanation(state, payload, by, explanation_id):
-    explanation = by_id(state["explanations"], explanation_id)
-    if payload.get("status", explanation["status"]) not in EXPLANATION_STATUS:
-        raise Refused(f"status must be one of {', '.join(EXPLANATION_STATUS)}")
-    explanation.update({key: payload[key] for key in ("body", "status") if key in payload})
+def message(payload, by):
+    if not payload.get("text"):
+        raise Refused("a message needs text")
+    return {"by": by, "at": now(), "text": payload["text"]}
+
+
+def open_thread(state, payload, by):
+    """A question the developer asks about a part of the review, or a note the agent writes unasked."""
+    check_about(state, payload.get("about"))
+    threads = state.setdefault("threads", [])
+    thread = {"id": next_id(threads, "t"), "about": payload["about"], "quote": payload.get("quote"),
+              "status": "open", "messages": [message(payload, by)]}
+    threads.append(thread)
+    return state, thread["id"]
+
+
+def reply(state, payload, by, thread_id):
+    thread = by_id(state.setdefault("threads", []), thread_id)
+    thread["messages"].append(message(payload, by))
+    if by == "developer":
+        thread["status"] = "open"
+    return state, None
+
+
+def resolve(state, payload, by, thread_id):
+    if by != "developer":
+        raise Refused("a thread is resolved by the developer")
+    by_id(state.setdefault("threads", []), thread_id)["status"] = "resolved"
+    return state, None
+
+
+def view(state, payload, by):
+    if by != "developer":
+        raise Refused("files are marked viewed by the developer")
+    viewed = state.setdefault("viewed", [])
+    if payload.get("path") and payload["path"] not in viewed:
+        viewed.append(payload["path"])
+    return state, None
+
+
+def unview(state, payload, by):
+    if by != "developer":
+        raise Refused("files are marked viewed by the developer")
+    state["viewed"] = [path for path in state.get("viewed", []) if path != payload.get("path")]
+    return state, None
+
+
+def archive(state, payload, by):
+    if by != "developer":
+        raise Refused("a review is archived by the developer")
+    state["archived"] = bool(payload.get("archived"))
     return state, None
 
 
@@ -206,10 +294,11 @@ def handled(state, payload, by, message_id):
     return state, None
 
 
-COMMANDS = {"set": set_fields, "add-finding": add_finding, "add-explanation": add_explanation, "answer": answer}
+COMMANDS = {"set": set_fields, "add-finding": add_finding, "open-thread": open_thread, "view": view, "unview": unview,
+            "archive": archive, "answer": answer}
 COMMANDS_WITH_ID = {"update-finding": update_finding, "set-status": set_status, "mark-sent": mark_sent,
-                    "add-replies": add_replies, "update-explanation": update_explanation,
-                    "use-case-status": use_case_status, "handled": handled}
+                    "add-replies": add_replies, "use-case-status": use_case_status, "reply": reply,
+                    "resolve": resolve, "handled": handled}
 
 
 def change(review, command, payload=None, by="agent", item_id=None):
