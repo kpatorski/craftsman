@@ -35,7 +35,9 @@ This session is the review. Nobody reads its terminal: the developer sees it on 
 1. **Load [EXECUTION.md](../../EXECUTION.md)** and **[REVIEW.md](../../REVIEW.md)**.
 2. **Resolve the `pr-review` entry-point protocol and execute it** per EXECUTION.md's dispatch rules, with the source
    after `--headless` as its input.
-3. Every change to the review's state goes through `scripts/review_state.py`, never by editing `review.json`.
+3. Every change to the review's state goes through `scripts/review_state.py`, never by editing `review.json`. Its
+   payload is one JSON argument in single quotes, an apostrophe inside it written as `\u0027`; this session refuses a
+   heredoc or a pipe.
 4. **Checkpoints go through the review page, not `AskUserQuestion`** — that tool has no one to ask here:
     - `ask`: write the question with `review_state.py <review dir> set` as `checkpoint` — `{"id", "step", "question",
       "options", "answer": null}` — say in one line that the question is on the page, and end the turn. The answer

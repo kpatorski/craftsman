@@ -75,6 +75,14 @@ class ReviewSessionTest(unittest.TestCase):
         self.assertEqual(argv[argv.index("--input-format") + 1], "stream-json")
         self.assertEqual(argv[argv.index("--output-format") + 1], "stream-json")
 
+    def test_the_session_may_run_each_craftsman_script_by_its_full_path(self):
+        self.started()
+
+        argv = self.logged()[0]["argv"]
+        tools = argv[argv.index("--allowedTools") + 1:]
+        self.assertIn(f"Bash(python3 {SCRIPTS}/review_state.py:*)", tools)
+        self.assertNotIn(f"Bash(python3 {SCRIPTS}/:*)", tools)
+
     def test_the_session_may_write_only_its_own_session_files_by_absolute_path(self):
         self.started()
 

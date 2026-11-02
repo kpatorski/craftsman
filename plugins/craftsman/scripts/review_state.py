@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """The one way a review's state changes -- see REVIEW.md.
 
-    review_state.py <review dir> <command> [id] [--by agent|developer]   (the payload, if any, as JSON on stdin)
+    review_state.py <review dir> <command> [id] ['<payload JSON>'] [--by agent|developer]
+
+The payload is one argument, in single quotes; an apostrophe inside it is written as \\u0027.
 
 Commands: init, set, add-finding, update-finding <id>, set-status <id>, mark-sent <id>, add-replies <id>,
 add-explanation, update-explanation <id>, use-case-status <id>, answer, handled <message id>, show.
@@ -204,7 +206,6 @@ def handled(state, payload, by, message_id):
     return state, None
 
 
-NO_PAYLOAD = ("handled",)
 COMMANDS = {"set": set_fields, "add-finding": add_finding, "add-explanation": add_explanation, "answer": answer}
 COMMANDS_WITH_ID = {"update-finding": update_finding, "set-status": set_status, "mark-sent": mark_sent,
                     "add-replies": add_replies, "update-explanation": update_explanation,
@@ -244,9 +245,9 @@ def main(argv):
     if command == "show":
         print(json.dumps(read(review), indent=2, ensure_ascii=False))
         return 0
-    raw = sys.stdin.read() if command not in NO_PAYLOAD and not sys.stdin.isatty() else ""
+    payload = rest.pop() if rest and rest[-1].lstrip().startswith("{") else None
     try:
-        result = change(review, command, json.loads(raw) if raw.strip() else None, by, rest[0] if rest else None)
+        result = change(review, command, json.loads(payload) if payload else None, by, rest[0] if rest else None)
     except Refused as refusal:
         print(f"refused: {refusal}", file=sys.stderr)
         return 1
