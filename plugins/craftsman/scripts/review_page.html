@@ -20,7 +20,8 @@
 
   .app { display: grid; grid-template-columns: 64px minmax(0, 1fr); height: 100vh; }
   /* the side panel grows with the screen and can be dragged wider or narrower; the width is remembered */
-  .app.with-panel { grid-template-columns: 64px minmax(0, 1fr) var(--panel-w, clamp(560px, 42vw, 980px)); }
+  /* with the side panel open, the content under the tabs makes room for it; the header and the tabs keep the width */
+  .app.with-panel .view { margin-right: calc(var(--panel-w, clamp(560px, 42vw, 980px)) - 12px); }
   main { overflow-y: auto; padding: 24px 32px 48px; min-width: 0; }
 
   /* ---- rail: one tile per review ---- */
@@ -150,6 +151,7 @@
   .send { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: var(--neon-strong);
     color: var(--heading); border: 0; cursor: pointer; flex: none; }
   .row-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+  .panel.dock { position: fixed; right: 0; bottom: 0; width: var(--panel-w, clamp(560px, 42vw, 980px)); z-index: 14; border-top: 1px solid var(--line); }
   .panel.over { position: fixed; right: 0; bottom: 0; width: var(--panel-w, clamp(560px, 42vw, 980px)); z-index: 16;
     border-left: 1px solid var(--line2); box-shadow: -30px 0 60px var(--shadow); }
   .grip { position: absolute; left: -4px; top: 0; bottom: 0; width: 8px; cursor: col-resize; z-index: 3; }
@@ -227,6 +229,10 @@
     transform: translateX(100%); transition: transform .42s cubic-bezier(.2, .7, .2, 1); visibility: hidden; }
   .slide.shown { transform: none; visibility: visible; }
   .slide > * { transition: opacity .14s ease; } .slide.swap > * { opacity: 0; }
+  .change { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; font-size: 13.5px; }
+  .change > div { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+  .change > div:last-child { border-color: var(--neon-dim); }
+  .change .l { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
   details.how { margin-top: 14px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
   details.how summary { cursor: pointer; font-size: 12.5px; color: var(--muted); }
   .hflow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
@@ -445,8 +451,8 @@ function renderHead() {
     : ["off", s.closed ? "Review closed" : "Session stopped · start it"];
   const branches = s.source && (s.source["base-branch"] ? `${s.source["base-branch"]} ← ${s.source["head-branch"]}` :
     s.source.kind === "branches" ? `${s.source.target} ← ${s.source.source}` : "");
-  const tabs = [["overview", "Overview", ""], ["findings", "Findings", live(s.findings).length],
-    ["code", "Code", plural(files.length, "file")], ["structure", "Structure", useCases().length || ""]];
+  const tabs = [["overview", "Overview", ""], ["structure", "Structure", useCases().length || ""],
+    ["code", "Code", plural(files.length, "file")], ["findings", "Findings", live(s.findings).length]];
   return `<div class="head"><div>
       <div class="title"><h1>${esc((s.source && s.source.title) || sourceLabel(s.source))}</h1>
         ${pr ? `<span class="tag">PR #${pr.number}</span>` : '<span class="tag">no PR</span>'}
@@ -545,7 +551,7 @@ function panelFinding(id) {
     ${editing ? `<input class="field" id="edit-title" value="${esc(f.title)}" style="margin-top:8px">` : `<h2>${esc(f.title)}</h2>`}
     <div class="filters" style="margin:6px 0 0">${SEVS.map(k => `<button class="chip${f.severity === k ? " on" : ""}" data-set-sev="${k}" ${sent ? "disabled" : ""}>${SEV[k]}</button>`).join("")}</div>
     ${f.status === "maybe-resolved" ? `<div class="banner" style="margin:12px 0 0">AI Agent no longer sees this problem at the PR's head. Drop it, or keep it.</div>` : ""}
-    <div class="box" data-quote-about="finding:${esc(f.id)}"><div class="l">Why</div>${editing ? `<textarea class="field" id="edit-description">${esc(f.description)}</textarea>` : `<div class="md">${md(`finding:${f.id}:description`)}</div>`}</div>
+    ${editing || f.description ? `<div class="box" data-quote-about="finding:${esc(f.id)}"><div class="l">Why</div>${editing ? `<textarea class="field" id="edit-description">${esc(f.description)}</textarea>` : `<div class="md">${md(`finding:${f.id}:description`)}</div>`}</div>` : ""}
     ${snippet ? `<div class="box"><div class="l"><span class="mono">${esc(loc.path)}</span><a style="color:var(--neon)" data-open-file="${esc(loc.path)}">Open in Code →</a></div>${snippet}</div>` : ""}
     <div class="box"><div class="l"><span>Draft comment to the author</span>${sent || editing ? "" : `<a data-edit="${esc(f.id)}">Edit</a>`}</div>
       ${editing ? `<textarea class="field" id="edit-comment" style="min-height:140px">${esc(f.comment)}</textarea>` : `<div class="md">${md(`finding:${f.id}:comment`)}</div>`}</div>
@@ -622,13 +628,20 @@ function renderPanel() {
   const el = document.getElementById("panel"), app = document.getElementById("app"), p = ui.panel;
   const body = !p || !R ? "" : p.finding ? panelFinding(p.finding) : p.thread ? panelThread(p.thread) : p.ask ? panelAsk(p.ask)
     : p.newFinding ? panelNewFinding(p.newFinding) : p.log ? panelLog() : p.checkpoint ? panelCheckpoint() : "";
-  // over an open use case the panel floats on top of it, instead of taking a column the use case covers
+  // The panel starts under the tabs, level with the content beside it, so the header keeps its width. Over an open
+  // use case it floats on top of it instead of pushing the use case aside.
   const over = !!body && ui.tab === "structure" && !!ui.uc;
   app.classList.toggle("with-panel", !!body && !over);
   el.classList.toggle("over", over);
-  if (over) { const tabs = document.querySelector(".tabs"); el.style.top = (tabs ? tabs.getBoundingClientRect().bottom : 160) + "px"; }
+  el.classList.toggle("dock", !!body && !over);
+  placePanel();
   el.style.display = body ? "flex" : "none";
   el.innerHTML = body ? `<div class="grip" id="grip"></div>` + body : "";
+}
+
+function placePanel() {
+  const tabs = document.querySelector(".tabs"), el = document.getElementById("panel");
+  el.style.top = Math.max(0, tabs ? tabs.getBoundingClientRect().bottom : 0) + "px";
 }
 
 // ================================================================ diffs
@@ -776,6 +789,8 @@ function ucPanel() {
   const notes = u.untied ? [] : threadsOf("use-case", u.id);
   el.innerHTML = `<div class="crumb"><span title="${esc(u.entry || "")}">${esc(shortPath(u.entry || ""))}</span><a data-close-uc>✕</a></div>
     <h2>${esc(u.name)}</h2><div class="muted" style="font-size:13.5px">${esc(u.says || "")}</div>
+    ${u.before || u.after ? `<div class="change"><div><div class="l">Before</div>${esc(u.before || "—")}</div>
+      <div><div class="l">After</div>${esc(u.after || "—")}</div></div>` : ""}
     <details class="how" open><summary>How it runs</summary>${how}</details>
     ${notes.length ? threadsBlock(notes, { kind: "use-case", id: u.id }, "Ask about this use case…") : ""}
     <div style="display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;margin-top:14px;align-items:start">
@@ -800,7 +815,7 @@ function showTip(card) {
   const u = cards().find(x => x.id === card.dataset.uccard), tip = document.getElementById("tip"); if (!u || !tip || ui.uc === u.id) return;
   const shares = cards().filter(x => x !== u).map(x => [x, u.files.filter(p => x.files.includes(p)).map(p => p.split("/").pop())]).filter(([, fs]) => fs.length);
   document.querySelectorAll(".uc").forEach(x => x.classList.toggle("related", shares.some(([y]) => y.id === x.dataset.uccard)));
-  tip.innerHTML = `<div class="say">${esc(u.says || "")}</div>${fileList(u.files, null)}${shares.length ? `<div class="shares">⇄ shares files with ${shares.map(([x, fs]) =>
+  tip.innerHTML = `<div class="say">${esc(u.says || "")}</div>${u.after ? `<div class="muted" style="margin:-4px 0 8px">After: ${esc(u.after)}</div>` : ""}${fileList(u.files, null)}${shares.length ? `<div class="shares">⇄ shares files with ${shares.map(([x, fs]) =>
     `<b>${esc(x.name)}</b> <span class="mono" style="font-size:11px">(${esc(fs.join(", "))})</span>`).join(", ")}</div>` : ""}`;
   // beside the panel the cards stand in a column, so the preview opens to the right and never covers the cards below
   if (ui.uc) { tip.style.left = card.offsetLeft + card.offsetWidth + 12 + "px"; tip.style.top = card.offsetTop + "px"; }
@@ -844,7 +859,7 @@ function render() {
   else if (!R) main.innerHTML = `<h1>${esc(current.id)}</h1><div class="card pending" style="margin-top:20px"><h3><span>Step 1 of ${STEPS.length} · Open the review</span></h3>
     <div>The AI agent reads the pull request, gives the review its own copy of the code, and stores the diff. The page fills in as soon as it has.</div>
     <div class="indeterminate"></div></div>`;
-  else main.innerHTML = renderHead() + ({ overview: viewOverview, findings: viewFindings, code: viewCode, structure: viewStructure }[ui.tab] || viewOverview)();
+  else main.innerHTML = renderHead() + `<div class="view">${({ overview: viewOverview, findings: viewFindings, code: viewCode, structure: viewStructure }[ui.tab] || viewOverview)()}</div>`;
   main.scrollTop = y;
   document.title = (R && waiting() ? "● " : "") + "craftsman review";
   renderPanel(); layoutCards(false); ucPanel();
@@ -1050,7 +1065,8 @@ document.addEventListener("mousedown", e => {
   const up = () => { grip.classList.remove("drag"); removeEventListener("mousemove", move); removeEventListener("mouseup", up); };
   addEventListener("mousemove", move); addEventListener("mouseup", up);
 });
-addEventListener("resize", () => { layoutCards(false); ucPanel(); });
+addEventListener("resize", () => { layoutCards(false); ucPanel(); placePanel(); });
+document.getElementById("main").addEventListener("scroll", placePanel);
 const events = new EventSource("/api/events");
 events.addEventListener("hello", () => reload());
 events.addEventListener("change", () => reload());

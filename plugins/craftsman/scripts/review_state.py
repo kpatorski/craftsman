@@ -94,11 +94,14 @@ def check_severity(found):
 
 
 def check_structure(structure):
-    """Every use case says what it does; its flow, when given, is calls through the change and the branches they take."""
+    """Every use case says what it does, and may say how it worked before the change and how it works after; its flow,
+    when given, is calls through the change and the branches they take."""
     for use_case in (structure or {}).get("use-cases", []):
         missing = [field for field in ("id", "name", "says", "entry") if not use_case.get(field)]
         if missing or not isinstance(use_case.get("files"), list):
             raise Refused(f"a use case needs {', '.join(missing or ['files'])}")
+        if any(not isinstance(use_case.get(field, ""), str) for field in ("before", "after")):
+            raise Refused("a use case's before and after are text")
         if use_case.get("status", "pending") not in USE_CASE_STATUS:
             raise Refused(f"a use case's status must be one of {', '.join(USE_CASE_STATUS)}")
         flow = use_case.get("flow") or {"steps": [], "branches": []}
