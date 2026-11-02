@@ -9,7 +9,7 @@ Usage:
     dashboard_server.py off|stop
     dashboard_server.py remove [--project <dir>]
     dashboard_server.py status
-    dashboard_server.py review --source <PR URL | target:source> --checkout <repository>   (prints its /review URL)
+    dashboard_server.py review [--source <PR URL | target:source>]   (prints the review page's URL; adds no project)
 
 `start` runs the server in the background, detached from the calling shell, and prints its URL. If one is already
 running, it adds the project to it instead of starting a second one -- one server, every project it was started
@@ -424,13 +424,15 @@ def stop_server(state):
 def start(project, content, port):
     state = running()
     if state and state.get("version") == plugin_version() and state.get("content") == str(content):
-        request(state["port"], "/api/projects", dict(path=str(project)))
+        if project is not None:
+            request(state["port"], "/api/projects", dict(path=str(project)))
         print(f"craftsman dashboard: http://localhost:{state['port']}")
-        print(f"(already running -- {project} added)")
+        if project is not None:
+            print(f"(already running -- {project} added)")
         return
-    projects = [project]
+    projects = [project] if project is not None else []
     if state:
-        projects = [pathlib.Path(p) for p in state.get("projects", [])] + [project]
+        projects = [pathlib.Path(p) for p in state.get("projects", [])] + projects
         stop_server(state)
         print(f"replaced a dashboard server from plugin {state.get('version')} with {plugin_version()}")
     cmd = [sys.executable, str(pathlib.Path(__file__).resolve()), "serve", "--content", str(content),
@@ -446,17 +448,17 @@ def start(project, content, port):
     sys.exit(f"the dashboard server did not come up -- see {LOG}")
 
 
-def start_review(port, checkout, source):
-    """Start the review of `source` in `checkout` on the running server, or resume it when it is in progress; returns
-    its URL."""
-    review_id = reviews.review_id_for(source, checkout)
-    try:
-        request(port, "/api/review/start", dict(checkout=str(checkout), source=source))
-    except urllib.error.HTTPError as refusal:
-        if refusal.code != 409:
-            raise
-        request(port, "/api/review/resume", dict(id=review_id))
-    return f"http://localhost:{port}/review?review={review_id}"
+def review_url(port, source):
+    """The review page for `source`: a pull request already under review opens, and its session resumes; anything
+    else opens the new-review wizard, with `source` filled in when given."""
+    review_id = reviews.review_id_for(source) if reviews.PULL_REQUEST.match(source or "") else None
+    if review_id and (reviews.reviews_root() / review_id / "review.json").exists():
+        try:
+            request(port, "/api/review/resume", dict(id=review_id))
+        except urllib.error.HTTPError:
+            pass  # the page says why the session did not start
+        return f"http://localhost:{port}/review?review={review_id}"
+    return f"http://localhost:{port}/review?new={urllib.parse.quote(source or '', safe='/')}"
 
 
 def main():
@@ -464,7 +466,6 @@ def main():
     ap.add_argument("command", choices=["on", "off", "start", "stop", "status", "remove", "serve", "review"])
     ap.add_argument("--source", help="for `review`: a pull request URL, or <target>:<source>")
     ap.add_argument("--project", action="append", default=[])
-    ap.add_argument("--checkout", help="for `review`: the local checkout of the reviewed repository")
     ap.add_argument("--content", default=str(pathlib.Path.home() / ".claude" / "craftsman"))
     ap.add_argument("--port", type=int, default=4747)
     args = ap.parse_args()
@@ -473,16 +474,12 @@ def main():
     projects = [pathlib.Path(p).expanduser().resolve() for p in args.project] or [pathlib.Path.cwd()]
 
     if args.command == "serve":
-        return serve(content, projects, args.port)
+        return serve(content, [pathlib.Path(p).expanduser().resolve() for p in args.project], args.port)
     if args.command == "start":
         return start(projects[-1], content, args.port)
     if args.command == "review":
-        checkout = pathlib.Path(args.checkout or ".").expanduser().resolve()
-        start(projects[-1], content, args.port)
-        try:
-            print(f"review: {start_review(running()['port'], checkout, args.source)}")
-        except (review_state.Refused, urllib.error.HTTPError) as refusal:
-            sys.exit(f"the review did not start: {getattr(refusal, 'reason', refusal)}")
+        start(None, content, args.port)
+        print(f"review: {review_url(running()['port'], args.source)}")
         return
     state = running()
     if args.command == "remove":
