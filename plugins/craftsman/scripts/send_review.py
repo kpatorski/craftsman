@@ -8,7 +8,8 @@ sent; nothing else is. Its first location gets the comment, in one GitHub review
 further location gets a short reference to that first comment, in a second review once the first comment's link
 exists. A location GitHub cannot comment on inline -- a line outside the diff -- gets a general comment on the pull
 request that names the place. A finding becomes `sent` only once its first comment exists on GitHub; a failure
-leaves it `to-send`, with the reason in the result. Prints the result as JSON.
+leaves it `to-send`, with the reason in the result. A comment already on the pull request -- the same place and text
+-- is not sent again: its link is recorded instead. Prints the result as JSON.
 """
 import json
 import os
@@ -80,6 +81,14 @@ def send(review, gh=None):
     on_diff = lambda loc: loc["line"] in inline.get(loc["path"], set())  # noqa: E731
     pulls = f"repos/{repository}/pulls/{number}"
     sent, errors, urls = [], [], {}
+    # what is on the pull request already: a comment sent before, but never recorded as sent, is not sent again
+    on_github = {"inline": {}, "general": {}}
+
+    def look_on_github():
+        on_github["inline"] = {(c.get("path"), c.get("line"), c.get("body")): c["html_url"]
+                               for c in gh_api(gh, f"{pulls}/comments")}
+        on_github["general"] = {c.get("body"): c["html_url"]
+                                for c in gh_api(gh, f"repos/{repository}/issues/{number}/comments")}
 
     def review_with(comments):
         made = gh_api(gh, f"{pulls}/reviews", {"commit_id": state["head"], "event": "COMMENT", "body": "",
@@ -89,11 +98,20 @@ def send(review, gh=None):
 
     def general(found, index, body):
         location = found["locations"][index]
-        made = gh_api(gh, f"repos/{repository}/issues/{number}/comments",
-                      {"body": f"**`{location['path']}:{location['line']}`**\n\n{body}"})
+        text = f"**`{location['path']}:{location['line']}`**\n\n{body}"
+        if text in on_github["general"]:
+            urls[(found["id"], index)] = on_github["general"][text]
+            return
+        made = gh_api(gh, f"repos/{repository}/issues/{number}/comments", {"body": text})
         urls[(found["id"], index)] = made["html_url"]
 
     def inline_round(pairs):
+        for found, index, body in pairs:
+            location = found["locations"][index]
+            earlier = on_github["inline"].get((location["path"], location["line"], body))
+            if earlier:
+                urls[(found["id"], index)] = earlier
+        pairs = [(f, i, body) for f, i, body in pairs if (f["id"], i) not in urls]
         comments = [{"path": f["locations"][i]["path"], "line": f["locations"][i]["line"],
                      "side": f["locations"][i].get("side", "RIGHT"), "body": body} for f, i, body in pairs]
         if not comments:
@@ -106,6 +124,7 @@ def send(review, gh=None):
                 urls[(found["id"], index)] = match["html_url"]
 
     try:
+        look_on_github()
         inline_round([(f, 0, f["comment"]) for f in findings if on_diff(f["locations"][0])])
         for found in findings:
             if not on_diff(found["locations"][0]):
