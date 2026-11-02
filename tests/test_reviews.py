@@ -431,16 +431,19 @@ class ReviewEndpointsTest(ReviewsTest):
         self.assertEqual((status, body["sent"]), (200, ["f1"]))
         self.assertEqual(review_state.read(self.review)["findings"][0]["status"], "sent")
 
-    def test_the_cli_starts_a_review_and_prints_where_to_watch_it(self):
-        printed = dashboard_server.start_review(self.port, self.checkout, "main:feature/x")
+    def test_the_skill_opens_the_wizard_when_nothing_is_given(self):
+        self.assertEqual(dashboard_server.review_url(self.port, None), f"http://localhost:{self.port}/review?new=")
 
-        self.assertEqual(printed, f"http://localhost:{self.port}/review?review={BRANCHES}")
-        self.assertTrue(dashboard_server.Handler.hub.session(BRANCHES).running())
+    def test_the_skill_opens_the_wizard_with_a_new_source_filled_in(self):
+        self.assertEqual(dashboard_server.review_url(self.port, "https://github.com/org/booking/pull/130"),
+                         f"http://localhost:{self.port}/review?new=https%3A//github.com/org/booking/pull/130")
+        self.assertEqual(dashboard_server.review_url(self.port, "main:feature/x"),
+                         f"http://localhost:{self.port}/review?new=main%3Afeature/x")
 
-    def test_the_cli_resumes_a_review_already_in_progress(self):
-        printed = dashboard_server.start_review(self.port, self.checkout, "https://github.com/org/booking/pull/123")
+    def test_the_skill_opens_and_resumes_a_pull_request_already_under_review(self):
+        printed = dashboard_server.review_url(self.port, "https://github.com/org/booking/pull/123")
 
-        self.assertTrue(printed.endswith(f"?review={ID}"))
+        self.assertEqual(printed, f"http://localhost:{self.port}/review?review={ID}")
         runner = dashboard_server.Handler.hub.session(ID)
         deadline = time.time() + 10
         while not runner.running() and time.time() < deadline:
