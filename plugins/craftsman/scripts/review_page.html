@@ -219,6 +219,8 @@
   .ln.add { background: var(--added-bg); } .ln.add .sg { color: var(--neon); }
   .ln.del { background: var(--removed-bg); } .ln.del .sg { color: var(--must); } .ln.del .c { color: var(--removed-text); }
   .ln.whole { background: none; }
+  .sx-k { color: var(--syn-keyword); } .sx-s { color: var(--syn-string); } .sx-c { color: var(--syn-comment); font-style: italic; }
+  .sx-n { color: var(--syn-number); } .sx-t { color: var(--syn-type); } .sx-a { color: var(--syn-annotation); }
   .ln .gd { display: flex; gap: 3px; align-items: center; padding-left: 4px; cursor: pointer; user-select: none; }
   .ln .gd i { width: 7px; height: 7px; border-radius: 50%; } .ln .gd .more { font-size: 10.5px; color: var(--muted); font-style: normal; }
   .gd i.must { background: var(--must); } .gd i.should { background: var(--should); } .gd i.nit { background: var(--nit-dot); }
@@ -325,6 +327,7 @@
 <div class="modal" id="modal"></div>
 <div class="toast" id="toast"></div>
 <script src="/theme_picker.js"></script>
+<script src="/syntax.js"></script>
 <script>
 // ================================================================ state
 // One review is shown at a time: its `id` from the address. `ui` is what the developer looks at in it.
@@ -389,7 +392,7 @@ function fileDiff(path) {
   if (diffs[path] !== undefined) return;
   diffs[path] = null;
   fetch(`/api/review/diff?${q()}&path=${encodeURIComponent(path)}`).then(r => r.ok ? r.text() : "")
-    .then(text => { diffs[path] = parseDiff(text); render(); });
+    .then(text => { diffs[path] = parseDiff(text, path); render(); });
 }
 function references(path) {
   if (refs[path] !== undefined) return;
@@ -802,7 +805,7 @@ function placePanel() {
 }
 
 // ================================================================ diffs
-function parseDiff(text) {
+function parseDiff(text, path) {
   const hunks = []; let old = 0, now = 0;
   for (const line of text.split("\n")) {
     const h = line.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
@@ -814,6 +817,22 @@ function parseDiff(text) {
     if (kind !== "add") old++;
     if (kind !== "del") now++;
   }
+  return colourCode(hunks, path);
+}
+// Each line's HTML coloured by the file's language (syntax.js). A hunk is read twice over: the old side -- unchanged and
+// deleted lines -- and the new one -- unchanged and added lines -- so a comment opened on one side stays on it.
+function colourCode(hunks, path) {
+  const lang = window.Syntax ? Syntax.language(path) : null;
+  hunks.forEach(h => {
+    let old = null, now = null;
+    h.lines.forEach(l => {
+      if (!lang) { l.html = esc(l.text); return; }
+      const [html, next] = Syntax.line(lang, l.text, l.kind === "del" ? old : now);
+      l.html = html;
+      if (l.kind !== "add") old = next;
+      if (l.kind !== "del") now = next;
+    });
+  });
   return hunks;
 }
 function snippetAt(path, line, side) {
@@ -822,7 +841,7 @@ function snippetAt(path, line, side) {
   const all = hunks.flatMap(h => h.lines), at = all.findIndex(l => (side === "LEFT" ? l.old : l.now) === line);
   if (at < 0) return "";
   return `<div class="snip">${all.slice(Math.max(0, at - 3), at + 4).map((l, i, shown) => `<div class="ln ${l.kind}${l === all[at] ? " sel" : ""}">` +
-    `<span class="no">${l.now ?? l.old}</span><span class="sg">${l.kind === "add" ? "+" : l.kind === "del" ? "−" : ""}</span><span class="c">${esc(l.text)}</span></div>`).join("")}</div>`;
+    `<span class="no">${l.now ?? l.old}</span><span class="sg">${l.kind === "add" ? "+" : l.kind === "del" ? "−" : ""}</span><span class="c">${l.html}</span></div>`).join("")}</div>`;
 }
 // One file's diff, with its findings and threads under their lines. A new or a deleted file is shown without colour:
 // every line of it changed alike, so the colour would say nothing.
@@ -855,7 +874,7 @@ function diffView(path, position) {
     const inSel = sel && side === "RIGHT" && n >= sel[0] && n <= sel[1], key = `${path}|${side}|${n}`;
     const shown = here.length && (ui.inline || ui.open.has(key)), lit = opened && here.includes(opened) ? " lf-" + opened.severity : "";
     return `<div class="ln ${l.kind}${whole ? " whole" : ""}${inSel ? " sel" : ""}${shown && !ui.inline ? " open" : ""}${lit}" data-line="${n}" data-side="${side}">` +
-      `<span class="no">${l.old ?? ""}</span><span class="no">${l.now ?? ""}</span>${gutter(here, key)}<span class="sg">${l.kind === "add" ? "+" : l.kind === "del" ? "−" : ""}</span><span class="c">${esc(l.text)}</span></div>` +
+      `<span class="no">${l.old ?? ""}</span><span class="no">${l.now ?? ""}</span>${gutter(here, key)}<span class="sg">${l.kind === "add" ? "+" : l.kind === "del" ? "−" : ""}</span><span class="c">${l.html}</span></div>` +
       (shown ? here.map(f => `<div class="ann${f === opened ? " on" : ""}" data-finding="${esc(f.id)}">${sev(f.severity)}<span>${who(f.by)} · ${esc(f.id)} · ${inline(f.title)}</span></div>`).join("") : "") +
       talk.map(t => `<div class="ann" data-thread="${esc(t.id)}"><span class="tag">${t.messages[0].by === "agent" ? "✦" : "💬"} ${t.messages.length}</span><span>${noteTitle(t.messages[0].text)}</span></div>`).join("");
   }).join("")).join("");
@@ -896,7 +915,7 @@ function fileList(paths, selected, opts = {}) {
   const groups = new Map();
   paths.forEach(p => { const d = folder(p); groups.has(d) || groups.set(d, []); groups.get(d).push(p); });
   return (root ? `<div class="dim" style="font-size:11.5px;margin:0 0 2px 6px" title="${esc(root)}">in …/${esc(root.split("/").filter(Boolean).pop() || "")}/</div>` : "") +
-    [...groups].map(([d, ps]) => `<div class="pdir">${esc(d)}</div>` + ps.map(p => {
+    [...groups].map(([d, ps]) => `<div class="pdir" title="${esc([...new Set(ps.map(p => p.split("/").slice(0, -1).join("/") + "/"))].join("\n"))}">${esc(d)}</div>` + ps.map(p => {
       const f = fileInfo(p), shared = f["use-cases"].length > 1;
       return `<div class="pf${p === selected ? " on" : ""}${f.change === "deleted" ? " del" : ""}" data-pick-file="${esc(p)}" title="${esc(p)}">` +
         `<span class="vbox${f.viewed ? " on" : ""}" data-view="${esc(p)}">${f.viewed ? "✓" : ""}</span><span class="kd ${f.change}">${KIND[f.change] || "~"}</span>` +

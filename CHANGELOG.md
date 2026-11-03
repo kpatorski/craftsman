@@ -3,6 +3,13 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.14.1
+
+- The review page colours the code of a diff by its language — keywords, strings, comments, numbers, types and
+  annotations — in every palette, for Java, Kotlin, TypeScript, JavaScript, Python, Go, C#, SQL, shell, YAML, JSON and
+  XML; other files stay plain.
+- A folder shortened in the file list shows its full path on hover.
+
 ## 0.14.0
 
 - The review's session asks before it uses a tool outside its list, instead of being refused: the review page shows the

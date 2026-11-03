@@ -465,6 +465,10 @@ class ReviewEndpointsTest(ReviewsTest):
 
         self.assertEqual((200, []), (status, body["tools"]))
 
+    def test_the_review_page_colours_code_by_its_language(self):
+        self.assertIn('<script src="/syntax.js"></script>', self.page("/review"))
+        self.assertIn("Syntax", self.page("/syntax.js"))
+
     def test_a_review_starts_only_inside_a_git_repository(self):
         shutil.rmtree(self.checkout / ".git")
 

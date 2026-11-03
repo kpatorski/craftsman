@@ -221,8 +221,8 @@ class Handler(BaseHTTPRequestHandler):
         if url.path in PAGES:
             page = PAGES[url.path].read_text().replace("/*THEME_CSS*/", _theme.theme_css()).replace("/*MD_CSS*/", MD_CSS)
             return self.send(200, page, "text/html")
-        if url.path == "/theme_picker.js":
-            return self.send(200, (HERE / "theme_picker.js").read_text(), "text/javascript")
+        if url.path in ("/theme_picker.js", "/syntax.js"):
+            return self.send(200, (HERE / url.path[1:]).read_text(), "text/javascript")
         if url.path == "/api/ping":
             return self.send(200, dict(ok=True, pid=os.getpid(), version=plugin_version(),
                                        projects=[str(p) for p in self.hub.projects],

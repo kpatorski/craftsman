@@ -199,8 +199,9 @@ rail on the left; the open one has four tabs:
 - **Structure** — the change as use cases, each a card: what it does before and after, how it runs from its entry
   point (a call the PR leaves unchanged shows where it is called from; a call that crosses a boundary is marked), its
   branches and whether a test covers each, and its files' diffs beside it.
-- **Code** — every changed file with its diff; findings are dots beside the line numbers, opened under the line on a
-  click, or all inline with a switch.
+- **Code** — every changed file with its diff, the code coloured by its language (Java, Kotlin, TypeScript, JavaScript,
+  Python, Go, C#, SQL, shell, YAML, JSON, XML); findings are dots beside the line numbers, opened under the line on a
+  click, or all inline with a switch. A folder shortened in the file list shows its full path on hover.
 - **Findings** — a table to filter, search and sort; a finding opens in a side panel to edit, ask about, drop, or mark
   to send.
 

@@ -18,7 +18,7 @@ SCRIPTS = pathlib.Path(__file__).resolve().parent.parent / "plugins" / "craftsma
 sys.path.insert(0, str(SCRIPTS))
 import _theme  # noqa: E402
 
-PAGES = ["dashboard_page.html", "review_page.html", "theme_picker.js", "render_dashboard.py", "render_diff.py", "render_report.py",
+PAGES = ["dashboard_page.html", "review_page.html", "theme_picker.js", "syntax.js", "render_dashboard.py", "render_diff.py", "render_report.py",
          "_markdown.py"]
 COLOUR = re.compile(r"#[0-9a-fA-F]{3,8}\b|rgba?\(")
 
@@ -73,6 +73,22 @@ class PaletteTest(unittest.TestCase):
                 self.assertGreaterEqual(contrast(colours["text"], colours["bg"]), 7)
                 self.assertGreaterEqual(contrast(colours["muted"], colours["card"]), 4.5)
                 self.assertGreaterEqual(contrast(colours["on-strong"], colours["neon-strong"]), 3)
+
+    def test_code_colours_stay_readable_on_cards_and_on_code_in_every_palette(self):
+        for palette in _theme.PALETTES:
+            css = variables(_theme.theme_css(palette))
+            for kind in ("keyword", "string", "comment", "number", "type", "annotation"):
+                for ground in ("card", "code-bg"):
+                    with self.subTest(palette=palette, kind=kind, ground=ground):
+                        self.assertGreaterEqual(contrast(css[f"--syn-{kind}"], css[f"--{ground}"]), 4.5)
+
+    def test_code_colours_tell_keywords_strings_and_comments_apart_in_every_palette(self):
+        for palette in _theme.PALETTES:
+            css = variables(_theme.theme_css(palette))
+            with self.subTest(palette=palette):
+                colours = [css[f"--syn-{kind}"] for kind in ("keyword", "string", "comment", "type")]
+                self.assertEqual(len(colours), len(set(colours)))
+                self.assertNotIn(css["--text"], colours)
 
     def test_there_are_dark_palettes_and_a_light_one(self):
         light = [p for p, colours in _theme.PALETTES.items() if luminance(colours["bg"]) > .5]

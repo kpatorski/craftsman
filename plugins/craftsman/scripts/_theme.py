@@ -7,7 +7,8 @@ The meaning of a colour is the same in every palette:
 
 - neon: progress and the one thing to do now; neon-strong is its filled button, with on-strong text on it;
 - must, should, nit: the severity of a finding; change: a modified file; select: the selected text;
-- blue, green, amber, pink, violet, red: the accents of the dashboard and the reports.
+- blue, green, amber, pink, violet, red: the accents of the dashboard and the reports;
+- syn-keyword, syn-string, syn-comment, syn-number, syn-type, syn-annotation: the code of a diff, by its syntax.
 
 The developer picks the palette on the dashboard or the review page; the choice is kept as `theme` in
 `<craftsman home>/settings.json`. Graphite is the palette until one is picked."""
@@ -22,6 +23,8 @@ def _palette(name, note, **colours):
         "border": f"rgba({colours['ink']}, .12)", "switch-off": f"rgba({colours['ink']}, .22)", "knob": colours["text"],
         "blue": colours["change"], "green": colours["neon"], "amber": colours["should"], "red": colours["must"],
         "violet": colours["select"], "pink": colours["select"], "shade": "0, 0, 0", "shadow": .7, "scrim": .55,
+        "syn-keyword": colours["select"], "syn-string": colours["change"], "syn-comment": colours["muted"],
+        "syn-number": colours["should"], "syn-type": colours.get("green", colours["neon"]), "syn-annotation": colours["should"],
     }
     return {"name": name, "note": note, **defaults, **colours}
 
@@ -92,6 +95,7 @@ PALETTES = {
         neon="#1a7f37", neon_strong="#1f883d", on_strong="#ffffff", must="#cf222e", should="#9a6700",
         change="#0969da", select="#8250df", removed_text="#82071e", amber="#bc4c00", pink="#bf3989",
         knob="#ffffff", switch_off="#d0d7de", border="#d0d7de", ink="31, 35, 40", shade="31, 35, 40",
+        syn_number="#8a5c00", syn_annotation="#953800",
         shadow=.15, scrim=.3),
 }
 
@@ -114,7 +118,8 @@ def theme_css(palette=None):
     names = ("bg", "panel", "panel2", "hover", "border", "text", "heading", "muted",
              "blue", "green", "amber", "pink", "violet", "red", "code-bg", "switch-off", "knob",
              "neon", "neon-strong", "on-strong", "removed-text", "change", "must", "should", "nit", "nit-dot",
-             "select", "card", "card2", "float", "dim")
+             "select", "card", "card2", "float", "dim",
+             "syn-keyword", "syn-string", "syn-comment", "syn-number", "syn-type", "syn-annotation")
     css = {name: c[name] for name in names}
     for accent in DERIVED_ACCENTS:
         css[f"{accent}-dim"], css[f"{accent}-bg"] = _tint(c[accent], .35), _tint(c[accent], .12)
