@@ -56,6 +56,19 @@ class CheckoutTest(unittest.TestCase):
 
         self.assertIn("not a git repository", str(refused.exception))
 
+    def test_a_pull_request_on_github_enterprise_wants_a_remote_on_its_own_host(self):
+        git("remote", "add", "work", "git@github.example.com:org/payments.git", cwd=self.repo)
+
+        self.assertIsNone(checkout.check(self.repo, "https://github.example.com/org/payments/pull/7")["warning"])
+        self.assertIn("org/booking", checkout.check(self.repo, "https://github.example.com/org/booking/pull/7")["warning"])
+
+    def test_a_pull_request_is_cloned_from_its_own_host(self):
+        os.environ.pop("CRAFTSMAN_GITHUB", None)
+
+        self.assertEqual(checkout.clone_url(PULL), "https://github.com/org/booking.git")
+        self.assertEqual(checkout.clone_url("https://github.example.com/team/app/pull/15"),
+                         "https://github.example.com/team/app.git")
+
     def test_a_checkout_of_another_repository_warns_but_is_accepted(self):
         checked = checkout.check(self.repo, "https://github.com/org/payments/pull/7")
 

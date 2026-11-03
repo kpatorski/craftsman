@@ -73,6 +73,24 @@ class SendReviewTest(unittest.TestCase):
     def findings(self):
         return {f["id"]: f for f in review_state.read(self.review)["findings"]}
 
+    def test_gh_talks_to_the_host_of_the_pull_request(self):
+        self.opened(dict(PULL, url="https://github.example.com/org/booking/pull/123"))
+        self.finding("Use a value object.", [at("src/Cancel.java", 2)])
+
+        send_review.send(self.review, gh=self.gh)
+
+        self.assertEqual({"github.example.com"}, {call["host"] for call in self.calls()})
+
+    def test_gh_talks_to_github_com_for_a_pull_request_there(self):
+        os.environ["GH_HOST"] = "github.example.com"
+        self.addCleanup(os.environ.pop, "GH_HOST", None)
+        self.opened()
+        self.finding("Use a value object.", [at("src/Cancel.java", 2)])
+
+        send_review.send(self.review, gh=self.gh)
+
+        self.assertEqual({"github.com"}, {call["host"] for call in self.calls()})
+
     def test_a_list_github_gives_in_pages_reads_as_one(self):
         self.assertEqual(send_review.pages('[{"id": 1}, {"id": 2}]\n[{"id": 3}]'), [{"id": 1}, {"id": 2}, {"id": 3}])
         self.assertEqual(send_review.pages('{"id": 7}'), {"id": 7})

@@ -999,7 +999,8 @@ function showTip(card) {
 // ================================================================ new and archived reviews
 // The new-review wizard: what is reviewed, then where its code is read from. `ui.nr` holds what is filled in, so a
 // refresh of the page never loses it; the checkout is checked by the server as it is typed or picked.
-const PR_URL = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/\d+\/?$/, BRANCH = /^[^\s:]+$/;
+// a pull request on github.com or on a GitHub Enterprise host: https://<host>/<owner>/<repo>/pull/<number>
+const PR_URL = /^https:\/\/([^/\s]+)\/([^/\s]+)\/([^/\s]+)\/pull\/\d+\/?$/, BRANCH = /^[^\s:]+$/;
 function newReview() {
   return { kind: "pr", url: "", target: "", source: "", how: "clone", path: "", check: null, starting: false };
 }
@@ -1014,7 +1015,7 @@ function nrReady() {
   return what && path && !n.starting;
 }
 function viewNew() {
-  const n = ui.nr, repo = (n.url.trim().match(PR_URL) || []).slice(1).join("/") || "<owner>/<repo>";
+  const n = ui.nr, repo = (n.url.trim().match(PR_URL) || []).slice(2, 4).join("/") || "<owner>/<repo>";
   const chip = (attr, value, on, label) => `<a class="chip${on ? " on" : ""}" data-${attr}="${value}">${label}</a>`;
   const known = [...new Set(reviewsList.map(r => r.checkout).filter(c => c && !c.startsWith("/tmp/craftsman/")))];
   const pathField = `<div style="display:flex;gap:8px;margin-top:10px">
@@ -1025,7 +1026,8 @@ function viewNew() {
   return `<div class="card wiz" style="max-width:720px"><h3><span>New review</span></h3>
     <div class="wstep"><div class="wn">1</div><div class="grow"><div class="wl">What is reviewed</div>
       <div class="chips">${chip("nr-kind", "pr", n.kind === "pr", "A pull request")}${chip("nr-kind", "branches", n.kind === "branches", "Two branches of a local repository")}</div>
-      ${n.kind === "pr" ? `<input class="field" id="nr-url" value="${esc(n.url)}" placeholder="https://github.com/org/repo/pull/123" style="margin-top:10px">`
+      ${n.kind === "pr" ? `<input class="field" id="nr-url" value="${esc(n.url)}" placeholder="https://github.com/org/repo/pull/123" style="margin-top:10px">
+        <div class="nr-status" id="nr-url-status"></div>`
         : `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
           <label class="muted wsub">Target, merged into<input class="field" id="nr-target" value="${esc(n.target)}" placeholder="main"></label>
           <label class="muted wsub">Source, under review<input class="field" id="nr-source" value="${esc(n.source)}" placeholder="feature/cancel-reservation"></label></div>`}
@@ -1048,8 +1050,14 @@ function paintNew() {
     start.disabled = !nrReady();
     start.textContent = n.starting ? (n.kind === "pr" && n.how === "clone" ? "Cloning the repository…" : "Starting…") : "Start the review";
   }
-  const to = document.getElementById("nr-clone-to"), repo = (n.url.trim().match(PR_URL) || []).slice(1).join("/");
+  const to = document.getElementById("nr-clone-to"), repo = (n.url.trim().match(PR_URL) || []).slice(2, 4).join("/");
   if (to) to.textContent = `/tmp/craftsman/repos/${repo || "<owner>/<repo>"}/`;
+  const urlStatus = document.getElementById("nr-url-status");
+  if (urlStatus) {
+    const wrong = n.url.trim() && !PR_URL.test(n.url.trim());
+    urlStatus.className = "nr-status" + (wrong ? " error" : "");
+    urlStatus.textContent = wrong ? "Not a pull request URL — it looks like https://<host>/<owner>/<repo>/pull/<number>" : "";
+  }
   if (!status) return;
   const c = n.check && n.check.for === n.path.trim() ? n.check : null;
   status.className = "nr-status" + (c ? " " + c.state : "");

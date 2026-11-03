@@ -19,12 +19,14 @@ import subprocess
 import sys
 
 import review_state
+from _reviews import PULL_REQUEST
 
 
-def gh_api(gh, endpoint, payload=None):
+def gh_api(gh, endpoint, payload=None, host="github.com"):
+    """`gh api` against `host`, github.com or a GitHub Enterprise one."""
     args = list(gh) + ["api", endpoint] + (["-X", "POST", "--input", "-"] if payload is not None else ["--paginate"])
     done = subprocess.run(args, input=json.dumps(payload) if payload is not None else None, capture_output=True,
-                          text=True, timeout=60)
+                          text=True, timeout=60, env={**os.environ, "GH_HOST": host})
     if done.returncode != 0:
         raise RuntimeError((done.stderr or done.stdout).strip() or f"gh api {endpoint} failed")
     return pages(done.stdout)
@@ -64,7 +66,8 @@ def pull_request(state):
     pull = source if source.get("kind") == "pull-request" else source.get("pull-request")
     if not pull:
         raise review_state.Refused("this review has no pull request to send to")
-    return pull["repository"], pull["number"]
+    url = PULL_REQUEST.match(pull.get("url") or "")
+    return pull["repository"], pull["number"], url["host"] if url else "github.com"
 
 
 def gh_command():
@@ -75,7 +78,11 @@ def send(review, gh=None):
     review = pathlib.Path(review)
     gh = gh or gh_command()
     state = review_state.read(review)
-    repository, number = pull_request(state)
+    repository, number, host = pull_request(state)
+
+    def api(endpoint, payload=None):
+        return gh_api(gh, endpoint, payload, host)
+
     findings = [f for f in state["findings"] if f["status"] == "to-send"]
     inline = changed_lines((review / "diff" / f"{state['head']}.diff").read_text())
     on_diff = lambda loc: loc["line"] in inline.get(loc["path"], set())  # noqa: E731
@@ -86,15 +93,15 @@ def send(review, gh=None):
 
     def look_on_github():
         on_github["inline"] = {(c.get("path"), c.get("line"), c.get("body")): c["html_url"]
-                               for c in gh_api(gh, f"{pulls}/comments")}
+                               for c in api(f"{pulls}/comments")}
         on_github["general"] = {c.get("body"): c["html_url"]
-                                for c in gh_api(gh, f"repos/{repository}/issues/{number}/comments")}
+                                for c in api(f"repos/{repository}/issues/{number}/comments")}
 
     def review_with(comments):
-        made = gh_api(gh, f"{pulls}/reviews", {"commit_id": state["head"], "event": "COMMENT", "body": "",
+        made = api(f"{pulls}/reviews", {"commit_id": state["head"], "event": "COMMENT", "body": "",
                                                "comments": comments})
         # the review's own comment list has no `line`; the pull's list has it, and says which review a comment is in
-        return [c for c in gh_api(gh, f"{pulls}/comments") if c.get("pull_request_review_id") == made["id"]]
+        return [c for c in api(f"{pulls}/comments") if c.get("pull_request_review_id") == made["id"]]
 
     def general(found, index, body):
         location = found["locations"][index]
@@ -102,7 +109,7 @@ def send(review, gh=None):
         if text in on_github["general"]:
             urls[(found["id"], index)] = on_github["general"][text]
             return
-        made = gh_api(gh, f"repos/{repository}/issues/{number}/comments", {"body": text})
+        made = api(f"repos/{repository}/issues/{number}/comments", {"body": text})
         urls[(found["id"], index)] = made["html_url"]
 
     def inline_round(pairs):

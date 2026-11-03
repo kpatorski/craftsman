@@ -21,6 +21,10 @@ written into the reviewed repository; `review.json` records the path of its chec
 
 ### The checkout
 
+A pull request is on github.com or on a GitHub Enterprise host: `https://<host>/<owner>/<repo>/pull/<number>`. The host
+is the one the checkout's remote must name, the one a clone is made from, and the one `gh` talks to (`GH_HOST`) when
+the comments are sent; `gh` has to be signed in to it (`gh auth login --hostname <host>`).
+
 The review reads the repository from one of two places, chosen in the page's new-review wizard:
 
 - **The developer's checkout** — the top folder of a git repository on this machine, typed or picked with "Browse…"

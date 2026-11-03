@@ -29,7 +29,14 @@ def git(*args, cwd=None):
 def pull_request(source):
     """(owner, repo) of a pull request URL, or None for two branches."""
     pull = reviews.PULL_REQUEST.match(source or "")
-    return (pull.group(1), pull.group(2)) if pull else None
+    return (pull["owner"], pull["repo"]) if pull else None
+
+
+def clone_url(source):
+    """The repository of a pull request on its own host, github.com or a GitHub Enterprise one; `CRAFTSMAN_GITHUB`
+    replaces the host (the tests do)."""
+    pull = reviews.PULL_REQUEST.match(source or "")
+    return f"{os.environ.get('CRAFTSMAN_GITHUB') or 'https://' + pull['host']}/{pull['owner']}/{pull['repo']}.git"
 
 
 def check(path, source):
@@ -47,7 +54,8 @@ def check(path, source):
     named = pull_request(source)
     if named:
         remotes = git("remote", "-v", cwd=folder).stdout
-        wanted = re.compile(rf"github\.com[:/]{re.escape(named[0])}/{re.escape(named[1])}(\.git)?(\s|$)", re.I)
+        host = reviews.PULL_REQUEST.match(source)["host"]
+        wanted = re.compile(rf"{re.escape(host)}[:/]{re.escape(named[0])}/{re.escape(named[1])}(\.git)?(\s|$)", re.I)
         if not wanted.search(remotes):
             warning = f"no remote of {folder} points at {named[0]}/{named[1]}, the pull request's repository"
     return {"checkout": str(folder), "warning": warning}
@@ -73,10 +81,10 @@ def clone(source):
         git("fetch", "-q", "origin", cwd=target)
         return target
     owner, repo = pull_request(source)
-    url = f"{os.environ.get('CRAFTSMAN_GITHUB') or 'https://github.com'}/{owner}/{repo}.git"
+    url = clone_url(source)
     shutil.rmtree(target, ignore_errors=True)
     target.parent.mkdir(parents=True, exist_ok=True)
-    # git signs in to GitHub the way gh does, so a private repository clones and fetches too; the empty helper first
+    # git signs in to the host the way gh does, so a private repository clones and fetches too; the empty helper first
     # drops whatever helpers the global config names
     helper = f"!{shutil.which('gh') or 'gh'} auth git-credential"
     made = git("-c", "credential.helper=", "-c", f"credential.helper={helper}", "clone", "-q", "--filter=blob:none",

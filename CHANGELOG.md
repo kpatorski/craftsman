@@ -3,6 +3,12 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.13.1
+
+- `/craftsman:pr-review` takes a pull request on a GitHub Enterprise host, not only on github.com: the checkout's
+  remote is checked against that host, a clone is made from it and the comments are sent to it. `gh` has to be signed
+  in to the host (`gh auth login --hostname <host>`). The new-review wizard says when the URL is not a pull request's.
+
 ## 0.13.0
 
 - A colour palette to pick: ◐ Palette on the dashboard, or ◐ in the review page's rail. Nine dark palettes —

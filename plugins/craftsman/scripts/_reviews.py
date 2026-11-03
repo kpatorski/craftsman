@@ -14,7 +14,8 @@ MESSAGE_FIELDS = {"answer": ("checkpoint", "option"), "refresh": (), "ask": ("th
 DIFF_HEADER = re.compile(r"^diff --git a/(.*) b/(.*)$")
 
 
-PULL_REQUEST = re.compile(r"^https://github\.com/([^/]+)/([^/]+)/pull/(\d+)/?$")
+# github.com or a GitHub Enterprise host
+PULL_REQUEST = re.compile(r"^https://(?P<host>[^/\s]+)/(?P<owner>[^/\s]+)/(?P<repo>[^/\s]+)/pull/(?P<number>\d+)/?$")
 BRANCHES = re.compile(r"^([^\s:]+):([^\s:]+)$")
 
 
@@ -23,7 +24,7 @@ def review_id_for(source, checkout=None):
     `<checkout folder>-<target>..<source>` with `/` replaced by `-`."""
     pull = PULL_REQUEST.match(source or "")
     if pull:
-        return f"{pull.group(1)}-{pull.group(2)}-pr-{pull.group(3)}"
+        return f"{pull['owner']}-{pull['repo']}-pr-{pull['number']}"
     branches = BRANCHES.match(source or "")
     if branches and checkout:
         return f"{pathlib.Path(checkout).name}-{branches.group(1)}..{branches.group(2)}".replace("/", "-")

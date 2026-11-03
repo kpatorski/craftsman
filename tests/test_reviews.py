@@ -181,6 +181,7 @@ class ReviewsTest(unittest.TestCase):
 
     def test_a_review_is_named_after_its_pull_request_or_its_repository_and_branches(self):
         self.assertEqual(reviews.review_id_for("https://github.com/org/booking/pull/130"), "org-booking-pr-130")
+        self.assertEqual(reviews.review_id_for("https://github.example.com/org/booking/pull/131"), "org-booking-pr-131")
         self.assertEqual(reviews.review_id_for("main:feature/cancel-reservation", self.checkout),
                          "booking-main..feature-cancel-reservation")
         with self.assertRaises(review_state.Refused):

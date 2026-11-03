@@ -14,7 +14,7 @@ STATE = pathlib.Path(os.environ["FAKE_GH_STATE"])
 args = sys.argv[1:]
 payload = json.loads(sys.stdin.read() or "null") if "--input" in args else None
 with LOG.open("a") as out:
-    out.write(json.dumps({"args": args, "payload": payload}) + "\n")
+    out.write(json.dumps({"args": args, "payload": payload, "host": os.environ.get("GH_HOST")}) + "\n")
 if os.environ.get("FAKE_GH_FAIL"):
     sys.exit("HTTP 422: Unprocessable Entity")
 
