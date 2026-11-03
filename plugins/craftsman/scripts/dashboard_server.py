@@ -43,7 +43,7 @@ import _reviews as reviews  # noqa: E402
 import review_state  # noqa: E402
 import send_review  # noqa: E402
 from _markdown import MD_CSS  # noqa: E402
-from _theme import THEME_CSS  # noqa: E402
+import _theme  # noqa: E402
 
 STATE = pathlib.Path.home() / ".claude" / "craftsman-dashboard.json"
 LOG = pathlib.Path.home() / ".claude" / "craftsman-dashboard.log"
@@ -208,8 +208,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(403, dict(error="unknown host"))
         url = urllib.parse.urlsplit(self.path)
         if url.path in PAGES:
-            page = PAGES[url.path].read_text().replace("/*THEME_CSS*/", THEME_CSS).replace("/*MD_CSS*/", MD_CSS)
+            page = PAGES[url.path].read_text().replace("/*THEME_CSS*/", _theme.theme_css()).replace("/*MD_CSS*/", MD_CSS)
             return self.send(200, page, "text/html")
+        if url.path == "/theme_picker.js":
+            return self.send(200, (HERE / "theme_picker.js").read_text(), "text/javascript")
         if url.path == "/api/ping":
             return self.send(200, dict(ok=True, pid=os.getpid(), version=plugin_version(),
                                        projects=[str(p) for p in self.hub.projects],
@@ -219,6 +221,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, data.build(project, self.hub.content, self.hub.project_list()))
         if url.path == "/api/events":
             return self.stream()
+        if url.path == "/api/theme":
+            current = _theme.chosen()
+            return self.send(200, dict(current=current, palettes=_theme.palettes(), css=_theme.theme_css(current)))
         if url.path == "/api/reviews":
             listed = reviews.list_reviews()
             for review in listed:
@@ -338,6 +343,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, dict(path=checkouts.browse()))
             except review_state.Refused as refusal:
                 return self.send(409, dict(error=str(refusal)))
+        if url.path == "/api/theme":
+            try:
+                _theme.choose(str(body.get("id", "")))
+            except ValueError as refusal:
+                return self.send(400, dict(error=str(refusal)))
+            return self.send(200, dict(ok=True, current=_theme.chosen(), css=_theme.theme_css()))
         if url.path == "/api/toggle":
             action, entry_id = body.get("action"), str(body.get("id", ""))
             if action not in ("enable", "disable") or not entry_id:

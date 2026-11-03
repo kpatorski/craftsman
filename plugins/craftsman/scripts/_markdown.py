@@ -2,7 +2,7 @@
 markdown for directive/protocol/bundle files and the analysis artifacts (headings, tables, lists, fenced and
 indented code, blockquotes, inline code/bold/italic/links, frontmatter shown as a muted block). Not a general
 markdown engine, deliberately -- stdlib only, like the other scripts. `MD_CSS` styles what it emits (scope it with
-a `.md` class on the container); it expects the variables of the shared palette, `_theme.THEME_CSS`."""
+a `.md` class on the container); it expects the variables of the shared palette, `_theme.theme_css()`."""
 import html
 import re
 

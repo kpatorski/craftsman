@@ -35,7 +35,7 @@ from datetime import datetime
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from _markdown import MD_CSS, render_markdown  # noqa: E402
-from _theme import THEME_CSS  # noqa: E402
+from _theme import theme_css  # noqa: E402
 
 ANALYSIS_FILES = ["business-rules.md", "open-questions.md", "event-model.md"]
 STATE_RE = re.compile(r"\*\*State:\*\*\s*`(\w+)`")
@@ -239,7 +239,7 @@ route();
 
 
 def build_page(project, docs):
-    page = PAGE_SHELL.replace("/*THEME_CSS*/", THEME_CSS, 1)
+    page = PAGE_SHELL.replace("/*THEME_CSS*/", theme_css(), 1)
     page = page.replace("</style>", MD_CSS + "</style>", 1)
     page = page.replace("__TITLE__", html.escape(f"{project.name} — craftsman report"))
     page = page.replace("__PROJECT__", html.escape(project.name))

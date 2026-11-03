@@ -32,7 +32,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from _theme import THEME_CSS  # noqa: E402
+from _theme import theme_css  # noqa: E402
 
 
 def render_diff_lines(diff_text):
@@ -62,7 +62,7 @@ def build_page(title, note, sections):
 <head>
 <meta charset="utf-8">
 <title>{html.escape(title)}</title>
-<style>{THEME_CSS}
+<style>{theme_css()}
   body {{ background: var(--bg); color: var(--text); font-family: -apple-system, "Segoe UI", sans-serif; margin: 2rem; }}
   h1 {{ color: var(--heading); font-size: 1.3rem; }}
   h2 {{ color: var(--blue); font-size: 1.05rem; margin-top: 2rem; border-bottom: 1px solid var(--border);

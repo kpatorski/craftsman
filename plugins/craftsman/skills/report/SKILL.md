@@ -2,7 +2,7 @@
 name: report
 description: >
   Renders a project's craftsman results -- business rules, open questions, the event model, specs and the session
-  file(s) -- as one self-contained, dark-theme HTML page with navigation and search, in the dashboard's style. The
+  file(s) -- as one self-contained HTML page with navigation and search, in the dashboard's style and palette. The
   markdown files stay the source of truth; this is a reading view over them. Trigger: "/craftsman:report",
   "show me the report", "render the analysis as html", "browse the results".
 argument-hint: "[project dir]"

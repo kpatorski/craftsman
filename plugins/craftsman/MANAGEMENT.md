@@ -276,7 +276,7 @@ logs — and the installed content with its enabled/disabled state, the command 
 versions. It polls the files it shows once a second and pushes a change to the page, which re-reads only then: no
 re-running a script, no reload.
 
-**What the page may write: enable/disable, and nothing else.** A switch calls `set_enabled.py` (see "Enable /
+**What the page may write: enable/disable, and the colour palette.** A switch calls `set_enabled.py` (see "Enable /
 disable"), so a click does exactly what `/craftsman:enable` / `/craftsman:disable` would, including the commit and
 the question when other bundles would change too. Install, update, uninstall, rename and merge need the agent's
 judgement — duplicate detection, three-way update conflicts, reverse-merge proposals — which a server cannot give,
@@ -295,6 +295,13 @@ header, which another site cannot send without a CORS preflight the server never
 project it was started from; starting it from another project adds that project. A server left running by an
 older plugin version is replaced on the next start. It exits by itself after 8 hours with no page open. State:
 `~/.claude/craftsman-dashboard.json`; log: `~/.claude/craftsman-dashboard.log`.
+
+**The colour palette.** Every craftsman page — the dashboard, the review page, the report, a rendered diff — takes
+its colours from one palette in `scripts/_theme.py`: nine dark ones (Graphite, Midnight, Arctic, Slate, Steel, Dim,
+Ink, Carbon, Mono) and a light one (Paper). ◐ Palette on the dashboard, or ◐ in the review page's rail, picks one;
+the open page changes at once, and another open page changes when it comes back into view. The choice is kept as
+`theme` in `~/.craftsman/settings.json`, and the report and diff files rendered afterwards use it too. Graphite is
+the palette until one is picked.
 
 `scripts/render_dashboard.py` still renders the old static, read-only snapshot of the installed content to a
 single HTML file — kept for a machine where a local server is not wanted; the skill no longer uses it.

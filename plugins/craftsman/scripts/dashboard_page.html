@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <title>craftsman dashboard</title>
+<style id="theme">/*THEME_CSS*/</style>
 <style>
-  /*THEME_CSS*/
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
     font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
@@ -178,6 +178,7 @@
   <aside class="side" id="side"></aside>
 </div>
 <div class="toast" id="toast"></div>
+<script src="/theme_picker.js"></script>
 <script>
 // ---------------------------------------------------------------- state
 const openKeys = new Set();        // every expanded <details> / tree node / card, kept across re-renders
@@ -642,7 +643,8 @@ function render() {
   else if (current.type === "commands") { body = `<h1>Commands</h1><pre class="help">${esc(D.help)}</pre>`; crumb = "commands"; }
   else { body = viewManage(); crumb = "manage"; }
   c.innerHTML = `<div class="topbar"><span class="crumb"><b>${esc(crumb)}</b></span>` +
-    `<span class="live${live ? "" : " off"}">${live ? "live" : "reconnecting…"}</span></div><div class="view">${body}</div>`;
+    `<span class="live${live ? "" : " off"}">${live ? "live" : "reconnecting…"}</span>` +
+    `<button class="btn" data-theme-picker title="Colour palette">◐ Palette</button></div><div class="view">${body}</div>`;
   c.scrollTop = y;
   renderMenu(); renderSide();
   const s = document.getElementById("libsearch");

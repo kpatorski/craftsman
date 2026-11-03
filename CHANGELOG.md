@@ -3,6 +3,13 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.13.0
+
+- A colour palette to pick: ◐ Palette on the dashboard, or ◐ in the review page's rail. Nine dark palettes —
+  Graphite, Midnight, Arctic, Slate, Steel, Dim, Ink, Carbon, Mono — and a light one, Paper. The choice applies to
+  every craftsman page, the report and rendered diffs included, and is kept in `~/.craftsman/settings.json`.
+  Graphite, the palette so far, stays the default.
+
 ## 0.12.1
 
 - The dashboard and the review page open at `http://craftsman.localhost:4747`. A `.localhost` name always means this

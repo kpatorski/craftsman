@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <title>craftsman review</title>
+<style id="theme">/*THEME_CSS*/</style>
 <style>
-  /*THEME_CSS*/
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
     font: 300 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
@@ -74,7 +74,7 @@
     background: var(--card2); border: 1px solid var(--line); color: var(--text); cursor: pointer; white-space: nowrap; }
   .btn:hover { border-color: var(--line2); }
   .btn:disabled { opacity: .4; cursor: not-allowed; }
-  .btn.go { background: var(--neon-strong); border-color: var(--neon-strong); color: var(--heading); }
+  .btn.go { background: var(--neon-strong); border-color: var(--neon-strong); color: var(--on-strong); }
   .btn.ghost { background: none; } .btn.sm { padding: 5px 10px; font-size: 12.5px; }
   .btn.danger { color: var(--must); background: none; }
   .btn[disabled] { opacity: .45; cursor: default; }
@@ -162,7 +162,7 @@
     border: 1px solid var(--line2); margin-top: 12px; }
   .composer textarea { flex: 1; background: none; border: 0; color: var(--text); font: inherit; resize: none; min-height: 36px; padding: 6px; outline: none; }
   .send { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: var(--neon-strong);
-    color: var(--heading); border: 0; cursor: pointer; flex: none; }
+    color: var(--on-strong); border: 0; cursor: pointer; flex: none; }
   .row-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
   .panel.dock { position: fixed; right: 0; bottom: 0; width: var(--panel-w, clamp(560px, 42vw, 980px)); z-index: 14; border-top: 1px solid var(--line); }
   .panel.over { position: fixed; right: 0; bottom: 0; width: var(--panel-w, clamp(560px, 42vw, 980px)); z-index: 16;
@@ -318,6 +318,7 @@
 <div class="gtip" id="gtip"></div>
 <div class="modal" id="modal"></div>
 <div class="toast" id="toast"></div>
+<script src="/theme_picker.js"></script>
 <script>
 // ================================================================ state
 // One review is shown at a time: its `id` from the address. `ui` is what the developer looks at in it.
@@ -503,7 +504,8 @@ function renderRail() {
     return `<div class="rtile${here ? " on" : ""}" data-open-review="${i}" data-hoverr="${i}" draggable="true">${pr ? "#" + pr.number : "⑂"}` +
       `${r.checkpoint ? '<span class="badge"></span>' : ""}</div>`;
   }).join("") + `<div class="rsep"></div><div class="rtile" data-new title="New review">＋</div>` +
-    `<div class="rtile end" data-archived title="Archived reviews · ${archived}">⌫</div>`;
+    `<div class="rtile end" data-theme-picker title="Colour palette">◐</div>` +
+    `<div class="rtile" data-archived title="Archived reviews · ${archived}">⌫</div>`;
 }
 // The rail's order is the developer's, dragged into place and kept in this browser; a review not placed yet goes last.
 const ORDER_KEY = "craftsman-review-order";

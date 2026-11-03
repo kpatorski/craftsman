@@ -66,8 +66,9 @@ normal, not a sign the model is wrong.
     - `when: <condition>` *(optional)* — only stop if the condition holds; no condition means always stop.
     - `shows: [...]` *(optional)* — what to render before asking (a diff, a file list, a stub list — whatever the
       protocol names). **A diff of more than 3 lines** (the unified `+`/`-`/context lines, not counting the `---`/
-      `+++`/`@@` headers) renders as a self-contained local HTML file (dark theme, no network dependency), via
-      `scripts/render_diff.py` (see the `install`/management scripts, same place as `scripts/toggle_table_row.py`)
+      `+++`/`@@` headers) renders as a self-contained local HTML file (in the chosen colour palette, no network
+      dependency), via `scripts/render_diff.py` (see the `install`/management scripts, same place as
+      `scripts/toggle_table_row.py`)
       — never pasted as raw `+`/`-` text into the conversation past that point. A wall of diff text in a chat
       window is exactly the readability failure this guards against, and it gets worse every class a `tdd-loop`
       touches, not better. Print the script's `file://` link plainly in the chat message — that is the primary,

@@ -32,7 +32,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from _frontmatter import parse_frontmatter, split_frontmatter  # noqa: E402
 from _markdown import MD_CSS, render_markdown  # noqa: E402
-from _theme import THEME_CSS  # noqa: E402
+from _theme import theme_css  # noqa: E402
 
 PLUGIN_ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -480,7 +480,7 @@ def build_page(root):
         + section_html("Directives", directives, group_by_category=True)
     )
 
-    page = PAGE_SHELL.replace("/*THEME_CSS*/", THEME_CSS, 1)
+    page = PAGE_SHELL.replace("/*THEME_CSS*/", theme_css(), 1)
     page = page.replace("</style>", MD_CSS + "</style>", 1)
     page = page.replace("__TITLE__", "craftsman dashboard")
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
