@@ -2,11 +2,12 @@
 starts `claude -p` with stream-json in and out, keeps every event in the review's `session.jsonl` for the page to
 show, and passes the review's inbox into the session one message at a time, each after the previous turn ended.
 
-A headless session cannot ask for permission, so it runs with `--permission-mode dontAsk` and a fixed tool list: the
-review reads code, runs git, gh and the craftsman scripts, writes its own session file, and starts subagents. The
-developer adds tools to it as `review-tools` in the craftsman settings -- the MCP server of their Jira, say. The review
-folder, which holds the worktree, is a working directory of the session besides the checkout. A tool outside the list
-comes back as a refusal the console shows, and the session goes on.
+The session runs with a fixed tool list: the review reads code, runs git, gh and the craftsman scripts, writes its own
+session file, and starts subagents. The developer adds tools to it as `review-tools` in the craftsman settings -- the
+MCP server of their Jira, say. The review folder, which holds the worktree, is a working directory of the session
+besides the checkout. For a tool outside the list the session asks the server (`--permission-prompt-tool stdio`) and
+waits: the page shows the request, and the developer allows it once, allows it in every review from now on, or refuses
+it with a reason the agent reads.
 """
 import json
 import os
@@ -49,9 +50,9 @@ def mcp_rule(server):
 
 
 def agent_tools(review):
-    """The MCP servers of the review's session, as the page shows them: each server the session connected to when it
-    last started, and each one `review-tools` allows; whether it is allowed, and whether the session was refused one
-    of its tools since it last started."""
+    """The tools of the review's session, as the page shows them: each MCP server the session connected to when it
+    last started, and each one `review-tools` allows -- whether it is allowed, and whether the session was refused one
+    of its tools since it last started; then every other rule `review-tools` holds."""
     servers, refused = {}, set()
     transcript = pathlib.Path(review) / "session.jsonl"
     for raw in (transcript.read_text().splitlines() if transcript.exists() else []):
@@ -72,7 +73,32 @@ def agent_tools(review):
         if rule.startswith("mcp__") and rule not in servers:
             servers[rule] = dict(name=rule[len("mcp__"):], status="not connected")
     return [dict(name=s["name"], rule=rule, status=s["status"], allowed=rule in allowed,
-                 refused=any(tool.startswith(rule + "__") for tool in refused)) for rule, s in servers.items()]
+                 refused=any(tool.startswith(rule + "__") for tool in refused)) for rule, s in servers.items()] + \
+        [dict(name=rule, rule=rule, status="rule", allowed=True, refused=False)
+         for rule in allowed if not rule.startswith("mcp__")]
+
+
+RULE = re.compile(r"^(?P<tool>[A-Za-z][A-Za-z0-9_-]*)(?:\((?P<content>.+)\))?$")
+DECISIONS = ("allow", "always", "deny")
+
+
+def rule_text(rule):
+    """A permission rule as the settings write it: `Tool` or `Tool(content)`."""
+    content = rule.get("ruleContent")
+    return f"{rule['toolName']}({content})" if content else rule["toolName"]
+
+
+def suggested_rule(request):
+    """The rule offered for "allow in every review": every tool of an MCP server for one of its tools, else the first
+    rule Claude suggests, else the tool's name."""
+    tool = str(request.get("tool_name") or "")
+    server = re.match(r"^(mcp__.+?)__", tool)
+    if server:
+        return server.group(1)
+    for suggestion in request.get("permission_suggestions") or []:
+        if suggestion.get("type") == "addRules" and suggestion.get("rules"):
+            return rule_text(suggestion["rules"][0])
+    return tool
 
 
 def claude_command():
@@ -102,6 +128,7 @@ class ReviewSession:
         self.reader = None
         self.restoring = False
         self.problem = None
+        self.requests = {}
 
     # ---- lifecycle ----------------------------------------------------------------------------------------------
 
@@ -164,6 +191,7 @@ class ReviewSession:
             reader.join(timeout=10)
         with self.lock:
             self.turn = False
+            self.requests = {}
 
     def running(self):
         return self.process is not None and self.process.poll() is None
@@ -200,17 +228,58 @@ class ReviewSession:
     def send(self, text):
         with self.lock:
             self.turn = True
-            line = json.dumps({"type": "user", "message": {"role": "user", "content": text}})
-            self.process.stdin.write(line + "\n")
-            self.process.stdin.flush()
+            self.write({"type": "user", "message": {"role": "user", "content": text}})
+
+    def write(self, event):
+        self.process.stdin.write(json.dumps(event) + "\n")
+        self.process.stdin.flush()
+
+    # ---- permission requests ------------------------------------------------------------------------------------
+
+    def permission_requests(self):
+        """What the session waits for the developer to allow, oldest first."""
+        with self.lock:
+            return [dict(request) for request in self.requests.values()]
+
+    def asked(self, request_id, request):
+        with self.lock:
+            self.requests[request_id] = dict(id=request_id, tool=request.get("tool_name"), input=request.get("input"),
+                                             description=request.get("description"), rule=suggested_rule(request))
+
+    def answer(self, request_id, decision, rule=None, reason=None):
+        """The developer's answer to a request: `allow` it once; `always` allow what `rule` matches, in this session
+        and, through `review-tools`, in every review; or `deny` it, with the reason the agent is told."""
+        if decision not in DECISIONS:
+            raise review_state.Refused(f"not an answer: {decision!r}; one of {', '.join(DECISIONS)}")
+        matched = RULE.match(rule or "") if decision == "always" else None
+        if decision == "always" and not matched:
+            raise review_state.Refused(f"not a permission rule, as Tool or Tool(content): {rule!r}")
+        with self.lock:
+            request = self.requests.get(request_id)
+            if request is None or not self.running():
+                raise review_state.Refused(f"the session does not wait for {request_id!r}")
+            if decision == "deny":
+                why = f" Their reason: {reason.strip()}" if reason and reason.strip() else ""
+                response = dict(behavior="deny", message=f"The developer did not allow this.{why}")
+            else:
+                response = dict(behavior="allow", updatedInput=request["input"])
+            if matched:
+                kept = dict(toolName=matched["tool"], **({"ruleContent": matched["content"]} if matched["content"] else {}))
+                response["updatedPermissions"] = [dict(type="addRules", behavior="allow", destination="session",
+                                                       rules=[kept])]
+                _settings.allow_review_tool(rule, True)
+            del self.requests[request_id]
+            self.write(dict(type="control_response",
+                            response=dict(subtype="success", request_id=request_id, response=response)))
 
     def spawn(self, extra):
         self.review.mkdir(parents=True, exist_ok=True)
         self.delivered = set()
         self.background = 0
+        self.requests = {}
         argv = self.command + ["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
-                               "--replay-user-messages",
-                               "--permission-mode", "dontAsk", "--add-dir", str(self.review),
+                               "--replay-user-messages", "--permission-mode", "manual",
+                               "--permission-prompt-tool", "stdio", "--add-dir", str(self.review),
                                "--allowedTools", *allowed_tools(self.checkout)] + extra
         errors = (self.review / "session.stderr").open("a")
         self.process = subprocess.Popen(argv, cwd=self.checkout, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -233,6 +302,11 @@ class ReviewSession:
                 except ValueError:
                     continue
                 session = event.get("session_id") or session
+                if event.get("type") == "control_request":
+                    self.control(event)
+                if event.get("type") == "control_cancel_request":
+                    with self.lock:
+                        self.requests.pop(event.get("request_id"), None)
                 if event.get("type") == "result":
                     self.record_session(session)
                     with self.lock:
@@ -246,6 +320,17 @@ class ReviewSession:
         process.stdout.close()
         with self.lock:
             self.turn = False
+
+    def control(self, event):
+        """A request from the session to its host: a permission request waits for the developer; any other kind
+        this host does not serve."""
+        request = event.get("request") or {}
+        if request.get("subtype") == "can_use_tool":
+            return self.asked(event.get("request_id"), request)
+        with self.lock:
+            self.write(dict(type="control_response", response=dict(
+                subtype="error", request_id=event.get("request_id"),
+                error=f"the review server does not serve {request.get('subtype')!r}")))
 
     def closed(self):
         return (self.review / "review.json").exists() and bool(review_state.read(self.review).get("closed"))

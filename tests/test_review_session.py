@@ -82,12 +82,14 @@ class ReviewSessionTest(unittest.TestCase):
         self.assertEqual(pathlib.Path(self.logged()[0]["cwd"]).resolve(), self.checkout)
         self.assertEqual(review_state.read(self.review)["checkout"], str(self.checkout))
 
-    def test_the_session_runs_headless_with_a_fixed_tool_list(self):
+    def test_the_session_runs_headless_with_a_fixed_tool_list_and_asks_the_page_for_anything_else(self):
         self.started()
 
         argv = self.logged()[0]["argv"]
-        for flag in ("-p", "--verbose", "--replay-user-messages", "--permission-mode", "dontAsk", "--allowedTools"):
+        for flag in ("-p", "--verbose", "--replay-user-messages", "--allowedTools"):
             self.assertIn(flag, argv)
+        self.assertEqual(argv[argv.index("--permission-mode") + 1], "manual")
+        self.assertEqual(argv[argv.index("--permission-prompt-tool") + 1], "stdio")
         self.assertEqual(argv[argv.index("--input-format") + 1], "stream-json")
         self.assertEqual(argv[argv.index("--output-format") + 1], "stream-json")
 
@@ -177,6 +179,96 @@ class ReviewSessionTest(unittest.TestCase):
         self.assertEqual(2, len(spawns))
         self.assertIn("mcp__jira", spawns[1])
         self.assertIn("--resume", spawns[1])
+
+    # ---- asking the developer for permission ----------------------------------------------------------------
+
+    def asking(self, tool="Bash"):
+        self.started()
+        self.runner.send(f"go on; needs {tool}")
+        self.assertTrue(eventually(lambda: self.runner.permission_requests()), "the session never asked")
+        return self.runner.permission_requests()[0]
+
+    def answer(self):
+        self.assertTrue(eventually(lambda: any("answered" in entry for entry in self.logged())), "never answered")
+        return next(entry["answered"] for entry in self.logged() if "answered" in entry)
+
+    def review_tools(self):
+        settings = self.tmp / "craftsman-home" / "settings.json"
+        return json.loads(settings.read_text()).get("review-tools") if settings.exists() else None
+
+    def test_a_tool_outside_the_list_waits_for_the_developer_with_what_it_would_do(self):
+        request = self.asking()
+
+        self.assertEqual({"id": "req-1", "tool": "Bash", "input": {"command": "npm test", "description": "Run the tests"},
+                          "description": "Run the tests", "rule": "Bash(npm test)"}, request)
+        self.assertTrue(self.runner.busy())
+        self.assertFalse(any("answered" in entry for entry in self.logged()))
+
+    def test_allowed_once_the_tool_runs_and_nothing_is_kept(self):
+        self.asking()
+
+        self.runner.answer("req-1", "allow")
+
+        self.assertEqual({"type": "control_response", "response": {
+            "subtype": "success", "request_id": "req-1",
+            "response": {"behavior": "allow", "updatedInput": {"command": "npm test", "description": "Run the tests"}}}},
+            self.answer())
+        self.assertEqual([], self.runner.permission_requests())
+        self.assertTrue(eventually(lambda: not self.runner.busy()), "the turn never ended")
+        self.assertIsNone(self.review_tools())
+
+    def test_allowed_always_the_rule_is_kept_for_reviews_and_the_session_stops_asking_for_it(self):
+        self.asking()
+
+        self.runner.answer("req-1", "always", rule="Bash(npm test:*)")
+
+        response = self.answer()["response"]["response"]
+        self.assertEqual("allow", response["behavior"])
+        self.assertEqual([{"type": "addRules", "behavior": "allow", "destination": "session",
+                           "rules": [{"toolName": "Bash", "ruleContent": "npm test:*"}]}], response["updatedPermissions"])
+        self.assertEqual(["Bash(npm test:*)"], self.review_tools())
+
+    def test_a_tool_of_an_mcp_server_is_offered_as_the_whole_server(self):
+        request = self.asking("mcp__jira__getIssue")
+
+        self.assertEqual("mcp__jira", request["rule"])
+        self.runner.answer("req-1", "always", rule=request["rule"])
+        self.assertEqual([{"toolName": "mcp__jira"}], self.answer()["response"]["response"]["updatedPermissions"][0]["rules"])
+
+    def test_refused_the_session_is_told_why_and_goes_on(self):
+        self.asking()
+
+        self.runner.answer("req-1", "deny", reason="use the script in the repository")
+
+        response = self.answer()["response"]["response"]
+        self.assertEqual("deny", response["behavior"])
+        self.assertIn("use the script in the repository", response["message"])
+        self.assertTrue(eventually(lambda: not self.runner.busy()), "the turn never ended")
+
+    def test_a_request_answered_already_or_never_made_is_refused(self):
+        self.asking()
+        self.runner.answer("req-1", "allow")
+
+        for request, decision in (("req-1", "allow"), ("req-9", "allow")):
+            with self.subTest(request=request):
+                with self.assertRaises(review_state.Refused):
+                    self.runner.answer(request, decision)
+
+    def test_an_unknown_answer_or_a_rule_that_is_not_one_is_refused(self):
+        self.asking()
+
+        for decision, rule in (("maybe", None), ("always", ""), ("always", "Bash(npm test"), ("always", "rm -rf /")):
+            with self.subTest(decision=decision, rule=rule):
+                with self.assertRaises(review_state.Refused):
+                    self.runner.answer("req-1", decision, rule=rule)
+        self.assertEqual(1, len(self.runner.permission_requests()))
+
+    def test_a_stopped_session_asks_for_nothing(self):
+        self.asking()
+
+        self.runner.stop()
+
+        self.assertEqual([], self.runner.permission_requests())
 
     def test_the_review_folder_with_its_worktree_is_a_working_directory_of_the_session(self):
         self.started()

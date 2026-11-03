@@ -427,10 +427,43 @@ class ReviewEndpointsTest(ReviewsTest):
         status, body = self.call("/api/review/tools", {"id": ID, "rule": "mcp__jira", "allow": False})
         self.assertEqual((200, []), (status, body["tools"]))
 
-    def test_only_an_mcp_server_can_be_allowed_from_the_page(self):
+    def test_only_an_mcp_server_can_be_allowed_from_the_tools_panel(self):
         for rule in ("Bash", "mcp__jira__getIssue(x)", "mcp__", "Write(//etc/**)"):
             with self.subTest(rule=rule):
                 self.assertEqual(409, self.call("/api/review/tools", {"id": ID, "rule": rule, "allow": True})[0])
+
+    def test_the_page_shows_what_the_session_asks_to_use_and_answers_it(self):
+        fresh = {"checkout": str(self.checkout), "source": "main:feature/x"}
+        self.call("/api/review/start", fresh)
+        runner = dashboard_server.Handler.hub.session(BRANCHES)
+        self.assertTrue(eventually(lambda: not runner.busy()))
+        runner.send("go on; needs Bash")
+        self.assertTrue(eventually(lambda: self.call(f"/api/review?id={BRANCHES}")[1]["permissions"]))
+        request = self.call(f"/api/review?id={BRANCHES}")[1]["permissions"][0]
+        self.assertEqual(("req-1", "Bash(npm test)"), (request["id"], request["rule"]))
+
+        status, body = self.call("/api/review/permission", {"id": BRANCHES, "request": "req-1", "answer": "always",
+                                                            "rule": "Bash(npm test:*)"})
+
+        self.assertEqual((200, []), (status, body["permissions"]))
+        self.assertEqual(["Bash(npm test:*)"], json.loads((self.home / "settings.json").read_text())["review-tools"])
+
+    def test_an_answer_the_session_does_not_wait_for_is_refused(self):
+        status, body = self.call("/api/review/permission", {"id": ID, "request": "req-1", "answer": "allow"})
+
+        self.assertEqual(409, status)
+        self.assertIn("does not wait", body["error"])
+
+    def test_a_rule_allowed_in_reviews_is_listed_and_can_be_taken_back(self):
+        self.home.mkdir(parents=True, exist_ok=True)
+        (self.home / "settings.json").write_text(json.dumps({"review-tools": ["Bash(npm test:*)"]}))
+        listed = {"name": "Bash(npm test:*)", "rule": "Bash(npm test:*)", "status": "rule", "allowed": True,
+                  "refused": False}
+        self.assertIn(listed, self.call(f"/api/review?id={ID}")[1]["tools"])
+
+        status, body = self.call("/api/review/tools", {"id": ID, "rule": "Bash(npm test:*)", "allow": False})
+
+        self.assertEqual((200, []), (status, body["tools"]))
 
     def test_a_review_starts_only_inside_a_git_repository(self):
         shutil.rmtree(self.checkout / ".git")

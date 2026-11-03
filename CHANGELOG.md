@@ -3,6 +3,13 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.14.0
+
+- The review's session asks before it uses a tool outside its list, instead of being refused: the review page shows the
+  request — the tool, what it would run, the rule that would allow it — and waits for **Allow once**, **Always in
+  reviews** or **Deny** with a reason the AI Agent reads. **Always in reviews** keeps the rule, editable first, in
+  `review-tools`; ⚙ AI Agent tools lists it with a switch to take it back. See REVIEW.md, "The review's session".
+
 ## 0.13.3
 
 - ⌫ Archived reviews and ⚙ AI Agent tools open when no review is open too, rather than leaving the new-review wizard

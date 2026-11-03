@@ -39,16 +39,18 @@ repository's checkout; the review's state lives in the folder after `--review`, 
 2. **Resolve the `pr-review` entry-point protocol and execute it** per EXECUTION.md's dispatch rules, with the source
    after `--headless`, the review's folder and the checkout as its input.
 3. Every change to the review's state goes through `scripts/review_state.py`, never by editing `review.json`. Its
-   payload is one JSON argument in single quotes, an apostrophe inside it written as `\u0027`; this session refuses a
+   payload is one JSON argument in single quotes, an apostrophe inside it written as `\u0027`, never a
    heredoc or a pipe.
-   This session runs only `git`, `gh` and the plugin's scripts, each named by its full path at the start of the
-   command, one command per Bash call. It refuses a command that starts with a variable (`S=...; python3 $S`) or a
-   `cd`, chains commands (`;`, `&&`, `|`, `2>&1 | head`), writes a file with `>`, or runs any other program (`sed`,
-   `cat`). Git in the worktree runs as `git -C <worktree> …`. Files are read with Read, searched with Grep; a diff is
-   read from the review's `diff/` folder or printed by `git diff`, never saved to `/tmp`.
-   **A refusal is about that one command, never about Bash as a whole.** Write the command again in the allowed form
-   and run it; do not stop the review, and do not ask the developer to switch Bash on. Only a command already in the
-   allowed form that is refused is worth saying, with the command exactly as run.
+   This session runs `git`, `gh` and the plugin's scripts without asking, each named by its full path at the start of
+   the command, one command per Bash call. Anything else waits until the developer allows it on the review page — a
+   command that starts with a variable (`S=...; python3 $S`) or a `cd`, chains commands (`;`, `&&`, `|`, `2>&1 | head`),
+   writes a file with `>`, or runs any other program (`sed`, `cat`) — so use the allowed form wherever there is one, and
+   ask only for what the review needs. Git in the worktree runs as `git -C <worktree> …`. Files are read with Read,
+   searched with Grep; a diff is read from the review's `diff/` folder or printed by `git diff`, never saved to `/tmp`.
+   **A refusal is about that one command, never about Bash as a whole.** When the developer denies a command, read
+   the reason they give and go on without it, or the way the reason says; do not stop the review, and do not ask the
+   developer to switch Bash on. Only a command already in the allowed form that is refused is worth saying, with the
+   command exactly as run.
 4. **Checkpoints go through the review page, not `AskUserQuestion`** — that tool has no one to ask here:
     - `ask`: write the question with `review_state.py <review dir> set` as `checkpoint` — `{"id", "step", "question",
       "options", "answer": null}` — say in one line that the question is on the page, and end the turn. The answer

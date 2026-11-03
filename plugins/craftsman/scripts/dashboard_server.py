@@ -283,11 +283,16 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, dict(reviews.read_review(review_id), running=runner.running(),
                                            working=runner.working(), background=runner.background,
                                            quiet=runner.quiet(), restoring=runner.restoring,
-                                           problem=runner.problem, tools=_review_session.agent_tools(review)))
+                                           problem=runner.problem, tools=_review_session.agent_tools(review),
+                                           permissions=runner.permission_requests()))
+            if path == "/api/review/permission":
+                runner.answer(str(body.get("request", "")), str(body.get("answer", "")), rule=body.get("rule"),
+                              reason=body.get("reason"))
+                return self.send(200, dict(ok=True, permissions=runner.permission_requests()))
             if path == "/api/review/tools":
                 rule = str(body.get("rule", ""))
-                if not MCP_SERVER_RULE.match(rule):
-                    raise review_state.Refused(f"only an MCP server is allowed from the page, as mcp__<server>: {rule!r}")
+                if body.get("allow") and not MCP_SERVER_RULE.match(rule):
+                    raise review_state.Refused(f"only an MCP server is allowed from the tools panel, as mcp__<server>: {rule!r}")
                 _settings.allow_review_tool(rule, bool(body.get("allow")))
                 if body.get("restart") and runner.running():
                     runner.restart(f"The developer allowed every tool of the MCP server behind `{rule}` for this review. "

@@ -177,29 +177,41 @@ to `review.json` through `review_state.py` directly, and the agent sees them the
 
 ## The review's session
 
-The dashboard server runs the review's Claude session headless: `claude -p --permission-mode dontAsk`, in the checkout,
-with the review folder — which holds `worktree/` — as a second working directory (`--add-dir`). It cannot ask for a
-permission, so every tool it may use is on a fixed list, and a tool outside it is refused:
+The dashboard server runs the review's Claude session headless: `claude -p`, in the checkout, with the review folder —
+which holds `worktree/` — as a second working directory (`--add-dir`). The tools on a fixed list run without asking:
 
 - reading and searching files, subagents, skills;
 - `git` and `gh` commands, each started as `git …` or `gh …` — git in the worktree runs as `git -C <worktree> …`,
-  because a `cd` followed by `git` is refused;
+  because a `cd` followed by `git` is a command of its own;
 - the craftsman scripts, by their full path;
 - writing the checkout's `.claude/sessions/` files and the plugin-version marker of the installed content;
 - the tools listed as `review-tools` in `~/.craftsman/settings.json`.
 
-`review-tools` is how the session reads Jira, through the MCP server Jira is read through. The page sets it:
+For any other tool the session asks the server (`--permission-prompt-tool stdio`) and waits. The page shows the request
+at the top of the review — the tool, what it would run or open, and the rule that would allow it — and the developer
+answers:
 
+- **Allow once** — that one call runs;
+- **Always in reviews** — the rule, edited first if wanted (`Bash(npm test)` widened to `Bash(npm test:*)`), is added
+  to `review-tools` and to the running session, so neither this review nor the next one asks for it again;
+- **Deny** — the agent is told the developer did not allow it, with the reason typed beside it, and goes on.
+
+For a tool of an MCP server the rule offered is the whole server, `mcp__<server>`.
+
+`review-tools` is also how the session reads Jira, through the MCP server Jira is read through. The page sets it:
+
+- the requests above;
 - when the session is refused a tool of an MCP server, a banner names the server and offers **Allow and go on** — the
   server is allowed in every review, and the session restarts and does again what was refused;
 - ⚙ in the rail opens **AI Agent tools**: every MCP server the session connected to, and every one allowed, each with
-  a switch. A change there applies when the session starts next.
+  a switch, and every other rule allowed from a request, with a switch to take it back. A change there applies when
+  the session starts next.
 
 Allowing a server allows every tool it has, writing ones too. In `settings.json` a server is `mcp__<server>`, its name
 with every character other than a letter, a digit, `_` and `-` made `_`:
 
 ```json
-{ "review-tools": ["mcp__jira"] }
+{ "review-tools": ["mcp__jira", "Bash(npm test:*)"] }
 ```
 
 ## `session.jsonl`
