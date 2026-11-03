@@ -11,8 +11,6 @@ The meaning of a colour is the same in every palette:
 
 The developer picks the palette on the dashboard or the review page; the choice is kept as `theme` in
 `<craftsman home>/settings.json`. Graphite is the palette until one is picked."""
-import json
-
 DERIVED_ACCENTS = ("blue", "green", "amber", "red", "violet")
 
 
@@ -140,21 +138,10 @@ def palettes():
             for key, c in PALETTES.items()]
 
 
-def _settings_file():
-    import _reviews
-    return _reviews.home() / "settings.json"
-
-
-def _settings():
-    try:
-        return json.loads(_settings_file().read_text())
-    except (OSError, ValueError):
-        return {}
-
-
 def chosen():
     """The id of the palette the developer picked; graphite when none is, or the picked one no longer exists."""
-    picked = _settings().get("theme")
+    import _settings
+    picked = _settings.read().get("theme")
     return picked if picked in PALETTES else "graphite"
 
 
@@ -162,7 +149,5 @@ def choose(palette):
     """Keep the developer's palette. Raises ValueError for a palette that does not exist."""
     if palette not in PALETTES:
         raise ValueError(f"no such palette: {palette!r}; one of {', '.join(PALETTES)}")
-    settings = _settings()
-    settings["theme"] = palette
-    _settings_file().parent.mkdir(parents=True, exist_ok=True)
-    _settings_file().write_text(json.dumps(settings, indent=2) + "\n")
+    import _settings
+    _settings.update("theme", palette)

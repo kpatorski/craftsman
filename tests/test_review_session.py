@@ -100,6 +100,91 @@ class ReviewSessionTest(unittest.TestCase):
         self.assertIn(f"Bash({shutil.which('python3')} {SCRIPTS}/review_state.py:*)", tools)
         self.assertNotIn(f"Bash(python3 {SCRIPTS}/:*)", tools)
 
+    def tools(self):
+        argv = self.logged()[0]["argv"]
+        return argv[argv.index("--allowedTools") + 1:]
+
+    def test_the_session_may_use_the_tools_the_developer_lists_for_reviews(self):
+        home = self.tmp / "craftsman-home"
+        home.mkdir(parents=True, exist_ok=True)
+        (home / "settings.json").write_text(json.dumps({"review-tools": ["mcp__jira"]}))
+
+        self.started()
+
+        self.assertIn("mcp__jira", self.tools())
+
+    def test_no_mcp_tool_is_allowed_unless_the_developer_lists_it(self):
+        self.started()
+
+        self.assertEqual([], [tool for tool in self.tools() if tool.startswith("mcp__")])
+
+    def test_the_session_may_record_the_plugin_version_it_ran_with(self):
+        self.started()
+
+        marker = pathlib.Path.home() / ".claude" / "craftsman" / ".craftsman-plugin-version"
+        self.assertIn(f"Write(/{marker})", self.tools())
+        self.assertIn(f"Edit(/{marker})", self.tools())
+
+    def transcript(self, *events):
+        self.review.mkdir(parents=True, exist_ok=True)
+        with (self.review / "session.jsonl").open("a") as out:
+            for event in events:
+                out.write(json.dumps(event) + "\n")
+
+    def init(self, *servers):
+        return {"type": "system", "subtype": "init", "mcp_servers": [{"name": n, "status": "connected"} for n in servers]}
+
+    def refused(self, tool):
+        return {"type": "result", "permission_denials": [{"tool_name": tool, "tool_input": {}}]}
+
+    def test_the_agent_tools_are_the_mcp_servers_of_the_session_and_whether_the_developer_allows_them(self):
+        (self.tmp / "craftsman-home").mkdir(parents=True, exist_ok=True)
+        (self.tmp / "craftsman-home" / "settings.json").write_text(json.dumps({"review-tools": ["mcp__docs"]}))
+        self.transcript(self.init("jira", "docs"), self.refused("mcp__jira__getIssue"), self.refused("Bash"))
+
+        self.assertEqual(sessions.agent_tools(self.review), [
+            {"name": "jira", "rule": "mcp__jira", "status": "connected", "allowed": False, "refused": True},
+            {"name": "docs", "rule": "mcp__docs", "status": "connected", "allowed": True, "refused": False}])
+
+    def test_only_what_was_refused_since_the_session_last_started_counts(self):
+        self.transcript(self.init("jira"), self.refused("mcp__jira__getIssue"), self.init("jira"))
+
+        self.assertFalse(sessions.agent_tools(self.review)[0]["refused"])
+
+    def test_a_server_name_becomes_its_rule_the_way_claude_names_its_tools(self):
+        self.transcript(self.init("claude.ai Atlassian"), self.refused("mcp__claude_ai_Atlassian__search"))
+
+        self.assertEqual(sessions.agent_tools(self.review),
+                         [{"name": "claude.ai Atlassian", "rule": "mcp__claude_ai_Atlassian", "status": "connected",
+                           "allowed": False, "refused": True}])
+
+    def test_an_allowed_server_the_session_does_not_have_is_still_listed_to_take_back(self):
+        (self.tmp / "craftsman-home").mkdir(parents=True, exist_ok=True)
+        (self.tmp / "craftsman-home" / "settings.json").write_text(json.dumps({"review-tools": ["mcp__old"]}))
+
+        self.assertEqual(sessions.agent_tools(self.review),
+                         [{"name": "old", "rule": "mcp__old", "status": "not connected", "allowed": True,
+                           "refused": False}])
+
+    def test_a_restart_runs_the_session_again_with_what_is_allowed_now_and_tells_it_to_go_on(self):
+        self.started()
+        (self.tmp / "craftsman-home" / "settings.json").write_text(json.dumps({"review-tools": ["mcp__jira"]}))
+
+        self.runner.restart("Go on.")
+
+        self.assertTrue(eventually(lambda: "Go on." in self.received()), self.received())
+        spawns = [entry["argv"] for entry in self.logged() if "argv" in entry]
+        self.assertEqual(2, len(spawns))
+        self.assertIn("mcp__jira", spawns[1])
+        self.assertIn("--resume", spawns[1])
+
+    def test_the_review_folder_with_its_worktree_is_a_working_directory_of_the_session(self):
+        self.started()
+
+        argv = self.logged()[0]["argv"]
+        self.assertEqual(argv[argv.index("--add-dir") + 1], str(self.review))
+        self.assertLess(argv.index("--add-dir"), argv.index("--allowedTools"))
+
     def test_the_session_may_write_only_its_own_session_files_by_absolute_path(self):
         self.started()
 

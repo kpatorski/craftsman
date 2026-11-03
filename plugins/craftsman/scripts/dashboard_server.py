@@ -24,6 +24,7 @@ import argparse
 import json
 import os
 import pathlib
+import re
 import signal
 import subprocess
 import sys
@@ -40,6 +41,7 @@ import _checkout as checkouts  # noqa: E402
 import _dashboard_data as data  # noqa: E402
 import _review_session  # noqa: E402
 import _reviews as reviews  # noqa: E402
+import _settings  # noqa: E402
 import review_state  # noqa: E402
 import send_review  # noqa: E402
 from _markdown import MD_CSS  # noqa: E402
@@ -51,6 +53,7 @@ PAGES = {"/": HERE / "dashboard_page.html", "/review": HERE / "review_page.html"
 # The name the pages are opened under: a `.localhost` name always means this machine (RFC 6761), and browsers resolve
 # it without an entry in /etc/hosts. `localhost` and 127.0.0.1 are served too.
 HOST = "craftsman.localhost"
+MCP_SERVER_RULE = re.compile(r"^mcp__[A-Za-z0-9_-]+$")
 IDLE_EXIT_SECONDS = 8 * 3600
 POLL_SECONDS = 1.0
 RESCAN_EVERY = 10  # polls between looks for projects newly created inside a root
@@ -262,7 +265,16 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, dict(reviews.read_review(review_id), running=runner.running(),
                                            working=runner.working(), background=runner.background,
                                            quiet=runner.quiet(), restoring=runner.restoring,
-                                           problem=runner.problem))
+                                           problem=runner.problem, tools=_review_session.agent_tools(review)))
+            if path == "/api/review/tools":
+                rule = str(body.get("rule", ""))
+                if not MCP_SERVER_RULE.match(rule):
+                    raise review_state.Refused(f"only an MCP server is allowed from the page, as mcp__<server>: {rule!r}")
+                _settings.allow_review_tool(rule, bool(body.get("allow")))
+                if body.get("restart") and runner.running():
+                    runner.restart(f"The developer allowed every tool of the MCP server behind `{rule}` for this review. "
+                                   "Go on from where you stopped, and do again what was refused.")
+                return self.send(200, dict(ok=True, tools=_review_session.agent_tools(review)))
             if path == "/api/review/resume":
                 if not runner.running() and not runner.restoring:
                     runner.resume()

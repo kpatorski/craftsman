@@ -181,7 +181,9 @@ itself. On the page, a wizard asks what is reviewed — a pull request, or what 
 and where its code is read from: your checkout of the repository (typed, or picked with "Browse…"), or, for a pull
 request, a clone made for the review in `/tmp`. `/craftsman:pr-review https://github.com/org/repo/pull/123` fills the
 wizard in, or opens that PR's review when it is already under way. A pull request on a GitHub Enterprise host works
-the same, with `gh` signed in to that host. The review reads the PR's description and the tickets
+the same, with `gh` signed in to that host. The review reads the PR's Jira tickets through your Jira MCP server once you
+allow it: the page offers that the first time the review is refused one of its tools, and ⚙ in the rail lists the
+servers — see `REVIEW.md`, "The review's session". The review reads the PR's description and the tickets
 it links, maps the change into use cases, reads the business rules in its tests, notes the few places that are hard to
 follow, and only then reviews the code, use case by use case from the entry point down, against the enabled directives —
 including whether the code could be simpler or left to the standard library, the framework or a dependency the build

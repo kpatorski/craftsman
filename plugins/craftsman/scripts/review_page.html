@@ -482,8 +482,16 @@ function progressLine() {
   const restoring = R.restoring ? `<div class="asks"><span class="pulse"></span><span class="grow"><b>Restoring the repository…</b>
     · its clone or the review's worktree was gone; it is made again at the reviewed commit, then the session resumes.</span></div>` : "";
   const problem = R.problem ? `<div class="banner red" style="margin:0 0 14px"><b>The repository could not be restored</b> · ${esc(R.problem)}</div>` : "";
-  if (at >= 7) return restoring + problem + ask + silent;
-  return restoring + problem + ask + silent + `<div style="margin:-8px 0 18px"><div class="stepline"><span>Step ${at + 1} of ${STEPS.length} · <b>${STEPS[at][1]}</b></span>
+  const refused = (R.tools || []).filter(t => t.refused).map(t => t.allowed
+    ? `<div class="asks"><span class="grow" style="white-space:normal"><b>${esc(t.name)} is allowed now</b> · the session still runs with the tools it started with;
+        restart it and the AI Agent goes on, doing again what was refused.</span>
+        <button class="btn sm" data-allow-tool="${esc(t.rule)}">Restart and go on</button></div>`
+    : `<div class="asks"><span class="grow" style="white-space:normal"><b>The AI Agent was refused the tools of ${esc(t.name)}</b> · an MCP server its session
+        connected to, such as the one Jira is read through. Allow it in every review? Every tool of the server is allowed then,
+        writing ones too. <a style="color:var(--neon)" data-agent-tools>AI Agent tools</a></span>
+        <button class="btn go sm" data-allow-tool="${esc(t.rule)}">Allow and go on</button></div>`).join("");
+  if (at >= 7) return restoring + problem + refused + ask + silent;
+  return restoring + problem + refused + ask + silent + `<div style="margin:-8px 0 18px"><div class="stepline"><span>Step ${at + 1} of ${STEPS.length} · <b>${STEPS[at][1]}</b></span>
     <span>AI Agent ${doing()}</span></div>${stepsStrip(at, sessionMode())}</div>`;
 }
 // What a tab shows before the step that fills it: which step that is, and where the review is now.
@@ -504,7 +512,8 @@ function renderRail() {
     return `<div class="rtile${here ? " on" : ""}" data-open-review="${i}" data-hoverr="${i}" draggable="true">${pr ? "#" + pr.number : "⑂"}` +
       `${r.checkpoint ? '<span class="badge"></span>' : ""}</div>`;
   }).join("") + `<div class="rsep"></div><div class="rtile" data-new title="New review">＋</div>` +
-    `<div class="rtile end" data-theme-picker title="Colour palette">◐</div>` +
+    `<div class="rtile end${ui.tab === "tools" ? " on" : ""}" data-agent-tools title="AI Agent tools">⚙</div>` +
+    `<div class="rtile" data-theme-picker title="Colour palette">◐</div>` +
     `<div class="rtile" data-archived title="Archived reviews · ${archived}">⌫</div>`;
 }
 // The rail's order is the developer's, dragged into place and kept in this browser; a review not placed yet goes last.
@@ -1088,6 +1097,22 @@ function viewArchived() {
     <button class="btn sm" data-unarchive="${esc(r.id)}">Bring back</button></div>`).join("") || '<span class="muted">Nothing archived.</span>'}</div>`;
 }
 
+// The MCP servers a review's session may use: every server it connected to, allowed or not in every review.
+function viewTools() {
+  const tools = (R && R.tools) || [];
+  const row = t => `<div class="row" style="grid-template-columns:minmax(0,1fr) auto auto;align-items:center">
+    <span><b>${esc(t.name)}</b> <span class="muted">· <code>${esc(t.rule)}</code> · ${esc(t.status)}</span>
+      ${t.refused ? '<span class="tag amber">refused in this session</span>' : ""}</span>
+    <label class="switch${t.allowed ? " on" : ""}" data-tool-toggle="${esc(t.rule)}" data-on="${t.allowed ? 1 : 0}"><i></i>${t.allowed ? "allowed" : "not allowed"}</label>
+    ${t.allowed && t.refused && R.running ? `<button class="btn sm" data-allow-tool="${esc(t.rule)}">Restart and go on</button>` : "<span></span>"}</div>`;
+  return `<div class="card" style="max-width:820px"><h3><span>AI Agent tools</span></h3>
+    <div class="muted" style="margin-bottom:12px">The review's session cannot ask for a permission, so it uses only its own tools — reading the code,
+      <code>git</code>, <code>gh</code>, the craftsman scripts — and the MCP servers allowed here. Allow the server Jira is read through and
+      the AI Agent reads the PR's tickets. Allowing a server allows every tool it has, writing ones too. The choice applies to every review,
+      from the session's next start; it is kept as <code>review-tools</code> in <code>~/.craftsman/settings.json</code>.</div>
+    ${tools.map(row).join("") || `<span class="muted">${R ? "This review's session has connected to no MCP server. The servers are the ones <code>claude mcp list</code> shows, in the review's checkout." : "Open a review: the servers are the ones its session connected to."}</span>`}</div>`;
+}
+
 // ================================================================ render
 function busy() {
   // nor does it close the list of checkouts while the developer picks one from it
@@ -1106,6 +1131,7 @@ function render() {
   if (ui.tab !== "structure") ui.uc = null;
   if (ui.tab === "new" || (!current.id && !R)) main.innerHTML = viewNew();
   else if (ui.tab === "archived") main.innerHTML = viewArchived();
+  else if (ui.tab === "tools") main.innerHTML = viewTools();
   else if (!R) main.innerHTML = `<h1>${esc(current.id)}</h1><div class="card pending" style="margin-top:20px"><h3><span>Step 1 of ${STEPS.length} · Open the review</span></h3>
     <div>The AI agent reads the pull request, gives the review its own copy of the code, and stores the diff. The page fills in as soon as it has.</div>
     <div class="indeterminate"></div></div>`;
@@ -1153,7 +1179,7 @@ const stepIn = (list, at, by) => list[Math.min(list.length - 1, Math.max(0, list
 const CLICKABLE = ["tab", "sort", "restart", "inline", "gutter", "goto", "finding", "thread", "close-panel", "edit", "save", "status", "set-sev", "resolve", "compose", "view", "pick-file",
   "open-file", "step-file", "step-uc", "code-filter", "fsev", "fby", "fquestions", "fstatus", "answer", "live", "refresh", "send", "power",
   "close-review", "uccard", "close-uc", "ask-uc", "open-review", "archive", "new", "archived", "unarchive", "start", "pop", "new-finding", "nr-kind", "nr-how", "nr-browse",
-  "nf-sev", "nf-save", "answer-here"].map(name => `[data-${name}]`).join(",");
+  "nf-sev", "nf-save", "answer-here", "agent-tools", "allow-tool", "tool-toggle"].map(name => `[data-${name}]`).join(",");
 document.addEventListener("click", async e => {
   if (!e.target.closest("#pop")) { hidePop(); dropSelection(); }
   const t = e.target.closest(CLICKABLE); if (!t) return;
@@ -1268,6 +1294,12 @@ document.addEventListener("click", async e => {
     return;
   }
   if (d.archived !== undefined) { ui.tab = "archived"; ui.panel = null; return render(); }
+  if (d.agentTools !== undefined) { ui.tab = ui.tab === "tools" ? "overview" : "tools"; ui.panel = null; return render(); }
+  if (d.allowTool !== undefined) {
+    toast(R.running ? "restarting the session with the server allowed" : "allowed; start the session and it goes on");
+    return api("/api/review/tools", { ...K(), rule: d.allowTool, allow: true, restart: true }).then(() => reload());
+  }
+  if (d.toolToggle !== undefined) return api("/api/review/tools", { ...K(), rule: d.toolToggle, allow: d.on !== "1" }).then(() => reload());
   if (d.start !== undefined) {
     if (!nrReady()) return;
     const n = ui.nr, body = { source: nrSource(), ...(nrNeedsPath() ? { checkout: n.check.checkout } : { clone: true }) };

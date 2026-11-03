@@ -3,6 +3,15 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.13.2
+
+- A review reads Jira through your Jira MCP server once you allow it. The first time the review's session is refused
+  one of the server's tools, the page says so and offers **Allow and go on**; ⚙ in the rail, **AI Agent tools**, lists
+  the session's MCP servers with a switch each. The choice applies to every review and is kept as `review-tools` in
+  `~/.craftsman/settings.json`; see REVIEW.md, "The review's session".
+- The review's session runs git in the worktree as `git -C <worktree>` and may record the plugin version it ran with,
+  so neither is refused any more. Update the workshop too: its `code-review` protocols say `git -C`.
+
 ## 0.13.1
 
 - `/craftsman:pr-review` takes a pull request on a GitHub Enterprise host, not only on github.com: the checkout's

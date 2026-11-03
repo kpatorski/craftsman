@@ -172,6 +172,33 @@ A question from the page opens a thread, or adds to one, before its `ask` line i
 Edits, deletions, "to send", "viewed" and archiving on the page do not go through the inbox: the server applies them
 to `review.json` through `review_state.py` directly, and the agent sees them the next time it reads the state.
 
+## The review's session
+
+The dashboard server runs the review's Claude session headless: `claude -p --permission-mode dontAsk`, in the checkout,
+with the review folder — which holds `worktree/` — as a second working directory (`--add-dir`). It cannot ask for a
+permission, so every tool it may use is on a fixed list, and a tool outside it is refused:
+
+- reading and searching files, subagents, skills;
+- `git` and `gh` commands, each started as `git …` or `gh …` — git in the worktree runs as `git -C <worktree> …`,
+  because a `cd` followed by `git` is refused;
+- the craftsman scripts, by their full path;
+- writing the checkout's `.claude/sessions/` files and the plugin-version marker of the installed content;
+- the tools listed as `review-tools` in `~/.craftsman/settings.json`.
+
+`review-tools` is how the session reads Jira, through the MCP server Jira is read through. The page sets it:
+
+- when the session is refused a tool of an MCP server, a banner names the server and offers **Allow and go on** — the
+  server is allowed in every review, and the session restarts and does again what was refused;
+- ⚙ in the rail opens **AI Agent tools**: every MCP server the session connected to, and every one allowed, each with
+  a switch. A change there applies when the session starts next.
+
+Allowing a server allows every tool it has, writing ones too. In `settings.json` a server is `mcp__<server>`, its name
+with every character other than a letter, a digit, `_` and `-` made `_`:
+
+```json
+{ "review-tools": ["mcp__jira"] }
+```
+
 ## `session.jsonl`
 
 Every event of the review's Claude session (`--output-format stream-json`), appended by the server as it arrives. The

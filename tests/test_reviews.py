@@ -407,6 +407,22 @@ class ReviewEndpointsTest(ReviewsTest):
         self.assertEqual(status, 200)
         self.assertFalse(dashboard_server.Handler.hub.session(BRANCHES).running())
 
+    def test_the_page_allows_an_mcp_server_in_reviews_and_takes_it_back(self):
+        status, body = self.call("/api/review/tools", {"id": ID, "rule": "mcp__jira", "allow": True})
+        self.assertEqual(200, status)
+        self.assertIn({"name": "jira", "rule": "mcp__jira", "status": "not connected", "allowed": True, "refused": False},
+                      body["tools"])
+        self.assertEqual(["mcp__jira"], json.loads((self.home / "settings.json").read_text())["review-tools"])
+        self.assertEqual(body["tools"], self.call(f"/api/review?id={ID}")[1]["tools"])
+
+        status, body = self.call("/api/review/tools", {"id": ID, "rule": "mcp__jira", "allow": False})
+        self.assertEqual((200, []), (status, body["tools"]))
+
+    def test_only_an_mcp_server_can_be_allowed_from_the_page(self):
+        for rule in ("Bash", "mcp__jira__getIssue(x)", "mcp__", "Write(//etc/**)"):
+            with self.subTest(rule=rule):
+                self.assertEqual(409, self.call("/api/review/tools", {"id": ID, "rule": rule, "allow": True})[0])
+
     def test_a_review_starts_only_inside_a_git_repository(self):
         shutil.rmtree(self.checkout / ".git")
 

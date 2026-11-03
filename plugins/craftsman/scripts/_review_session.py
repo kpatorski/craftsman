@@ -3,12 +3,15 @@ starts `claude -p` with stream-json in and out, keeps every event in the review'
 show, and passes the review's inbox into the session one message at a time, each after the previous turn ended.
 
 A headless session cannot ask for permission, so it runs with `--permission-mode dontAsk` and a fixed tool list: the
-review reads code, runs git, gh and the craftsman scripts, writes its own session file, and starts subagents. A tool
-outside the list comes back as a refusal the console shows, and the session goes on.
+review reads code, runs git, gh and the craftsman scripts, writes its own session file, and starts subagents. The
+developer adds tools to it as `review-tools` in the craftsman settings -- the MCP server of their Jira, say. The review
+folder, which holds the worktree, is a working directory of the session besides the checkout. A tool outside the list
+comes back as a refusal the console shows, and the session goes on.
 """
 import json
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import threading
@@ -16,6 +19,7 @@ import time
 
 import _checkout as checkouts
 import _reviews as reviews
+import _settings
 import review_state
 
 SCRIPTS = pathlib.Path(__file__).resolve().parent
@@ -28,10 +32,47 @@ ALLOWED_TOOLS = ["Read", "Grep", "Glob", "Agent", "Skill", "TodoWrite", "Bash(gi
 
 
 def allowed_tools(checkout):
-    """The fixed list, plus writing the checkout's craftsman session files -- by absolute path (`//`), the form a
-    headless session matches against the absolute paths the agent writes to."""
+    """The fixed list; writing the checkout's craftsman session files and the plugin-version marker of the installed
+    content (MANAGEMENT.md, "Plugin version") -- by absolute path (`//`), the form a headless session matches against
+    the absolute paths the agent writes to; and the tools the developer lists as `review-tools` in the craftsman
+    settings, such as the MCP server their Jira is read through."""
     sessions = f"/{pathlib.Path(checkout).resolve()}/.claude/sessions/**"
-    return ALLOWED_TOOLS + [f"Write({sessions})", f"Edit({sessions})"]
+    marker = f"/{pathlib.Path.home() / '.claude' / 'craftsman' / '.craftsman-plugin-version'}"
+    return ALLOWED_TOOLS + [f"Write({sessions})", f"Edit({sessions})", f"Write({marker})", f"Edit({marker})"] + \
+        _settings.review_tools()
+
+
+def mcp_rule(server):
+    """The permission rule for every tool of an MCP server: Claude names its tools `mcp__<server>__<tool>`, with every
+    character other than a letter, a digit, `_` and `-` in the server's name made `_`."""
+    return "mcp__" + re.sub(r"[^A-Za-z0-9_-]", "_", server)
+
+
+def agent_tools(review):
+    """The MCP servers of the review's session, as the page shows them: each server the session connected to when it
+    last started, and each one `review-tools` allows; whether it is allowed, and whether the session was refused one
+    of its tools since it last started."""
+    servers, refused = {}, set()
+    transcript = pathlib.Path(review) / "session.jsonl"
+    for raw in (transcript.read_text().splitlines() if transcript.exists() else []):
+        try:
+            event = json.loads(raw)
+        except ValueError:
+            continue
+        if event.get("type") == "system" and event.get("subtype") == "init":
+            servers = {mcp_rule(s["name"]): dict(name=s["name"], status=s.get("status") or "unknown")
+                       for s in event.get("mcp_servers") or [] if s.get("name")}
+            refused = set()
+        denied = [d.get("tool_name") for d in event.get("permission_denials") or []]
+        if event.get("type") == "system" and event.get("subtype") == "permission_denied":
+            denied.append(event.get("tool_name"))
+        refused |= {name for name in denied if isinstance(name, str) and name.startswith("mcp__")}
+    allowed = _settings.review_tools()
+    for rule in allowed:
+        if rule.startswith("mcp__") and rule not in servers:
+            servers[rule] = dict(name=rule[len("mcp__"):], status="not connected")
+    return [dict(name=s["name"], rule=rule, status=s["status"], allowed=rule in allowed,
+                 refused=any(tool.startswith(rule + "__") for tool in refused)) for rule, s in servers.items()]
 
 
 def claude_command():
@@ -69,9 +110,10 @@ class ReviewSession:
         self.spawn([])
         self.send(f"/craftsman:pr-review --headless {source} --review {self.review} --checkout {self.checkout}")
 
-    def resume(self):
-        """The same conversation again, e.g. after the server restarted; what it has not handled is passed first. A
-        missing clone or worktree is made again first, in the background, while `restoring` says so."""
+    def resume(self, note=None):
+        """The same conversation again, e.g. after the server restarted; what it has not handled is passed first, and
+        then the note, when there is one. A missing clone or worktree is made again first, in the background, while
+        `restoring` says so."""
         state = review_state.read(self.review)
         session = state.get("session")
         self.checkout = pathlib.Path(state["checkout"]) if state.get("checkout") else self.checkout
@@ -81,11 +123,12 @@ class ReviewSession:
         if not checkouts.needs_restore(self.review):
             self.spawn(argv)
             self.deliver()
+            self.tell(note)
             return
         self.restoring, self.problem = True, None
-        threading.Thread(target=self.restore_then_spawn, args=(argv,), daemon=True).start()
+        threading.Thread(target=self.restore_then_spawn, args=(argv, note), daemon=True).start()
 
-    def restore_then_spawn(self, argv):
+    def restore_then_spawn(self, argv, note=None):
         try:
             checkouts.restore(self.review)
         except review_state.Refused as refusal:
@@ -96,6 +139,16 @@ class ReviewSession:
         finally:
             self.restoring = False  # only now, so the page never sees a gap between restoring and running
         self.deliver()
+        self.tell(note)
+
+    def tell(self, note):
+        if note and self.running():
+            self.send(note)
+
+    def restart(self, note):
+        """Run the same conversation again with the tools allowed now, and tell it why."""
+        self.stop()
+        self.resume(note)
 
     def stop(self):
         process, reader = self.process, self.reader
@@ -157,7 +210,8 @@ class ReviewSession:
         self.background = 0
         argv = self.command + ["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
                                "--replay-user-messages",
-                               "--permission-mode", "dontAsk", "--allowedTools", *allowed_tools(self.checkout)] + extra
+                               "--permission-mode", "dontAsk", "--add-dir", str(self.review),
+                               "--allowedTools", *allowed_tools(self.checkout)] + extra
         errors = (self.review / "session.stderr").open("a")
         self.process = subprocess.Popen(argv, cwd=self.checkout, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                         stderr=errors, text=True, bufsize=1)
