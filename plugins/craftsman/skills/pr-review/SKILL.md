@@ -42,9 +42,13 @@ repository's checkout; the review's state lives in the folder after `--review`, 
    payload is one JSON argument in single quotes, an apostrophe inside it written as `\u0027`; this session refuses a
    heredoc or a pipe.
    This session runs only `git`, `gh` and the plugin's scripts, each named by its full path at the start of the
-   command. It refuses a command that starts with a variable (`S=...; python3 $S`), writes a file with `>`, or runs
-   any other program (`sed`, `cat`). Files are read with Read, searched with Grep; a diff is read from the review's
-   `diff/` folder or printed by `git diff`, never saved to `/tmp`.
+   command, one command per Bash call. It refuses a command that starts with a variable (`S=...; python3 $S`) or a
+   `cd`, chains commands (`;`, `&&`, `|`, `2>&1 | head`), writes a file with `>`, or runs any other program (`sed`,
+   `cat`). Git in the worktree runs as `git -C <worktree> …`. Files are read with Read, searched with Grep; a diff is
+   read from the review's `diff/` folder or printed by `git diff`, never saved to `/tmp`.
+   **A refusal is about that one command, never about Bash as a whole.** Write the command again in the allowed form
+   and run it; do not stop the review, and do not ask the developer to switch Bash on. Only a command already in the
+   allowed form that is refused is worth saying, with the command exactly as run.
 4. **Checkpoints go through the review page, not `AskUserQuestion`** — that tool has no one to ask here:
     - `ask`: write the question with `review_state.py <review dir> set` as `checkpoint` — `{"id", "step", "question",
       "options", "answer": null}` — say in one line that the question is on the page, and end the turn. The answer

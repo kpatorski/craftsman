@@ -3,6 +3,15 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.13.3
+
+- ⌫ Archived reviews and ⚙ AI Agent tools open when no review is open too, rather than leaving the new-review wizard
+  on the page.
+- Starting a review that exists already — archived, or still in progress — no longer stops at an error: the wizard
+  offers to bring it back or open it, or to start it over, deleting its findings and answers.
+- The review's session runs one command per Bash call, scripts by their full path, and takes a refused command for
+  what it is — that one command — rewriting it in the allowed form instead of stopping the review.
+
 ## 0.13.2
 
 - A review reads Jira through your Jira MCP server once you allow it. The first time the review's session is refused

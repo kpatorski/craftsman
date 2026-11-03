@@ -101,7 +101,10 @@ For a deleted file, the server also lists where the reviewed code in `worktree/`
 ### The developer's reading
 
 - `viewed` — the paths of the changed files the developer marked as viewed. Only the developer changes it.
-- `archived` — true once the developer archived the review; the page then leaves it out of the list of reviews.
+- `archived` — true once the developer archived the review; the page then leaves it out of the list of reviews, and
+  lists it under ⌫, Archived reviews, to bring back. Starting the same pull request or branches again in the wizard
+  offers to bring it back, or to start it over: starting over deletes the review's folder, its findings and answers
+  with it, and opens it anew.
 - `threads` — questions about a part of the review, and notes the agent writes unasked: `{"id", "about", "quote",
   "status", "messages"}`:
   - `about` — `{"kind": "review"}`, `{"kind": "finding", "id"}`, `{"kind": "use-case", "id"}`, or `{"kind": "file",

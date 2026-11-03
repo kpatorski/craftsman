@@ -25,6 +25,7 @@ import json
 import os
 import pathlib
 import re
+import shutil
 import signal
 import subprocess
 import sys
@@ -92,6 +93,13 @@ class Hub:
             if review_id not in self.sessions:
                 self.sessions[review_id] = _review_session.ReviewSession(review_id, checkout)
             return self.sessions[review_id]
+
+    def forget(self, review_id):
+        """Stop a review's session and drop it, so the review can start over with a new one."""
+        with self.lock:
+            runner = self.sessions.pop(review_id, None)
+        if runner:
+            runner.stop()
 
     def stop_sessions(self):
         for runner in list(self.sessions.values()):
@@ -248,8 +256,18 @@ class Handler(BaseHTTPRequestHandler):
                 checkout = checkouts.clone_dir(source) if body.get("clone") else \
                     pathlib.Path(checkouts.check(body.get("checkout"), source)["checkout"])
                 review_id = reviews.review_id_for(source, checkout)
-                if (reviews.reviews_root() / review_id / "review.json").exists():
-                    raise review_state.Refused(f"{review_id} is in progress; resume it instead")
+                existing = reviews.reviews_root() / review_id
+                if (existing / "review.json").exists() and not body.get("replace"):
+                    state = review_state.read(existing)
+                    archived, closed = bool(state.get("archived")), bool(state.get("closed"))
+                    return self.send(409, dict(
+                        error=f"{review_id} is {'archived' if archived else 'in progress'}; "
+                              f"{'bring it back' if archived else 'open it'}, or start it over",
+                        existing=dict(id=review_id, archived=archived, closed=closed)))
+                if existing.exists():
+                    self.hub.forget(review_id)
+                    checkouts.release(existing)
+                    shutil.rmtree(existing)
                 if body.get("clone"):
                     checkout = checkouts.clone(source)
                 self.hub.session(review_id, checkout).start(source)

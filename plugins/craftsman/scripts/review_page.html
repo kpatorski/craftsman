@@ -1050,7 +1050,18 @@ function viewNew() {
         : `<div class="muted wnote">The top folder of the git checkout that holds both branches. The review reads the code from its own
           worktree, so your branch and your changes are never touched.</div>${pathField}`}
     </div></div>
-    <button class="btn go" data-start disabled>Start the review</button></div>`;
+    <button class="btn go" data-start disabled>Start the review</button>${existingReview()}</div>`;
+}
+// what the wizard says when the review it would start exists already, archived or not
+function existingReview() {
+  const e = ui.nr.existing;
+  if (!e || e.source !== nrSource()) return "";
+  return `<div class="banner" style="margin:14px 0 0"><b>This review exists already</b> · <code>${esc(e.id)}</code> is
+    ${e.archived ? "archived" : "in progress"}, with its findings and answers.
+    <div class="row-actions">${e.archived ? `<button class="btn go sm" data-nr-existing="back">Bring it back</button>`
+      : `<button class="btn go sm" data-nr-existing="open">Open it</button>`}
+      <button class="btn ghost sm" data-nr-existing="over">Start it over</button>
+      <span class="muted" style="font-size:12px">Starting it over deletes its findings and answers.</span></div></div>`;
 }
 // what changes as the developer types: the checkout's status and the start button, without redrawing the fields
 function paintNew() {
@@ -1129,7 +1140,7 @@ function render() {
   const y = main.scrollTop, py = panel.scrollTop, sy = side.scrollTop;
   renderRail();
   if (ui.tab !== "structure") ui.uc = null;
-  if (ui.tab === "new" || (!current.id && !R)) main.innerHTML = viewNew();
+  if (ui.tab === "new" || (!current.id && !R && !["archived", "tools"].includes(ui.tab))) main.innerHTML = viewNew();
   else if (ui.tab === "archived") main.innerHTML = viewArchived();
   else if (ui.tab === "tools") main.innerHTML = viewTools();
   else if (!R) main.innerHTML = `<h1>${esc(current.id)}</h1><div class="card pending" style="margin-top:20px"><h3><span>Step 1 of ${STEPS.length} · Open the review</span></h3>
@@ -1179,7 +1190,7 @@ const stepIn = (list, at, by) => list[Math.min(list.length - 1, Math.max(0, list
 const CLICKABLE = ["tab", "sort", "restart", "inline", "gutter", "goto", "finding", "thread", "close-panel", "edit", "save", "status", "set-sev", "resolve", "compose", "view", "pick-file",
   "open-file", "step-file", "step-uc", "code-filter", "fsev", "fby", "fquestions", "fstatus", "answer", "live", "refresh", "send", "power",
   "close-review", "uccard", "close-uc", "ask-uc", "open-review", "archive", "new", "archived", "unarchive", "start", "pop", "new-finding", "nr-kind", "nr-how", "nr-browse",
-  "nf-sev", "nf-save", "answer-here", "agent-tools", "allow-tool", "tool-toggle"].map(name => `[data-${name}]`).join(",");
+  "nf-sev", "nf-save", "answer-here", "agent-tools", "allow-tool", "tool-toggle", "nr-existing"].map(name => `[data-${name}]`).join(",");
 document.addEventListener("click", async e => {
   if (!e.target.closest("#pop")) { hidePop(); dropSelection(); }
   const t = e.target.closest(CLICKABLE); if (!t) return;
@@ -1304,10 +1315,27 @@ document.addEventListener("click", async e => {
     if (!nrReady()) return;
     const n = ui.nr, body = { source: nrSource(), ...(nrNeedsPath() ? { checkout: n.check.checkout } : { clone: true }) };
     n.starting = true; paintNew();
-    const out = await api("/api/review/start", body);
-    n.starting = false; paintNew();
-    if (out) { ui.nr = newReview(); go({ id: out.id, ui: { tab: "overview" } }); }
-    return;
+    const r = await fetch("/api/review/start", { method: "POST", headers: { "Content-Type": "application/json", "X-Craftsman": "1" },
+      body: JSON.stringify(body) });
+    const out = await r.json().catch(() => ({ error: "no answer from the server" }));
+    n.starting = false;
+    if (r.ok) { ui.nr = newReview(); return go({ id: out.id, ui: { tab: "overview" } }); }
+    if (out.existing) { n.existing = { ...out.existing, source: body.source, body }; return render(); }
+    paintNew(); return toast(out.error || "failed");
+  }
+  if (d.nrExisting) {
+    const e = ui.nr.existing;
+    if (d.nrExisting === "open") { ui.nr = newReview(); return go({ id: e.id, ui: { tab: "overview" } }); }
+    if (d.nrExisting === "back") {
+      return api("/api/review/change", { id: e.id, action: "archive", archived: false })
+        .then(o => { if (o) { ui.nr = newReview(); go({ id: e.id, ui: { tab: "overview" } }); } });
+    }
+    if (!confirm(`Start ${e.id} over? Its findings and answers are deleted.`)) return;
+    ui.nr.starting = true; paintNew();
+    const out = await api("/api/review/start", { ...e.body, replace: true });
+    ui.nr.starting = false;
+    if (out) { ui.nr = newReview(); return go({ id: out.id, ui: { tab: "overview" } }); }
+    return paintNew();
   }
   if (d.pop) {
     const s = ui.selection;

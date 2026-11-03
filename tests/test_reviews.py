@@ -62,6 +62,15 @@ rename to D.java
 """
 
 
+def eventually(check, seconds=10):
+    deadline = time.time() + seconds
+    while time.time() < deadline:
+        if check():
+            return True
+        time.sleep(0.05)
+    return False
+
+
 ID = "org-booking-pr-123"
 BRANCHES = "booking-main..feature-x"
 
@@ -437,6 +446,32 @@ class ReviewEndpointsTest(ReviewsTest):
 
         self.assertEqual(status, 409)
         self.assertIn("in progress", body["error"])
+        self.assertEqual({"id": ID, "archived": False, "closed": False}, body["existing"])
+
+    def test_starting_an_archived_review_again_names_it_as_archived(self):
+        self.call("/api/review/change", {"id": ID, "action": "archive", "archived": True})
+
+        status, body = self.call("/api/review/start", {"checkout": str(self.checkout),
+                                                       "source": "https://github.com/org/booking/pull/123"})
+
+        self.assertEqual((409, True), (status, body["existing"]["archived"]))
+        self.assertIn("archived", body["error"])
+
+    def test_a_review_started_over_loses_its_old_state_and_runs_again(self):
+        fresh = {"checkout": str(self.checkout), "source": "main:feature/x"}
+        self.call("/api/review/start", fresh)
+        self.assertTrue(eventually(lambda: (self.home / "reviews" / BRANCHES / "review.json").exists()))
+        review_state.change(self.home / "reviews" / BRANCHES, "add-finding", FINDING)
+        self.call("/api/review/change", {"id": BRANCHES, "action": "archive", "archived": True})
+
+        status, body = self.call("/api/review/start", dict(fresh, replace=True))
+
+        self.assertEqual((200, BRANCHES), (status, body["id"]))
+        self.assertTrue(dashboard_server.Handler.hub.session(BRANCHES).running())
+        self.assertTrue(eventually(lambda: (self.home / "reviews" / BRANCHES / "review.json").exists()))
+        state = review_state.read(self.home / "reviews" / BRANCHES)
+        self.assertEqual([], state["findings"])
+        self.assertFalse(state.get("archived"))
 
     def test_the_page_sends_what_is_marked_to_send(self):
         review_state.change(self.review, "set-status", {"status": "to-send"}, "developer", "f1")
