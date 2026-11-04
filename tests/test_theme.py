@@ -20,6 +20,7 @@ import _theme  # noqa: E402
 
 PAGES = ["dashboard_page.html", "review_page.html", "theme_picker.js", "syntax.js", "render_dashboard.py", "render_diff.py", "render_report.py",
          "_markdown.py"]
+PIXEL_TEXT = re.compile(r"font-size:\s*[\d.]+px|font:[^;]*?\b[\d.]+px")
 COLOUR = re.compile(r"#[0-9a-fA-F]{3,8}\b|rgba?\(")
 
 
@@ -89,6 +90,17 @@ class PaletteTest(unittest.TestCase):
                 colours = [css[f"--syn-{kind}"] for kind in ("keyword", "string", "comment", "type")]
                 self.assertEqual(len(colours), len(set(colours)))
                 self.assertNotIn(css["--text"], colours)
+
+    def test_no_page_sizes_its_text_in_pixels(self):
+        for name in PAGES:
+            with self.subTest(page=name):
+                self.assertEqual([], PIXEL_TEXT.findall((SCRIPTS / name).read_text()))
+
+    def test_every_palette_sets_the_one_size_all_text_is_measured_from(self):
+        for palette in _theme.PALETTES:
+            with self.subTest(palette=palette):
+                self.assertIn(f"font-size: {_theme.TEXT_SIZE};", _theme.theme_css(palette))
+        self.assertEqual("115%", _theme.TEXT_SIZE)
 
     def test_there_are_dark_palettes_and_a_light_one(self):
         light = [p for p, colours in _theme.PALETTES.items() if luminance(colours["bg"]) > .5]

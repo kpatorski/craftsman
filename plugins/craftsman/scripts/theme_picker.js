@@ -6,15 +6,15 @@
   css.textContent = `
     .theme-pop { position: fixed; z-index: 60; width: 340px; max-height: calc(100vh - 32px); overflow-y: auto; padding: 6px;
       background: var(--float); border: 1px solid var(--line2); border-radius: var(--radius); box-shadow: 0 16px 40px var(--shadow);
-      font: 300 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--text); }
-    .theme-pop .theme-head { padding: 8px 10px 6px; color: var(--muted); font-size: 12px; }
+      font: 300 .8125rem/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--text); }
+    .theme-pop .theme-head { padding: 8px 10px 6px; color: var(--muted); font-size: .75rem; }
     .theme-pop button { display: grid; grid-template-columns: 76px minmax(0, 1fr) 14px; gap: 10px; align-items: center; width: 100%;
       padding: 8px 10px; border: 1px solid transparent; border-radius: var(--radius-sm); background: none; color: inherit;
       font: inherit; text-align: left; cursor: pointer; }
     .theme-pop button:hover { background: var(--card2); }
     .theme-pop button.on { border-color: var(--neon-dim); background: var(--neon-bg); }
     .theme-pop .theme-name { color: var(--heading); font-weight: 400; }
-    .theme-pop .theme-note { color: var(--muted); font-size: 12px; }
+    .theme-pop .theme-note { color: var(--muted); font-size: .75rem; }
     .theme-pop .theme-sw { display: flex; height: 22px; border-radius: 6px; overflow: hidden; border: 1px solid var(--line2); }
     .theme-pop .theme-sw i { flex: 1; }
     .theme-pop .theme-tick { color: var(--neon); }`;

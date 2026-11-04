@@ -3,6 +3,12 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.15.2
+
+- Text on the dashboard, the review page and the reports is larger. Every page sizes its text in `rem`, from one root
+  size the shared theme sets (`_theme.TEXT_SIZE`, 115%).
+- The use-case cards on the review page's Structure tab take the height of their text, in rows and beside the panel.
+
 ## 0.15.1
 
 - `review_state.py refresh '{"base", "head", "diff"}'` moves a review to a new head: it keeps the diff as

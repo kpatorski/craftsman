@@ -7,18 +7,18 @@
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
-    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    font: .875rem/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
   a { color: var(--blue); text-decoration: none; cursor: pointer; }
-  code { font-family: var(--mono); font-size: 12.5px; color: var(--blue); }
+  code { font-family: var(--mono); font-size: .7812rem; color: var(--blue); }
   .app { display: grid; grid-template-columns: 220px minmax(0, 1fr) 360px; height: 100vh; }
   .app > * { overflow-y: auto; min-height: 0; }
 
   /* ---- menu ---- */
   .menu { background: var(--panel); border-right: 1px solid var(--border); padding: 14px 0; }
   .brand { padding: 0 16px 4px; font-weight: 600; color: var(--green); letter-spacing: .5px; }
-  .project { padding: 0 16px 14px; color: var(--muted); font-size: 12px; border-bottom: 1px solid var(--border); }
+  .project { padding: 0 16px 14px; color: var(--muted); font-size: .75rem; border-bottom: 1px solid var(--border); }
   .menu-group { padding: 10px 0 2px; }
-  .menu-title { padding: 2px 16px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  .menu-title { padding: 2px 16px; font-size: .6875rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
   .menu-item { display: flex; align-items: center; gap: 8px; padding: 4px 16px 4px 22px; cursor: pointer;
     color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .menu-item:hover { background: var(--panel2); }
@@ -28,31 +28,31 @@
   .project { display: flex; align-items: center; gap: 6px; }
   .project-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .rm-project { flex: none; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center;
-    background: none; border: 1px solid transparent; color: var(--muted); cursor: pointer; font-size: 15px;
+    background: none; border: 1px solid transparent; color: var(--muted); cursor: pointer; font-size: .9375rem;
     line-height: 1; padding: 0; border-radius: 4px; }
   .rm-project:hover { color: var(--red); border-color: var(--red-dim); }
   .changed-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex: none; }
-  .count { color: var(--muted); font-size: 12px; }
+  .count { color: var(--muted); font-size: .75rem; }
 
   /* ---- centre ---- */
   .centre { padding: 0; }
   .topbar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 12px; padding: 10px 24px;
     background: var(--bg); border-bottom: 1px solid var(--border); }
-  .topbar .crumb { flex: 1; font-family: var(--mono); font-size: 13px; color: var(--muted); }
+  .topbar .crumb { flex: 1; font-family: var(--mono); font-size: .8125rem; color: var(--muted); }
   .topbar .crumb b { color: var(--heading); font-weight: 500; }
-  .live { font-size: 12px; color: var(--muted); }
+  .live { font-size: .75rem; color: var(--muted); }
   .live::before { content: "●"; color: var(--green); margin-right: 5px; }
   .live.off::before { color: var(--red); }
   .projects { flex: 1; min-width: 0; margin: 0; background: var(--panel2); color: var(--text);
-    border: 1px solid var(--border); border-radius: 4px; padding: 3px; font-size: 12px; }
+    border: 1px solid var(--border); border-radius: 4px; padding: 3px; font-size: .75rem; }
   .btn { background: var(--panel2); border: 1px solid var(--border); color: var(--text); border-radius: 4px;
-    padding: 3px 10px; font-size: 12px; cursor: pointer; }
+    padding: 3px 10px; font-size: .75rem; cursor: pointer; }
   .btn:hover { border-color: var(--blue); }
   .btn.demo { border-color: var(--amber-dim); color: var(--amber); }
   .view { padding: 18px 24px 60px; max-width: 980px; }
-  h1 { font-size: 20px; color: var(--heading); margin: 0 0 4px; font-weight: 600; }
-  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 26px 0 8px; font-weight: 600; }
-  .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  h1 { font-size: 1.25rem; color: var(--heading); margin: 0 0 4px; font-weight: 600; }
+  h2 { font-size: .8125rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 26px 0 8px; font-weight: 600; }
+  .sub { color: var(--muted); font-size: .8125rem; margin-bottom: 16px; }
 
   details.block { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); margin: 8px 0; }
   details.block > summary { list-style: none; cursor: pointer; padding: 8px 12px; display: flex; gap: 10px; align-items: baseline; }
@@ -68,12 +68,12 @@
   details.row[open] > summary::before { content: "▾"; }
   details.row > .inner { padding: 0 8px 10px 24px; }
   .muted { color: var(--muted); }
-  .id { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .id { font-family: var(--mono); font-size: .75rem; color: var(--muted); }
   .arrow { color: var(--green); margin: 0 6px; }
-  .kv { display: grid; grid-template-columns: 80px 1fr; gap: 3px 12px; font-size: 13.5px; }
-  .kv > :nth-child(odd) { color: var(--muted); text-transform: uppercase; font-size: 11px; letter-spacing: .5px; padding-top: 3px; }
+  .kv { display: grid; grid-template-columns: 80px 1fr; gap: 3px 12px; font-size: .8438rem; }
+  .kv > :nth-child(odd) { color: var(--muted); text-transform: uppercase; font-size: .6875rem; letter-spacing: .5px; padding-top: 3px; }
 
-  .badge { display: inline-block; font-size: 11px; padding: 0 7px; border-radius: 9px; border: 1px solid var(--border);
+  .badge { display: inline-block; font-size: .6875rem; padding: 0 7px; border-radius: 9px; border: 1px solid var(--border);
     font-family: var(--mono); white-space: nowrap; }
   .badge.active, .badge.domain { color: var(--green); border-color: var(--green-dim); background: var(--green-bg); }
   .badge.blocked { color: var(--red); border-color: var(--red-dim); background: var(--red-bg); }
@@ -96,23 +96,23 @@
   .criteria li { display: flex; gap: 10px; padding: 6px 4px; border-bottom: 1px solid var(--border); }
   .criteria li.done { color: var(--muted); }
   .check { flex: none; width: 16px; height: 16px; border: 1px solid var(--muted); border-radius: 3px; margin-top: 3px;
-    display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--green); }
+    display: flex; align-items: center; justify-content: center; font-size: .6875rem; color: var(--green); }
 
   .now-card { background: var(--panel); border: 1px solid var(--green-dim); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 14px; }
-  .now-step { font-family: var(--mono); font-size: 18px; color: var(--green); }
-  .now-note { font-size: 15px; color: var(--heading); margin: 2px 0 8px; }
-  .crumbs { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .now-step { font-family: var(--mono); font-size: 1.125rem; color: var(--green); }
+  .now-note { font-size: .9375rem; color: var(--heading); margin: 2px 0 8px; }
+  .crumbs { font-family: var(--mono); font-size: .75rem; color: var(--muted); }
   .crumbs a { color: var(--muted); } .crumbs a:hover { color: var(--blue); }
   .quote { border-left: 3px solid var(--border); padding: 4px 12px; margin: 8px 0; color: var(--text); }
   .next { border-left: 3px solid var(--green); padding: 4px 12px; margin: 10px 0 0; }
 
   /* library */
   .search { width: 100%; padding: 8px 12px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm);
-    color: var(--text); font-size: 14px; outline: none; margin: 4px 0 8px; }
+    color: var(--text); font-size: .875rem; outline: none; margin: 4px 0 8px; }
   .search:focus { border-color: var(--blue); }
   .entry { display: flex; gap: 10px; align-items: center; padding: 5px 4px; border-bottom: 1px solid var(--border); }
-  .entry .kind { font-family: var(--mono); font-size: 11px; color: var(--muted); width: 64px; flex: none; }
-  .entry .eid { font-family: var(--mono); font-size: 13px; color: var(--blue); width: 230px; flex: none;
+  .entry .kind { font-family: var(--mono); font-size: .6875rem; color: var(--muted); width: 64px; flex: none; }
+  .entry .eid { font-family: var(--mono); font-size: .8125rem; color: var(--blue); width: 230px; flex: none;
     overflow: hidden; text-overflow: ellipsis; }
   .entry .title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .entry.off .eid, .entry.off .title { opacity: .5; }
@@ -122,24 +122,24 @@
   .switch.on { background: var(--green-dim); } .switch.on::after { left: 16px; background: var(--green); }
   .members { padding-left: 24px; }
   pre.help { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px;
-    font-family: var(--mono); font-size: 12.5px; overflow-x: auto; }
+    font-family: var(--mono); font-size: .7812rem; overflow-x: auto; }
 
   /* ---- sessions (right) ---- */
   .side { background: var(--panel); border-left: 1px solid var(--border); padding: 12px 12px 40px; }
-  .side-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); padding: 2px 4px 10px; }
+  .side-title { font-size: .6875rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); padding: 2px 4px 10px; }
   .card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 10px; }
   .card.active { border-color: var(--green-dim); } .card.blocked { border-color: var(--red-dim); }
   .card-head { display: flex; gap: 8px; align-items: baseline; padding: 8px 10px 2px; cursor: pointer; }
-  .card-head .entryp { font-family: var(--mono); font-size: 12px; color: var(--heading); }
-  .card-head .slug { flex: 1; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card-head .entryp { font-family: var(--mono); font-size: .75rem; color: var(--heading); }
+  .card-head .slug { flex: 1; color: var(--muted); font-size: .75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .card-leaf { padding: 0 10px 8px 26px; cursor: pointer; }
-  .card-leaf .step { font-family: var(--mono); color: var(--green); font-size: 13px; }
+  .card-leaf .step { font-family: var(--mono); color: var(--green); font-size: .8125rem; }
   .card.blocked .card-leaf .step { color: var(--red); }
-  .card-leaf .note { font-size: 12.5px; }
+  .card-leaf .note { font-size: .7812rem; }
   .card.done .card-leaf { display: none; }
   .card-body { border-top: 1px solid var(--border); padding: 6px 6px 8px; }
   .node { display: flex; align-items: baseline; gap: 6px; padding: 1px 4px; border-radius: 3px; font-family: var(--mono);
-    font-size: 12px; }
+    font-size: .75rem; }
   .node:hover { background: var(--panel2); }
   .node .nid { cursor: pointer; white-space: nowrap; }
   .node.done .nid { color: var(--muted); }
@@ -148,14 +148,14 @@
   .node.blocked .nid { color: var(--red); }
   .node.leaf { background: var(--green-bg); }
   .node .tw { width: 12px; color: var(--muted); cursor: pointer; flex: none; text-align: center; }
-  .node .chip { font-size: 11px; color: var(--muted); white-space: nowrap; }
-  .node .nnote { color: var(--muted); font-family: -apple-system, sans-serif; font-size: 11.5px; overflow: hidden;
+  .node .chip { font-size: .6875rem; color: var(--muted); white-space: nowrap; }
+  .node .nnote { color: var(--muted); font-family: -apple-system, sans-serif; font-size: .7188rem; overflow: hidden;
     text-overflow: ellipsis; white-space: nowrap; }
   .parked { margin-top: 6px; border-top: 1px dashed var(--border); padding: 6px 4px 0; }
-  .parked-head { cursor: pointer; font-size: 12px; color: var(--amber); }
-  .parked-item { font-size: 12px; padding: 3px 0 3px 14px; }
+  .parked-head { cursor: pointer; font-size: .75rem; color: var(--amber); }
+  .parked-item { font-size: .75rem; padding: 3px 0 3px 14px; }
   .cmd { display: flex; gap: 6px; align-items: center; margin: 4px 0 0; }
-  .cmd code { background: var(--panel2); padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+  .cmd code { background: var(--panel2); padding: 2px 6px; border-radius: 3px; font-size: .75rem; }
   .copy { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 22px; flex: none;
     background: var(--panel2); border: 1px solid var(--border); border-radius: 4px; color: var(--muted); cursor: pointer; padding: 0; }
   .copy:hover { color: var(--green); border-color: var(--green); }
@@ -165,7 +165,7 @@
   .flash { animation: flash 1.6s ease-out; }
 
   .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--panel2);
-    border: 1px solid var(--green); border-radius: var(--radius-sm); padding: 8px 14px; font-size: 13px; opacity: 0;
+    border: 1px solid var(--green); border-radius: var(--radius-sm); padding: 8px 14px; font-size: .8125rem; opacity: 0;
     transition: opacity .2s; pointer-events: none; max-width: 640px; }
   .toast.show { opacity: 1; }
   /*MD_CSS*/
@@ -367,7 +367,7 @@ function renderCard(session) {
     `<div class="card-head" data-toggle="${esc(key)}">${ico(session.state)}<span class="entryp">${esc(session.entry)}</span>` +
     `<span class="slug">${esc(session.slug)}</span><a data-file="${esc(session.file.id)}" title="open session file">open ↗</a></div>`;
   if (session.state === "done") {
-    html += `<div class="card-leaf" style="display:block"><span class="muted" style="font-size:12px">done · ${esc(session.updated)}</span></div>`;
+    html += `<div class="card-leaf" style="display:block"><span class="muted" style="font-size:.75rem">done · ${esc(session.updated)}</span></div>`;
   } else if (leaf) {
     html += `<div class="card-leaf" data-toggle="${esc(key)}"><div class="step">${esc(leaf.id)}</div>` +
       `${leaf.note ? `<div class="note">${esc(leaf.note)}</div>` : ""}</div>`;
@@ -394,7 +394,7 @@ function renderCard(session) {
 function renderSide() {
   document.getElementById("side").innerHTML =
     (D.project ? `<div class="side-title">Sessions · ${esc(projectLabel(D.project.path))}</div>` + sortedSessions().map(renderCard).join("")
-      : `<div class="side-title">Sessions</div><div class="muted" style="padding:4px;font-size:12.5px">No project on the dashboard.</div>`);
+      : `<div class="side-title">Sessions</div><div class="muted" style="padding:4px;font-size:.7812rem">No project on the dashboard.</div>`);
 }
 
 // ---------------------------------------------------------------- menu (left)
@@ -440,7 +440,7 @@ function viewNow() {
   active.forEach(s => {
     const leaf = leafOf(s); const last = s.checkpoints[s.checkpoints.length - 1];
     const crumbs = leaf ? pathTo(leaf).slice(0, -1).map(n => `<a data-lib="${esc(n.id)}">${esc(n.id)}</a>`).join(" › ") : "";
-    html += `<div class="now-card"><div class="muted" style="font-size:12px">${esc(s.entry)} · ${esc(s.slug)} · updated ${esc(s.updated)}</div>` +
+    html += `<div class="now-card"><div class="muted" style="font-size:.75rem">${esc(s.entry)} · ${esc(s.slug)} · updated ${esc(s.updated)}</div>` +
       `<div class="now-step">${esc(leaf ? leaf.id : "—")}</div><div class="now-note">${esc(leaf ? leaf.note : "")}</div>` +
       `<div class="crumbs">${crumbs}</div>` +
       (last ? `<h2>Last decision · ${esc(last.step)}</h2><div class="quote">${inline(last.asked)}</div>` +
@@ -490,7 +490,7 @@ function viewEventModel(f) {
   sl.forEach(x => {
     const spec = x.spec && specFile(x.spec);
     html += `<div class="list-row">${ico(x.status)}<span class="muted">${x.n}</span><span class="grow">${esc(x.name)}` +
-      `${x.why ? ` <span class="muted" style="font-size:12px">— ${esc(x.why)}</span>` : ""}</span>` +
+      `${x.why ? ` <span class="muted" style="font-size:.75rem">— ${esc(x.why)}</span>` : ""}</span>` +
       `<span class="badge ${x.model}">${x.model}</span>` +
       (spec ? `<a data-file="${esc(spec.id)}">spec</a>` : "") + (x.commit ? `<code>${esc(x.commit)}</code>` : "") + `</div>`;
   });
@@ -593,7 +593,7 @@ function viewLibrary() {
       `<span class="t">${esc(b.id)}</span><span class="muted" style="flex:1">${esc(b.title)}</span>` +
       `<span class="count">${members.length}</span><span class="badge ${b.enabled ? "on" : "off"}">${b.enabled ? "on" : "off"}</span>` +
       `<span class="switch${b.enabled ? " on" : ""}" data-switch="${esc(b.id)}"></span></summary>` +
-      `<div class="inner">${b.requires.length ? `<div class="muted" style="font-size:12px">requires ${b.requires.map(esc).join(", ")}</div>` : ""}` +
+      `<div class="inner">${b.requires.length ? `<div class="muted" style="font-size:.75rem">requires ${b.requires.map(esc).join(", ")}</div>` : ""}` +
       `${members.map(m => m.html).join("")}</div></details></div>`;
   });
   html += `<h2>Bundles</h2>` + body;
@@ -622,7 +622,7 @@ function viewManage() {
     `<div class="kv"><span>plugin</span><span><code>${esc(m.plugin)}</code></span><span>content</span><span><code>${esc(m.content)}</code> ` +
     `<span class="muted">(plugin version last seen by the installed content)</span></span></div>` +
     `<h2>Sources</h2><div class="md">${m.sources || "<span class='muted'>none recorded</span>"}</div>` +
-    `<h2>Actions — run these in Claude CLI</h2><div class="muted" style="font-size:12.5px;margin-bottom:6px">` +
+    `<h2>Actions — run these in Claude CLI</h2><div class="muted" style="font-size:.7812rem;margin-bottom:6px">` +
     `They need the agent's judgement (duplicates, update conflicts), so the dashboard hands you the command instead of running it.</div>` +
     cmd("/craftsman:install https://github.com/kpatorski/craftsman-workshop") +
     cmd("claude plugin marketplace update craftsman && claude plugin update craftsman@craftsman") +

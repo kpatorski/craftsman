@@ -112,8 +112,12 @@ def _tint(hex_colour, alpha):
     return f"rgba({_rgb(hex_colour)}, {_alpha(alpha)})"
 
 
+TEXT_SIZE = "115%"
+
+
 def theme_css(palette=None):
-    """The `:root` CSS variables of a palette; the chosen one when none is named."""
+    """The `:root` CSS variables of a palette, the chosen one when none is named, and the size every page's text is
+    measured from: pages size text in `rem` only."""
     c = PALETTES[palette or chosen()]
     names = ("bg", "panel", "panel2", "hover", "border", "text", "heading", "muted",
              "blue", "green", "amber", "pink", "violet", "red", "code-bg", "switch-off", "knob",
@@ -133,7 +137,7 @@ def theme_css(palette=None):
         "radius": "12px", "radius-sm": "8px", "pill": "999px",
         "mono": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
     })
-    return "\n  :root {\n" + "".join(f"    --{name}: {value};\n" for name, value in css.items()) + "  }\n"
+    return f"\n  :root {{\n    font-size: {TEXT_SIZE};\n" + "".join(f"    --{name}: {value};\n" for name, value in css.items()) + "  }\n"
 
 
 def palettes():
