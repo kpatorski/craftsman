@@ -3,6 +3,10 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.15.3
+
+- The root text size is 112% (`_theme.TEXT_SIZE`).
+
 ## 0.15.2
 
 - Text on the dashboard, the review page and the reports is larger. Every page sizes its text in `rem`, from one root

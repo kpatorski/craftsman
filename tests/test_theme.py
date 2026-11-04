@@ -100,7 +100,7 @@ class PaletteTest(unittest.TestCase):
         for palette in _theme.PALETTES:
             with self.subTest(palette=palette):
                 self.assertIn(f"font-size: {_theme.TEXT_SIZE};", _theme.theme_css(palette))
-        self.assertEqual("115%", _theme.TEXT_SIZE)
+        self.assertEqual("112%", _theme.TEXT_SIZE)
 
     def test_there_are_dark_palettes_and_a_light_one(self):
         light = [p for p, colours in _theme.PALETTES.items() if luminance(colours["bg"]) > .5]
