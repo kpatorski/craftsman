@@ -1015,6 +1015,9 @@ function fileList(paths, selected, opts = {}) {
 // ================================================================ code
 const codeFiles = () => (R.files || []).filter(f => ui.codeFilter === "all" || (ui.codeFilter === "unviewed" ? !f.viewed : findingsAt(f.path).length));
 function viewCode() {
+  if (R["missing-diff"]) return `<div class="card"><b>The diff of ${esc(R["missing-diff"].slice(0, 7))} is missing.</b>
+    <div class="muted">The review moved to this commit without it. Refresh the PR and the AI Agent stores it again.</div>
+    <div style="margin-top:10px"><button class="btn ghost" data-refresh>⟳ Refresh PR</button></div></div>`;
   const files = R.files || [], shown = codeFiles();
   if (!ui.file || !files.some(f => f.path === ui.file)) ui.file = (files.find(f => !f.viewed) || files[0] || {}).path;
   const viewed = files.filter(f => f.viewed).length, at = shown.findIndex(f => f.path === ui.file);

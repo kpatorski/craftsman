@@ -87,6 +87,66 @@ class ReviewStateTest(unittest.TestCase):
         self.assertIn("already", refused.stderr)
         self.assertEqual(len(self.state()["findings"]), 1)
 
+    def refreshed_with(self, text, head="ccc", **extra):
+        diff = self.root / "refresh.diff"
+        diff.write_text(text)
+        return self.run_state("refresh", payload={"base": "aa2", "head": head, "diff": str(diff), **extra})
+
+    def test_a_refresh_keeps_the_new_diff_under_the_new_head_and_moves_the_review_to_it(self):
+        self.opened()
+
+        self.refreshed_with("diff --git a/A.java b/A.java\n+new\n")
+
+        state = self.state()
+        self.assertEqual((state["base"], state["head"]), ("aa2", "ccc"))
+        self.assertTrue(state["refreshed"])
+        self.assertEqual((self.review / "diff" / "ccc.diff").read_text(), "diff --git a/A.java b/A.java\n+new\n")
+        self.assertTrue((self.review / "diff" / "bbb.diff").is_file())
+
+    def test_base_and_head_move_only_with_a_diff_of_their_own(self):
+        self.opened()
+
+        refused = self.run_state("set", payload={"head": "ccc"}, expect_ok=False)
+
+        self.assertIn("head", refused.stderr)
+        self.assertEqual(self.state()["head"], "bbb")
+
+    def test_a_refresh_without_a_diff_is_refused_and_changes_nothing(self):
+        self.opened()
+
+        refused = self.run_state("refresh", payload={"base": "aa2", "head": "ccc",
+                                                     "diff": str(self.root / "none.diff")}, expect_ok=False)
+
+        self.assertIn("refused: no diff", refused.stderr)
+        self.assertEqual(self.state()["head"], "bbb")
+        self.assertFalse((self.review / "diff" / "ccc.diff").exists())
+
+    def test_the_review_is_refreshed_by_the_agent(self):
+        self.opened()
+        diff = self.root / "refresh.diff"
+        diff.write_text("diff --git a/A.java b/A.java\n")
+
+        refused = self.run_state("refresh", payload={"base": "aa2", "head": "ccc", "diff": str(diff)},
+                                 by="developer", expect_ok=False)
+
+        self.assertIn("refreshed by the agent", refused.stderr)
+        self.assertEqual(self.state()["head"], "bbb")
+
+    def test_a_file_the_new_commits_changed_is_no_longer_viewed(self):
+        before = ("diff --git a/A.java b/A.java\nindex 1..2 100644\n@@ -1,2 +1,2 @@\n-old\n+new\n"
+                  "diff --git a/B.java b/B.java\nindex 3..4 100644\n@@ -10,2 +10,2 @@\n-x\n+y\n"
+                  "diff --git a/C.java b/C.java\n@@ -1 +1 @@\n-c\n+d\n")
+        self.diff.write_text(before)
+        self.opened()
+        for path in ("A.java", "B.java", "C.java", "Gone.java"):
+            self.run_state("view", payload={"path": path}, by="developer")
+
+        self.refreshed_with("diff --git a/A.java b/A.java\nindex 1..5 100644\n@@ -1,2 +1,2 @@\n-old\n+newer\n"
+                            "diff --git a/B.java b/B.java\nindex 7..4 100644\n@@ -12,2 +12,2 @@\n-x\n+y\n"
+                            "diff --git a/C.java b/C.java\n@@ -1 +1 @@\n-c\n+d\n")
+
+        self.assertEqual(self.state()["viewed"], ["B.java", "C.java"])
+
     def test_findings_get_ids_in_order_and_start_proposed(self):
         self.opened()
 

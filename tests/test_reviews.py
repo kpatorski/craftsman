@@ -262,6 +262,17 @@ class ReviewsTest(unittest.TestCase):
     def test_the_diff_of_the_reviewed_head_is_served(self):
         self.assertIn("+class A {}", reviews.diff_text(ID))
 
+    def test_a_review_whose_diff_is_missing_still_opens_and_says_which_diff_it_misses(self):
+        (self.review / "diff" / "bbb.diff").unlink()
+
+        read = reviews.read_review(ID)
+
+        self.assertEqual((read["files"], read["missing-diff"]), ([], "bbb"))
+        self.assertEqual(reviews.diff_text(ID, "B.java"), "")
+
+    def test_a_review_with_its_diff_misses_none(self):
+        self.assertIsNone(reviews.read_review(ID)["missing-diff"])
+
     def test_the_diff_of_one_file_is_served_alone(self):
         one = reviews.diff_text(ID, "B.java")
 
@@ -500,6 +511,9 @@ class ReviewEndpointsTest(ReviewsTest):
         for hook in ("/api/review/github", 'data-tab="comments"', "data-comment-add", "data-gh-reply", "data-gh-thread"):
             with self.subTest(hook=hook):
                 self.assertIn(hook, served)
+
+    def test_the_review_page_says_when_the_diff_of_the_head_is_missing(self):
+        self.assertIn('R["missing-diff"]', self.page(f"/review?review={ID}"))
 
     def test_a_review_starts_only_inside_a_git_repository(self):
         shutil.rmtree(self.checkout / ".git")

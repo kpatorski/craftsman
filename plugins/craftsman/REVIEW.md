@@ -53,7 +53,9 @@ time; this is what keeps either of them from losing the other's change.
   when no PR exists for the source branch; sending is then disabled and the page says why. The page shows the PR's
   title as the review's title.
 - `checkout` — the path of the repository's checkout the review reads from and its session runs in.
-- `base` and `head` — the commit shas the review was made against.
+- `base` and `head` — the commit shas the review was made against. Only `init` and `refresh` set them, each with the
+  diff between them, kept as `diff/<head>.diff`: `review_state.py <review dir> refresh '{"base", "head", "diff"}'`,
+  run by the agent, moves the review to a new head.
 - `refreshed` — when `base`/`head` were last read.
 - `closed` — when the developer closed the review, or null while it is open.
 - `language` — the language the comments are written in, settled when the review is opened.
@@ -96,13 +98,17 @@ be missed:
   lines it adds and removes, the use cases it belongs to, and whether the developer viewed it;
 - `untied` — the changed files no use case reaches. The page shows them as one more card, so every changed file is
   in a card;
-- `github` — the content of `github.json`, or null before the conversation was first read.
+- `github` — the content of `github.json`, or null before the conversation was first read;
+- `missing-diff` — `head` when `diff/<head>.diff` is missing, or null. The Code tab then says so instead of a diff,
+  and `files` is empty.
 
 For a deleted file, the server also lists where the reviewed code in `worktree/` still names it.
 
 ### The developer's reading
 
-- `viewed` — the paths of the changed files the developer marked as viewed. Only the developer changes it.
+- `viewed` — the paths of the changed files the developer marked as viewed. Only the developer marks a file viewed.
+  A refresh takes a file off when its change in the new diff differs from the one viewed, or when it is no longer in
+  the diff; a change that only moved to other lines on a new base stays viewed.
 - `archived` — true once the developer archived the review; the page then leaves it out of the list of reviews, and
   lists it under ⌫, Archived reviews, to bring back. Starting the same pull request or branches again in the wizard
   offers to bring it back, or to start it over: starting over deletes the review's folder, its findings and answers

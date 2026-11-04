@@ -69,8 +69,8 @@ def list_reviews():
 
 def read_review(review_id):
     """The state, plus what the server works out from the diff: every changed file with how it changed, which use
-    cases it belongs to and whether the developer viewed it, and the files no use case reaches; and the conversation
-    last read from the pull request, or None."""
+    cases it belongs to and whether the developer viewed it, and the files no use case reaches; the head whose diff
+    is missing, or None; and the conversation last read from the pull request, or None."""
     review = review_dir(review_id)
     state = review_state.read(review)
     use_cases = (state.get("structure") or {}).get("use-cases", [])
@@ -80,6 +80,7 @@ def read_review(review_id):
     conversation = github_conversation.read(review)
     return {"state": state, "pending": len(pending_messages(review)), "html": rendered(state, conversation),
             "github": conversation,
+            "missing-diff": None if (review / "diff" / f"{state['head']}.diff").is_file() else state["head"],
             "console": console_lines(review), "files": files,
             "untied": [changed["path"] for changed in files if not changed["use-cases"]]}
 
@@ -134,9 +135,10 @@ def console_lines(review, limit=400):
 
 
 def diff_text(review_id, path=None):
-    """The diff of the reviewed head; with `path`, only that file's part of it."""
+    """The diff of the reviewed head, empty when it is missing; with `path`, only that file's part of it."""
     review = review_dir(review_id)
-    text = (review / "diff" / f"{review_state.read(review)['head']}.diff").read_text()
+    kept = review / "diff" / f"{review_state.read(review)['head']}.diff"
+    text = kept.read_text() if kept.is_file() else ""
     if path is None:
         return text
     return "".join("".join(part) for header, part in file_parts(text) if path in header)

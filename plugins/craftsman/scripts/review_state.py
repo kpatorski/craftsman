@@ -5,7 +5,7 @@
 
 The payload is one argument, in single quotes; an apostrophe inside it is written as \\u0027.
 
-Commands: init, set, add-finding, update-finding <id>, set-status <id>, mark-sent <id>, add-comment,
+Commands: init, refresh, set, add-finding, update-finding <id>, set-status <id>, mark-sent <id>, add-comment,
 update-comment <id>, comment-status <id>, comment-sent <id>, use-case-status <id>, open-thread,
 reply <thread id>, resolve <thread id>, view, unview, archive, answer, handled <message id>, show.
 
@@ -30,7 +30,7 @@ SEVERITY = ("must-fix", "should-fix", "nit")
 TEXT_FIELDS = ("title", "description", "comment")
 DEVELOPER_FIELDS = TEXT_FIELDS + ("severity",)
 AGENT_FIELDS = DEVELOPER_FIELDS + ("category", "locations", "directive", "kind", "when")
-SETTABLE = ("source", "checkout", "base", "head", "refreshed", "session", "closed", "language", "scope",
+SETTABLE = ("source", "checkout", "refreshed", "session", "closed", "language", "scope",
             "requirements", "tickets", "structure", "rules", "checkpoint")
 STATUS_BY = {
     "agent": ("maybe-resolved", "merged", "proposed"),
@@ -138,6 +138,40 @@ def init(review, payload, by):
     else:
         shutil.copyfile(diff, kept)
     return empty_state(payload["source"], payload["base"], payload["head"], payload.get("checkout")), None
+
+
+def file_changes(text):
+    """Each file of a diff and its change, by the file's path; the line numbers of hunks and the blob ids left out, so
+    a change that only moved on a new base stays the same change."""
+    changes, path = {}, None
+    for line in text.splitlines():
+        if line.startswith("diff --git "):
+            path = line.rsplit(" b/", 1)[-1]
+            changes[path] = []
+        elif path is not None and not line.startswith("index "):
+            changes[path].append("@@" if line.startswith("@@") else line)
+    return changes
+
+
+def refresh(review, payload, by):
+    """The review moves to a new base and head with the diff between them; a file whose change differs from the one
+    the developer viewed is not viewed any more."""
+    if by != "agent":
+        raise Refused("a review is refreshed by the agent")
+    state = read(review)
+    diff = pathlib.Path(payload["diff"]).resolve()
+    if not diff.is_file():
+        raise Refused(f"no diff at {diff}")
+    before = file_changes((review / "diff" / f"{state['head']}.diff").read_text())
+    after = file_changes(diff.read_text())
+    kept = review / "diff" / f"{payload['head']}.diff"
+    if pathlib.Path(review).resolve() in diff.parents:
+        shutil.move(diff, kept)
+    else:
+        shutil.copyfile(diff, kept)
+    state.update(base=payload["base"], head=payload["head"], refreshed=now())
+    state["viewed"] = [path for path in state.get("viewed", []) if path in after and after[path] == before.get(path)]
+    return state, None
 
 
 def set_fields(state, payload, by):
@@ -366,6 +400,8 @@ def change(review, command, payload=None, by="agent", item_id=None):
     with locked(review):
         if command == "init":
             state, result = init(review, payload, by)
+        elif command == "refresh":
+            state, result = refresh(review, payload or {}, by)
         else:
             if command in COMMANDS_WITH_ID:
                 if item_id is None:

@@ -3,6 +3,14 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.15.1
+
+- `review_state.py refresh '{"base", "head", "diff"}'` moves a review to a new head: it keeps the diff as
+  `diff/<head>.diff` and sets `base`, `head` and `refreshed` in one change. `set` no longer takes `base` or `head`.
+  A file whose change differs in the new diff is no longer marked viewed. Update the `code-review` bundle of the
+  workshop together with this version — its `refresh-review` runs `refresh`.
+- A review whose diff is missing still opens; its Code tab says which diff is missing.
+
 ## 0.15.0
 
 - The review page has a **Comments** tab: the pull request's conversation on GitHub — everyone's comments, reviews and
