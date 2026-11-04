@@ -153,6 +153,85 @@ class SendReviewTest(unittest.TestCase):
         self.assertEqual(self.findings()[inline]["sent"][0]["url"], "https://github.com/org/booking/pull/123#discussion_r11")
         self.assertEqual(self.findings()[general]["sent"][0]["url"], "https://github.com/org/booking/pull/123#issuecomment-1")
 
+    def comment(self, body, reply_to=None):
+        return review_state.change(self.review, "add-comment", {"body": body, "reply-to": reply_to}, "developer")
+
+    def comments(self):
+        return {c["id"]: c for c in review_state.read(self.review)["comments"]}
+
+    def test_a_comment_on_the_whole_pull_request_goes_to_its_conversation_as_written(self):
+        self.opened()
+        sent = self.comment("Thanks, the split into use cases reads well.")
+        dropped = self.comment("Not this one.")
+        review_state.change(self.review, "comment-status", {"status": "deleted"}, "developer", dropped)
+
+        result = send_review.send(self.review, gh=self.gh)
+
+        self.assertEqual(self.posted("/issues/123/comments"), [{"body": "Thanks, the split into use cases reads well."}])
+        self.assertEqual(self.posted_reviews(), [])
+        self.assertEqual(result["sent"], [sent])
+        self.assertEqual(self.comments()[sent]["url"], "https://github.com/org/booking/pull/123#issuecomment-1")
+        self.assertEqual(self.comments()[dropped]["status"], "deleted")
+
+    def test_a_reply_goes_into_its_thread_on_github(self):
+        self.opened()
+        theirs = {"id": 77, "path": "src/Cancel.java", "line": 2, "side": "RIGHT", "body": "Why a string?",
+                  "user": {"login": "anna"}, "created_at": "2026-10-30T09:00:00Z",
+                  "html_url": "https://github.com/org/booking/pull/123#discussion_r77"}
+        (self.root / "gh.json").write_text(json.dumps({"comments": [theirs]}))
+        reply = self.comment("Because the id comes from the URL.", reply_to=77)
+
+        send_review.send(self.review, gh=self.gh)
+
+        self.assertEqual(self.posted("/pulls/123/comments/77/replies"), [{"body": "Because the id comes from the URL."}])
+        self.assertEqual(self.comments()[reply]["status"], "sent")
+        self.assertTrue(self.comments()[reply]["url"].startswith("https://github.com/org/booking/pull/123#discussion_r"))
+
+    def test_a_comment_or_reply_already_on_github_is_not_sent_again(self):
+        self.opened()
+        earlier = {"issue_comments": [{"id": 501, "body": "Looks good.",
+                                       "html_url": "https://github.com/org/booking/pull/123#issuecomment-1"}],
+                   "comments": [{"id": 77, "path": "src/Cancel.java", "line": 2, "body": "Why?",
+                                 "html_url": "https://github.com/org/booking/pull/123#discussion_r77"},
+                                {"id": 78, "in_reply_to_id": 77, "path": "src/Cancel.java", "line": 2, "body": "Because.",
+                                 "html_url": "https://github.com/org/booking/pull/123#discussion_r78"}]}
+        (self.root / "gh.json").write_text(json.dumps(earlier))
+        general, reply = self.comment("Looks good."), self.comment("Because.", reply_to=77)
+
+        send_review.send(self.review, gh=self.gh)
+
+        self.assertEqual((self.posted("/issues/123/comments"), self.posted("/replies")), ([], []))
+        self.assertEqual(self.comments()[general]["url"], "https://github.com/org/booking/pull/123#issuecomment-1")
+        self.assertEqual(self.comments()[reply]["url"], "https://github.com/org/booking/pull/123#discussion_r78")
+
+    def test_a_failed_comment_waits_for_the_next_send(self):
+        self.opened()
+        waiting = self.comment("Thanks.")
+        os.environ["FAKE_GH_FAIL"] = "1"
+
+        result = send_review.send(self.review, gh=self.gh)
+
+        self.assertEqual(result["sent"], [])
+        self.assertEqual(self.comments()[waiting]["status"], "to-send")
+
+    def test_comments_wait_when_what_is_on_github_cannot_be_read(self):
+        self.opened()
+        waiting = self.comment("Thanks.")
+        real = send_review.gh_api
+
+        def unreadable(gh, endpoint, payload=None, host="github.com"):
+            if payload is None:
+                raise RuntimeError("HTTP 502")
+            return real(gh, endpoint, payload, host)
+        send_review.gh_api = unreadable
+        self.addCleanup(setattr, send_review, "gh_api", real)
+
+        result = send_review.send(self.review, gh=self.gh)
+
+        self.assertEqual(self.posted("/issues/123/comments"), [])
+        self.assertEqual(self.comments()[waiting]["status"], "to-send")
+        self.assertIn("502", result["errors"][0])
+
     def test_without_a_pull_request_nothing_is_sent(self):
         self.opened({"kind": "branches", "target": "main", "source": "feature/x", "pull-request": None})
         found = self.finding("x", [at("src/Cancel.java", 2)])

@@ -43,6 +43,7 @@ import _dashboard_data as data  # noqa: E402
 import _review_session  # noqa: E402
 import _reviews as reviews  # noqa: E402
 import _settings  # noqa: E402
+import github_conversation  # noqa: E402
 import review_state  # noqa: E402
 import send_review  # noqa: E402
 from _markdown import MD_CSS  # noqa: E402
@@ -308,6 +309,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, dict(references=reviews.references(review_id, body.get("path", ""))))
             if path == "/api/review/send":
                 return self.send(200, send_review.send(review))
+            if path == "/api/review/github":
+                return self.send(200, github_conversation.fetch(review))
             if path == "/api/review/change":
                 reviews.developer_change(review_id, body.get("action"), body)
                 if body.get("action") == "archive" and body.get("archived"):

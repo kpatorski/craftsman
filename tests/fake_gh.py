@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
-"""A stand-in for `gh api`, for the sending tests. It records every call in $FAKE_GH_LOG (argv and the JSON sent),
-keeps the review and general comments it was given in $FAKE_GH_STATE, and answers the way GitHub's REST API does for the calls
-send_review.py makes. FAKE_GH_FAIL=1 makes every call fail.
+"""A stand-in for `gh api`, for the sending and conversation tests. It records every call in $FAKE_GH_LOG (argv and
+the JSON sent), keeps what is on the pull request in $FAKE_GH_STATE, and answers the way GitHub's REST API does for the
+calls send_review.py and github_conversation.py make. FAKE_GH_FAIL=1 makes every call fail.
+
+The state: `reviews` -- the inline comments of each review sent, by review id; `comments` -- further inline comments,
+written by others or posted as replies; `issue_comments` -- the general comments; `review_list` -- the reviews as
+GitHub lists them. A test may seed any of them.
 """
 import json
 import os
@@ -10,6 +14,8 @@ import sys
 
 LOG = pathlib.Path(os.environ["FAKE_GH_LOG"])
 STATE = pathlib.Path(os.environ["FAKE_GH_STATE"])
+ME = {"login": "me"}
+AT = "2026-11-01T10:00:00Z"
 
 args = sys.argv[1:]
 payload = json.loads(sys.stdin.read() or "null") if "--input" in args else None
@@ -18,24 +24,44 @@ with LOG.open("a") as out:
 if os.environ.get("FAKE_GH_FAIL"):
     sys.exit("HTTP 422: Unprocessable Entity")
 
-state = json.loads(STATE.read_text()) if STATE.exists() else {"reviews": {}, "issue_comments": []}
+state = json.loads(STATE.read_text()) if STATE.exists() else {}
+for key, empty in (("reviews", {}), ("comments", []), ("issue_comments", []), ("review_list", [])):
+    state.setdefault(key, empty)
 endpoint = next(arg for arg in args if arg.startswith("repos/"))
+
+
+def pull_comments():
+    return [dict(comment, pull_request_review_id=int(review_id))
+            for review_id, comments in state["reviews"].items() for comment in comments] + state["comments"]
+
+
 if endpoint.endswith("/reviews") and "POST" in args:
     review_id = str(len(state["reviews"]) + 1)
     state["reviews"][review_id] = [
-        dict(comment, html_url=f"https://github.com/org/booking/pull/123#discussion_r{review_id}{n}")
+        dict(comment, id=int(f"{review_id}{n}"), user=ME, created_at=AT,
+             html_url=f"https://github.com/org/booking/pull/123#discussion_r{review_id}{n}")
         for n, comment in enumerate(payload["comments"], 1)]
     answer = {"id": int(review_id)}
+elif endpoint.endswith("/reviews"):
+    answer = state["review_list"]
 elif "/reviews/" in endpoint and endpoint.endswith("/comments"):
     # GitHub answers this one with `position` and leaves `line` out (null): only the pull's own list carries `line`
     answer = [dict(comment, line=None, position=comment["line"]) for comment in
               state["reviews"][endpoint.split("/reviews/")[1].split("/")[0]]]
+elif endpoint.endswith("/replies") and "POST" in args:
+    root = int(endpoint.split("/comments/")[1].split("/")[0])
+    parent = next(c for c in pull_comments() if c["id"] == root)
+    reply_id = 9000 + len(state["comments"])
+    answer = {"id": reply_id, "in_reply_to_id": root, "body": payload["body"], "user": ME, "created_at": AT,
+              "path": parent["path"], "line": parent["line"], "side": parent.get("side", "RIGHT"),
+              "html_url": f"https://github.com/org/booking/pull/123#discussion_r{reply_id}"}
+    state["comments"].append(answer)
 elif endpoint.endswith("/pulls/123/comments"):
-    answer = [dict(comment, pull_request_review_id=int(review_id))
-              for review_id, comments in state["reviews"].items() for comment in comments]
+    answer = pull_comments()
 elif endpoint.endswith("/issues/123/comments") and "POST" in args:
-    answer = {"body": payload["body"],
-              "html_url": f"https://github.com/org/booking/pull/123#issuecomment-{len(state['issue_comments']) + 1}"}
+    number = len(state["issue_comments"]) + 1
+    answer = {"id": 500 + number, "body": payload["body"], "user": ME, "created_at": AT,
+              "html_url": f"https://github.com/org/booking/pull/123#issuecomment-{number}"}
     state["issue_comments"].append(answer)
 elif endpoint.endswith("/issues/123/comments"):
     answer = state["issue_comments"]

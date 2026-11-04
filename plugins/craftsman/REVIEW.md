@@ -13,6 +13,7 @@ written into the reviewed repository; `review.json` records the path of its chec
 | File             | Written by                | Holds                                                           |
 |------------------|---------------------------|-----------------------------------------------------------------|
 | `review.json`    | `scripts/review_state.py` | everything the page shows; the single source of the state       |
+| `github.json`    | the dashboard server      | the pull request's conversation, as last read from GitHub       |
 | `inbox.jsonl`    | the dashboard server      | messages from the page to the agent, one JSON per line          |
 | `session.jsonl`  | the dashboard server      | the review's Claude session as it runs, one stream event a line |
 | `session.stderr` | the dashboard server      | what the review's Claude process wrote to stderr                |
@@ -94,7 +95,8 @@ be missed:
 - `files` — every changed file: `path`, `change` (`added`, `modified`, `deleted`, or `renamed` with `from`), the
   lines it adds and removes, the use cases it belongs to, and whether the developer viewed it;
 - `untied` — the changed files no use case reaches. The page shows them as one more card, so every changed file is
-  in a card.
+  in a card;
+- `github` — the content of `github.json`, or null before the conversation was first read.
 
 For a deleted file, the server also lists where the reviewed code in `worktree/` still names it.
 
@@ -142,19 +144,52 @@ For a deleted file, the server also lists where the reviewed code in `worktree/`
 - `merged-into` — for `merged` only: the id of the finding this one was joined into, as one problem in several
   places. A `merged` finding is never sent; the page shows it folded under that finding.
 - `edited` — the fields the developer changed: any of `title`, `description`, `comment`, `severity`.
-- `sent` — `{"location", "url", "replies"}` for each comment posted to GitHub; `replies` are
-  `{"author", "at", "body"}`, read from GitHub on every refresh and only shown, never answered by the agent.
+- `sent` — `{"location", "url"}` for each comment posted to GitHub. The answers to it are in its thread in
+  `github.json`.
+
+### Comments
+
+`comments` — what the developer writes to the pull request apart from the findings: a comment on the whole pull
+request, or a reply in a thread on GitHub. Only the developer writes them, on the review page. Each one:
+
+- `id` — `c<number>`, never reused.
+- `body` — GitHub markdown, sent as written.
+- `reply-to` — the id of the first comment of the GitHub thread it answers, or null for a comment on the whole pull
+  request.
+- `status` — `to-send` from the start, `deleted` once dropped, `sent` once it is on GitHub.
+- `url` — its link on GitHub once sent, else null.
+- `at` — when it was written.
 
 ## Rules on changing the state
 
 - **The developer's edits win.** The agent never changes a field listed in a finding's `edited`. To propose a
-  different text it adds a new finding.
+  different text it adds a new finding. The agent never writes or changes a comment.
 - **Nothing is removed.** Deleting sets `deleted`; joining two findings sets `merged` on one of them; neither is
   ever sent. A refresh that no longer sees the problem sets `maybe-resolved`; only the developer decides it is gone.
-- **Sent is final.** A `sent` finding is not edited or sent again; a follow-up is a new finding.
-- **Only `to-send` is sent.** Sending posts every `to-send` finding and changes it to `sent` only once its comment
-  exists on GitHub. A comment already on the pull request, at the same place with the same text, is not posted again;
-  its link is recorded.
+- **Sent is final.** A `sent` finding or comment is not edited or sent again; a follow-up is a new one.
+- **Only `to-send` is sent.** Sending posts every `to-send` finding and comment, and changes it to `sent` only once it
+  exists on GitHub. A finding goes as an inline comment, a comment on the whole pull request to its conversation, a
+  reply into its thread. A comment already on the pull request, at the same place with the same text, is not posted
+  again; its link is recorded. When what is on the pull request cannot be read, nothing is posted.
+
+## `github.json`
+
+What everyone wrote on the pull request, read with `gh api` by `scripts/github_conversation.py` when the review page
+opens the review, after every Send, and when the developer asks for it again. A review of two branches has none. The
+agent reads it again by running `github_conversation.py <review dir>`, which prints where it is kept, how many comments
+it holds, and why GitHub did not answer, or null.
+
+- `fetched` — when it was last read.
+- `error` — why the last read failed, or null. A failed read keeps the comments read before.
+- `comments` — oldest first, each with `id`, `kind`, `author`, `at`, `body` (GitHub markdown) and `url`:
+  - `issue` — a comment in the pull request's conversation;
+  - `review` — a review with its text, or one that approved or asked for changes; `state` says which;
+  - `inline` — a comment on the code, with `path`, `line` (null once the line is no longer in the pull request),
+    `original-line`, `side`, and `root`: the id of the thread's first comment, the one a reply answers.
+
+The page shows it under Comments, with the developer's own comments waiting for Send; a thread on a line of the diff
+also shows under that line, unless a sent finding started it — then it shows with the finding. The page renders the
+markdown with its HTML escaped, so what others wrote is shown as text.
 
 ## `inbox.jsonl`
 
@@ -172,8 +207,9 @@ not yet in `handled`, it passes those first.
 
 A question from the page opens a thread, or adds to one, before its `ask` line is written.
 
-Edits, deletions, "to send", "viewed" and archiving on the page do not go through the inbox: the server applies them
-to `review.json` through `review_state.py` directly, and the agent sees them the next time it reads the state.
+Edits, deletions, "to send", comments, "viewed" and archiving on the page do not go through the inbox: the server
+applies them to `review.json` through `review_state.py` directly, and the agent sees them the next time it reads the
+state.
 
 ## The review's session
 

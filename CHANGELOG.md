@@ -3,6 +3,18 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.15.0
+
+- The review page has a **Comments** tab: the pull request's conversation on GitHub — everyone's comments, reviews and
+  threads on the code — read when the review opens, after every Send, and on request. Write a comment on the whole
+  pull request, quote one to answer it, or reply in a thread; they wait for Send beside the marked findings. A thread
+  on a line of the diff shows under that line too, and a sent finding shows the answers to it. See REVIEW.md,
+  "Comments" and "`github.json`".
+- A sent finding's `sent` entries hold `location` and `url` only; the answers to it come from its thread on GitHub.
+  `review_state.py add-replies` is gone: the review's agent reads the conversation with `github_conversation.py
+  <review dir>`. Update the `code-review` bundle of the workshop together with this version — its `refresh-review`
+  reads the conversation that way.
+
 ## 0.14.1
 
 - The review page colours the code of a diff by its language — keywords, strings, comments, numbers, types and

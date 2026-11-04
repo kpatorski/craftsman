@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Send the findings the developer marked to send as comments on the pull request -- see REVIEW.md.
+"""Send the findings the developer marked to send, and the developer's own comments, to the pull request -- see
+REVIEW.md.
 
     send_review.py <review dir>
 
@@ -9,7 +10,11 @@ further location gets a short reference to that first comment, in a second revie
 exists. A location GitHub cannot comment on inline -- a line outside the diff -- gets a general comment on the pull
 request that names the place. A finding becomes `sent` only once its first comment exists on GitHub; a failure
 leaves it `to-send`, with the reason in the result. A comment already on the pull request -- the same place and text
--- is not sent again: its link is recorded instead. Prints the result as JSON.
+-- is not sent again: its link is recorded instead.
+
+Every comment of the developer's waiting for Send goes too: a comment on the whole pull request to its conversation, a
+reply to its thread on GitHub. Each becomes `sent` once it exists there; one already there, with the same text in the
+same place, is recorded instead of sent again. Prints the result as JSON.
 """
 import json
 import os
@@ -89,13 +94,16 @@ def send(review, gh=None):
     pulls = f"repos/{repository}/pulls/{number}"
     sent, errors, urls = [], [], {}
     # what is on the pull request already: a comment sent before, but never recorded as sent, is not sent again
-    on_github = {"inline": {}, "general": {}}
+    on_github = {"inline": {}, "general": {}, "replies": {}}
 
     def look_on_github():
-        on_github["inline"] = {(c.get("path"), c.get("line"), c.get("body")): c["html_url"]
-                               for c in api(f"{pulls}/comments")}
+        inline_comments = api(f"{pulls}/comments")
+        on_github["inline"] = {(c.get("path"), c.get("line"), c.get("body")): c["html_url"] for c in inline_comments}
+        on_github["replies"] = {(c.get("in_reply_to_id"), c.get("body")): c["html_url"] for c in inline_comments
+                                if c.get("in_reply_to_id")}
         on_github["general"] = {c.get("body"): c["html_url"]
                                 for c in api(f"repos/{repository}/issues/{number}/comments")}
+        on_github["read"] = True
 
     def review_with(comments):
         made = api(f"{pulls}/reviews", {"commit_id": state["head"], "event": "COMMENT", "body": "",
@@ -159,7 +167,28 @@ def send(review, gh=None):
             missing = len(found["locations"]) - len(entries)
             if missing:
                 errors.append(f"{found['id']}: {missing} further place(s) got no reference")
+    # a comment is sent only once what is on GitHub is known, so a failed read never sends one twice
+    for comment in state.get("comments", []) if on_github.get("read") else []:
+        if comment["status"] != "to-send":
+            continue
+        try:
+            url = send_comment(api, comment, repository, number, on_github)
+        except RuntimeError as failure:
+            errors.append(f"{comment['id']}: {failure}")
+            continue
+        review_state.change(review, "comment-sent", {"url": url}, item_id=comment["id"])
+        sent.append(comment["id"])
     return {"sent": sent, "errors": errors}
+
+
+def send_comment(api, comment, repository, number, on_github):
+    """One comment of the developer's on GitHub; its link. A reply goes into the thread it answers."""
+    body, root = comment["body"], comment.get("reply-to")
+    if root is None:
+        earlier = on_github["general"].get(body)
+        return earlier or api(f"repos/{repository}/issues/{number}/comments", {"body": body})["html_url"]
+    earlier = on_github["replies"].get((root, body))
+    return earlier or api(f"repos/{repository}/pulls/{number}/comments/{root}/replies", {"body": body})["html_url"]
 
 
 def main(argv):

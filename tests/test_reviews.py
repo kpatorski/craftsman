@@ -163,6 +163,32 @@ class ReviewsTest(unittest.TestCase):
 
         self.assertEqual(review_state.read(self.review)["findings"][1]["by"], "developer")
 
+    def test_the_page_writes_edits_and_drops_the_developers_comments(self):
+        reviews.developer_change(ID, "add-comment", {"body": "Thanks."})
+        reviews.developer_change(ID, "add-comment", {"body": "Agreed.", "reply-to": 77})
+        reviews.developer_change(ID, "edit-comment", {"comment": "c1", "body": "Thanks, **well split**."})
+        reviews.developer_change(ID, "comment-status", {"comment": "c2", "status": "deleted"})
+
+        comments = review_state.read(self.review)["comments"]
+        self.assertEqual([(c["body"], c["reply-to"], c["status"]) for c in comments],
+                         [("Thanks, **well split**.", None, "to-send"), ("Agreed.", 77, "deleted")])
+        self.assertIn("<strong>well split</strong>", reviews.read_review(ID)["html"]["comment:c1"])
+        self.assertEqual(self.inbox(), [])
+
+    def test_the_conversation_read_from_github_reaches_the_page_with_its_markdown_safe(self):
+        (self.review / "github.json").write_text(json.dumps({"fetched": "2026-11-01T10:00:00+00:00", "error": None,
+            "comments": [{"id": 501, "kind": "issue", "author": "anna", "at": "2026-10-30T09:00:00Z",
+                          "body": "Use `Clock` <script>alert(1)</script>", "url": "https://github.com/x"}]}))
+
+        read = reviews.read_review(ID)
+
+        self.assertEqual(read["github"]["comments"][0]["author"], "anna")
+        self.assertIn("<code>Clock</code>", read["html"]["github:501"])
+        self.assertNotIn("<script>", read["html"]["github:501"])
+
+    def test_without_a_conversation_read_yet_the_page_gets_none(self):
+        self.assertIsNone(reviews.read_review(ID)["github"])
+
     def test_a_question_on_the_page_opens_a_thread_and_wakes_the_session(self):
         reviews.developer_change(ID, "ask", {
             "about": {"kind": "file", "path": "A.java", "lines": [1, 2]}, "quote": "class A {}", "text": "Why?"})
@@ -469,6 +495,12 @@ class ReviewEndpointsTest(ReviewsTest):
         self.assertIn('<script src="/syntax.js"></script>', self.page("/review"))
         self.assertIn("Syntax", self.page("/syntax.js"))
 
+    def test_the_review_page_shows_the_conversation_and_writes_comments_and_replies(self):
+        served = self.page(f"/review?review={ID}")
+        for hook in ("/api/review/github", 'data-tab="comments"', "data-comment-add", "data-gh-reply", "data-gh-thread"):
+            with self.subTest(hook=hook):
+                self.assertIn(hook, served)
+
     def test_a_review_starts_only_inside_a_git_repository(self):
         shutil.rmtree(self.checkout / ".git")
 
@@ -519,6 +551,18 @@ class ReviewEndpointsTest(ReviewsTest):
 
         self.assertEqual((status, body["sent"]), (200, ["f1"]))
         self.assertEqual(review_state.read(self.review)["findings"][0]["status"], "sent")
+
+    def test_the_page_reads_the_conversation_from_github(self):
+        os.environ.update(CRAFTSMAN_GH=f"{sys.executable} {pathlib.Path(__file__).resolve().parent / 'fake_gh.py'}",
+                          FAKE_GH_LOG=str(self.tmp / "gh.log"), FAKE_GH_STATE=str(self.tmp / "gh.json"))
+        (self.tmp / "gh.json").write_text(json.dumps({"issue_comments": [
+            {"id": 501, "user": {"login": "anna"}, "created_at": "2026-10-30T09:00:00Z", "body": "Hi",
+             "html_url": "https://github.com/org/booking/pull/123#issuecomment-1"}]}))
+
+        status, body = self.call("/api/review/github", {"id": ID})
+
+        self.assertEqual((status, [c["author"] for c in body["comments"]]), (200, ["anna"]))
+        self.assertEqual(self.call(f"/api/review?id={ID}")[1]["github"]["comments"][0]["body"], "Hi")
 
     def test_the_page_is_served_under_craftsman_localhost_and_localhost(self):
         for host in (f"craftsman.localhost:{self.port}", f"localhost:{self.port}", f"127.0.0.1:{self.port}"):

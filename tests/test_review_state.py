@@ -145,16 +145,70 @@ class ReviewStateTest(unittest.TestCase):
 
         self.assertEqual(self.state()["findings"][0]["status"], "proposed")
 
-    def test_replies_to_a_sent_comment_are_recorded_under_it(self):
+    def test_a_sent_finding_keeps_the_link_of_each_comment_and_nothing_more(self):
         self.opened()
         self.run_state("add-finding", payload=finding())
         self.run_state("set-status", "f1", payload={"status": "to-send"}, by="developer")
+
         self.run_state("mark-sent", "f1", payload={"sent": [{"location": 0, "url": "u"}]})
 
-        self.run_state("add-replies", "f1", payload={"location": 0, "replies": [
-            {"author": "anna", "at": "2026-10-30T10:00:00Z", "body": "Fixed."}]})
+        self.assertEqual(self.state()["findings"][0]["sent"], [{"location": 0, "url": "u"}])
 
-        self.assertEqual(self.state()["findings"][0]["sent"][0]["replies"][0]["body"], "Fixed.")
+    def test_the_developer_writes_comments_on_the_whole_pull_request_that_wait_for_send(self):
+        self.opened()
+
+        self.assertEqual(self.run_state("add-comment", payload={"body": "Thanks, looks good."}, by="developer")
+                         .stdout.strip(), "c1")
+        self.run_state("add-comment", payload={"body": "Agreed.", "reply-to": 4711}, by="developer")
+
+        first, second = self.state()["comments"]
+        self.assertEqual((first["id"], first["body"], first["status"], first["reply-to"]),
+                         ("c1", "Thanks, looks good.", "to-send", None))
+        self.assertEqual((second["id"], second["reply-to"]), ("c2", 4711))
+
+    def test_a_comment_needs_text_and_is_the_developers(self):
+        self.opened()
+
+        self.run_state("add-comment", payload={"body": "  "}, by="developer", expect_ok=False)
+        self.run_state("add-comment", payload={"body": "From the agent."}, expect_ok=False)
+        self.run_state("add-comment", payload={"body": "x", "reply-to": "abc"}, by="developer", expect_ok=False)
+
+        self.assertEqual(self.state()["comments"], [])
+
+    def test_the_developer_edits_or_drops_a_comment_until_it_is_sent(self):
+        self.opened()
+        self.run_state("add-comment", payload={"body": "Draft"}, by="developer")
+
+        self.run_state("update-comment", "c1", payload={"body": "Better"}, by="developer")
+        self.run_state("comment-status", "c1", payload={"status": "deleted"}, by="developer")
+        self.run_state("comment-status", "c1", payload={"status": "to-send"}, by="developer")
+        self.run_state("comment-sent", "c1", payload={"url": "https://github.com/org/booking/pull/123#issuecomment-1"})
+
+        comment = self.state()["comments"][0]
+        self.assertEqual((comment["body"], comment["status"], comment["url"]),
+                         ("Better", "sent", "https://github.com/org/booking/pull/123#issuecomment-1"))
+        self.run_state("update-comment", "c1", payload={"body": "Again"}, by="developer", expect_ok=False)
+        self.run_state("comment-status", "c1", payload={"status": "deleted"}, by="developer", expect_ok=False)
+        self.run_state("update-comment", "c1", payload={"body": "Agent"}, expect_ok=False)
+
+    def test_only_a_comment_waiting_for_send_is_sent(self):
+        self.opened()
+        self.run_state("add-comment", payload={"body": "Draft"}, by="developer")
+        self.run_state("comment-status", "c1", payload={"status": "deleted"}, by="developer")
+
+        self.run_state("comment-sent", "c1", payload={"url": "u"}, expect_ok=False)
+
+        self.assertEqual(self.state()["comments"][0]["status"], "deleted")
+
+    def test_a_review_started_before_comments_existed_takes_them(self):
+        self.opened()
+        state = self.state()
+        del state["comments"]
+        (self.review / "review.json").write_text(json.dumps(state))
+
+        self.run_state("add-comment", payload={"body": "Hi"}, by="developer")
+
+        self.assertEqual([c["id"] for c in self.state()["comments"]], ["c1"])
 
     def test_deleting_and_resolving_are_the_developers_and_the_agent_only_suggests(self):
         self.opened()

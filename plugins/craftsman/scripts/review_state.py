@@ -5,9 +5,9 @@
 
 The payload is one argument, in single quotes; an apostrophe inside it is written as \\u0027.
 
-Commands: init, set, add-finding, update-finding <id>, set-status <id>, mark-sent <id>, add-replies <id>,
-use-case-status <id>, open-thread, reply <thread id>, resolve <thread id>, view, unview, archive, answer,
-handled <message id>, show.
+Commands: init, set, add-finding, update-finding <id>, set-status <id>, mark-sent <id>, add-comment,
+update-comment <id>, comment-status <id>, comment-sent <id>, use-case-status <id>, open-thread,
+reply <thread id>, resolve <thread id>, view, unview, archive, answer, handled <message id>, show.
 
 The agent and the review page change review.json at the same time. Every change takes an exclusive lock, reads the
 file fresh, checks the change against REVIEW.md's rules, and replaces the file atomically -- so neither side loses
@@ -39,6 +39,7 @@ STATUS_BY = {
 USE_CASE_STATUS = ("pending", "reviewing", "reviewed")
 CHANGES = ("added", "modified", "deleted", "unchanged")
 ABOUT = ("review", "finding", "file", "use-case")
+COMMENT_STATUS = ("to-send", "deleted")
 
 
 class Refused(Exception):
@@ -48,7 +49,7 @@ class Refused(Exception):
 def empty_state(source, base, head, checkout=None):
     return {"source": source, "checkout": checkout, "base": base, "head": head, "refreshed": None, "session": None, "closed": None,
             "language": None, "scope": None, "requirements": None, "tickets": [], "structure": None, "rules": [],
-            "checkpoint": None, "findings": [], "threads": [], "viewed": [], "archived": False, "handled": []}
+            "checkpoint": None, "findings": [], "comments": [], "threads": [], "viewed": [], "archived": False, "handled": []}
 
 
 @contextmanager
@@ -203,18 +204,63 @@ def mark_sent(state, payload, by, finding_id):
     found = by_id(state["findings"], finding_id)
     if found["status"] != "to-send":
         raise Refused(f"only a finding marked to send is sent; {finding_id} is {found['status']}")
-    found["sent"] = [{"replies": [], **entry} for entry in payload["sent"]]
+    found["sent"] = [{"location": entry["location"], "url": entry["url"]} for entry in payload["sent"]]
     found["status"] = "sent"
     return state, None
 
 
-def add_replies(state, payload, by, finding_id):
-    found = by_id(state["findings"], finding_id)
-    entry = next((sent for sent in found["sent"] if sent["location"] == payload["location"]), None)
-    if entry is None:
-        raise Refused(f"{finding_id} has no comment sent for location {payload['location']}")
-    known = {(reply["author"], reply["at"]) for reply in entry["replies"]}
-    entry["replies"] += [reply for reply in payload["replies"] if (reply["author"], reply["at"]) not in known]
+def developers_comment(by):
+    if by != "developer":
+        raise Refused("a comment on the pull request is the developer's")
+
+
+def comment_text(payload):
+    body = (payload.get("body") or "").strip()
+    if not body:
+        raise Refused("a comment needs text")
+    return body
+
+
+def add_comment(state, payload, by):
+    """A comment on the whole pull request, or a reply in a thread on GitHub: `reply-to` is the id of the thread's
+    first comment. It waits for Send."""
+    developers_comment(by)
+    reply_to = payload.get("reply-to")
+    if reply_to is not None and (not isinstance(reply_to, int) or isinstance(reply_to, bool)):
+        raise Refused("reply-to is the id of a comment on GitHub")
+    comments = state.setdefault("comments", [])
+    comment = {"id": next_id(comments, "c"), "body": comment_text(payload), "reply-to": reply_to,
+               "status": "to-send", "url": None, "at": now()}
+    comments.append(comment)
+    return state, comment["id"]
+
+
+def unsent_comment(state, comment_id):
+    comment = by_id(state.setdefault("comments", []), comment_id)
+    if comment["status"] == "sent":
+        raise Refused(f"{comment_id} is sent; a follow-up is a new comment")
+    return comment
+
+
+def update_comment(state, payload, by, comment_id):
+    developers_comment(by)
+    unsent_comment(state, comment_id)["body"] = comment_text(payload)
+    return state, None
+
+
+def comment_status(state, payload, by, comment_id):
+    developers_comment(by)
+    if payload.get("status") not in COMMENT_STATUS:
+        raise Refused(f"a comment's status is one of {', '.join(COMMENT_STATUS)}")
+    unsent_comment(state, comment_id)["status"] = payload["status"]
+    return state, None
+
+
+def comment_sent(state, payload, by, comment_id):
+    comment = by_id(state.setdefault("comments", []), comment_id)
+    if comment["status"] != "to-send":
+        raise Refused(f"only a comment waiting for Send is sent; {comment_id} is {comment['status']}")
+    comment.update(status="sent", url=payload["url"])
     return state, None
 
 
@@ -306,10 +352,11 @@ def handled(state, payload, by, message_id):
     return state, None
 
 
-COMMANDS = {"set": set_fields, "add-finding": add_finding, "open-thread": open_thread, "view": view, "unview": unview,
-            "archive": archive, "answer": answer}
+COMMANDS = {"set": set_fields, "add-finding": add_finding, "add-comment": add_comment, "open-thread": open_thread,
+            "view": view, "unview": unview, "archive": archive, "answer": answer}
 COMMANDS_WITH_ID = {"update-finding": update_finding, "set-status": set_status, "mark-sent": mark_sent,
-                    "add-replies": add_replies, "use-case-status": use_case_status, "reply": reply,
+                    "update-comment": update_comment, "comment-status": comment_status,
+                    "comment-sent": comment_sent, "use-case-status": use_case_status, "reply": reply,
                     "resolve": resolve, "handled": handled}
 
 

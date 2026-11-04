@@ -192,7 +192,7 @@ already has. Every finding is a proposed PR comment: edit it, delete it, or mark
 GitHub whenever you like — nothing is posted before that.
 
 Reviews have their own page, `/review` on the dashboard server, apart from the dashboard. The reviews are tiles in a
-rail on the left; the open one has four tabs:
+rail on the left; the open one has five tabs:
 
 - **Overview** — what the PR is for, as how the system behaves before it and after it, what it leaves out, the
   review's progress, and the agent's questions to answer.
@@ -204,14 +204,17 @@ rail on the left; the open one has four tabs:
   click, or all inline with a switch. A folder shortened in the file list shows its full path on hover.
 - **Findings** — a table to filter, search and sort; a finding opens in a side panel to edit, ask about, drop, or mark
   to send.
+- **Comments** — the PR's conversation on GitHub as it reads there: everyone's comments, reviews and threads on the
+  code, read again after every Send and on request. Write a comment on the whole PR, quote one to answer it, or reply
+  in a thread; yours wait for Send. A thread on a line of the diff also shows under that line in the code.
 
 Select lines in any diff to ask the agent about them or to add your own finding. A progress strip under the tabs says
 which of the review's steps the agent is at and what it does there; the header says whether it is working, idle, or
 silent for longer than it should be, with a button to restart its session in the same conversation. The review's
 Claude session runs on the dashboard server, so its questions, its progress and your messages to it all stay on the
 page; once stopped, `claude --resume` continues the same conversation in the CLI. Send posts every marked finding as an
-inline comment on its first place, with a pointer from each further place; a comment the PR already has is never
-posted twice.
+inline comment on its first place, with a pointer from each further place, and every comment and reply of yours; a
+comment the PR already has is never posted twice.
 
 Each review keeps its state in `~/.craftsman/reviews/<review-id>/`, outside the repository, and reads the code from its
 own `git worktree`, so your checkout is never touched and several reviews can run at once. A clone is deleted when its

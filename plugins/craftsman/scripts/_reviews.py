@@ -6,6 +6,7 @@ import os
 import pathlib
 import re
 
+import github_conversation
 import review_state
 from _markdown import render_markdown
 
@@ -68,24 +69,32 @@ def list_reviews():
 
 def read_review(review_id):
     """The state, plus what the server works out from the diff: every changed file with how it changed, which use
-    cases it belongs to and whether the developer viewed it, and the files no use case reaches."""
+    cases it belongs to and whether the developer viewed it, and the files no use case reaches; and the conversation
+    last read from the pull request, or None."""
     review = review_dir(review_id)
     state = review_state.read(review)
     use_cases = (state.get("structure") or {}).get("use-cases", [])
     viewed = set(state.get("viewed", []))
     files = [{**changed, "use-cases": [u["id"] for u in use_cases if changed["path"] in u.get("files", [])],
               "viewed": changed["path"] in viewed} for changed in changed_files(diff_text(review_id))]
-    return {"state": state, "pending": len(pending_messages(review)), "html": rendered(state),
+    conversation = github_conversation.read(review)
+    return {"state": state, "pending": len(pending_messages(review)), "html": rendered(state, conversation),
+            "github": conversation,
             "console": console_lines(review), "files": files,
             "untied": [changed["path"] for changed in files if not changed["use-cases"]]}
 
 
-def rendered(state):
-    """Every markdown text of the review as HTML, keyed the way the page looks it up."""
+def rendered(state, conversation=None):
+    """Every markdown text of the review and of its conversation on GitHub as HTML, keyed the way the page looks it
+    up. The renderer escapes HTML, so what others wrote on GitHub shows as text."""
     texts = {"scope": state.get("scope"), "requirements": state.get("requirements")}
     for found in state.get("findings", []):
         for field in ("description", "comment"):
             texts[f"finding:{found['id']}:{field}"] = found.get(field)
+    for comment in state.get("comments", []):
+        texts[f"comment:{comment['id']}"] = comment.get("body")
+    for comment in (conversation or {}).get("comments", []):
+        texts[f"github:{comment['id']}"] = comment.get("body")
     for thread in state.get("threads", []):
         for number, said in enumerate(thread["messages"]):
             texts[f"thread:{thread['id']}:{number}"] = said.get("text")
@@ -208,6 +217,15 @@ def developer_change(review_id, action, body):
     if action == "status":
         return review_state.change(review, "set-status", {"status": body.get("status")}, "developer",
                                    body.get("finding"))
+    if action == "add-comment":
+        return review_state.change(review, "add-comment", {"body": body.get("body"), "reply-to": body.get("reply-to")},
+                                   "developer")
+    if action == "edit-comment":
+        return review_state.change(review, "update-comment", {"body": body.get("body")}, "developer",
+                                   body.get("comment"))
+    if action == "comment-status":
+        return review_state.change(review, "comment-status", {"status": body.get("status")}, "developer",
+                                   body.get("comment"))
     if action == "answer":
         checkpoint = review_state.read(review).get("checkpoint") or {}
         review_state.change(review, "answer", {"option": body.get("option"), "note": body.get("note")}, "developer")

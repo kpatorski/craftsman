@@ -170,6 +170,10 @@
   .send { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: var(--neon-strong);
     color: var(--on-strong); border: 0; cursor: pointer; flex: none; }
   .row-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+  .ghlist { display: flex; flex-direction: column; gap: 12px; }
+  .ghc { padding: 14px 18px; } .ghc > .who, .msg .who a, .ghc .who a { font-size: 12px; color: var(--muted); } .ghc > .who b { color: var(--heading); font-weight: 500; }
+  .ghc > .who { margin-bottom: 6px; }
+  :is([data-gh-quote], [data-gh-reply-open], [data-cedit], [data-cdrop]):not(button) { cursor: pointer; font-size: 12px; }
   .panel.dock { position: fixed; right: 0; bottom: 0; width: var(--panel-w, clamp(560px, 42vw, 980px)); z-index: 14; border-top: 1px solid var(--line); }
   .panel.over { position: fixed; right: 0; bottom: 0; width: var(--panel-w, clamp(560px, 42vw, 980px)); z-index: 16;
     border-left: 1px solid var(--line2); box-shadow: -30px 0 60px var(--shadow); }
@@ -336,7 +340,8 @@ let current = { id: params.get("review") };
 let reviewsList = [], R = null, deferred = false;
 const ui = { tab: params.get("tab") || "overview", panel: null, file: params.get("file"), uc: null, ucFile: null,
   fsev: null, fby: null, fstatus: "open", fcat: "", fquestions: false, search: "", codeFilter: "all", editing: null,
-  selection: null, sort: { key: "severity", dir: 1 }, inline: localStorage.getItem("craftsman-review-inline") === "1", open: new Set() };
+  selection: null, sort: { key: "severity", dir: 1 }, inline: localStorage.getItem("craftsman-review-inline") === "1", open: new Set(),
+  ghRead: new Set(), ghReading: false, replyTo: null, editComment: null };
 ui.nr = newReview();
 if (params.has("new")) {
   // opened by /craftsman:pr-review <source>: the wizard, with the source filled in
@@ -387,6 +392,13 @@ async function reload() {
     R = fresh; if (R) R.seenAt = Date.now();
   } else R = null;
   render();
+  if (R && pull(S().source) && !ui.ghRead.has(current.id)) readGithub();
+}
+// The pull request's conversation, read from GitHub once when the review opens, again after Send, and on request.
+async function readGithub() {
+  const id = current.id; ui.ghRead.add(id); ui.ghReading = true; render();
+  await api("/api/review/github", { id }).finally(() => { ui.ghReading = false; });
+  if (id === current.id) return reload();
 }
 function fileDiff(path) {
   if (diffs[path] !== undefined) return;
@@ -430,6 +442,17 @@ const live = list => list.filter(f => !["merged", "deleted", "sent"].includes(f.
 const findingsAt = path => S().findings.filter(f => !["merged", "deleted"].includes(f.status) && (f.locations || []).some(l => l.path === path));
 const threadsOf = (kind, id) => (S().threads || []).filter(t => t.about.kind === kind && (kind === "file" ? t.about.path === id : t.about.id === id));
 const waiting = () => S().checkpoint && !S().checkpoint.answer;
+const conversation = () => (R.github && R.github.comments) || [];
+const myComments = status => (S().comments || []).filter(c => c.status === status);
+// GitHub's threads on the code, by the id of each thread's first comment
+function ghThreads() {
+  const threads = new Map();
+  conversation().filter(c => c.kind === "inline").forEach(c => threads.set(c.root, [...(threads.get(c.root) || []), c]));
+  return threads;
+}
+const sentAs = f => (f.sent || []).map(x => +(((x.url || "").match(/#discussion_r(\d+)$/) || [])[1])).filter(Boolean);
+const findingOfThread = root => S().findings.find(f => sentAs(f).includes(root));
+const when = at => at ? esc(at.slice(0, 16).replace("T", " ")) : "";
 function sourceLabel(src) {
   if (!src) return "";
   if (src.kind === "pull-request") return `PR #${src.number} · ${src.repository}`;
@@ -584,7 +607,7 @@ function showHover(i, tile) {
 function renderHead() {
   const s = S(), pr = pull(s.source), files = R.files || [];
   const added = files.reduce((a, f) => a + f.added, 0), removed = files.reduce((a, f) => a + f.removed, 0);
-  const toSend = s.findings.filter(f => f.status === "to-send").length, now = useCases().find(u => u.status === "reviewing");
+  const toSend = s.findings.filter(f => f.status === "to-send").length + myComments("to-send").length, now = useCases().find(u => u.status === "reviewing");
   const bg = R.background ? ` · ${plural(R.background, "reviewer")} in the background` : "";
   const status = R.restoring ? ["", "Restoring the repository…"] : asking() ? ["wait", "AI Agent waits for your permission"] : waiting() ? ["wait", "AI Agent waits for your answer"] : stuck() ? ["wait", `AI Agent silent for ${ago(quietFor())}`]
     : idle() ? ["idle", "AI Agent is idle · ask it anything"]
@@ -593,7 +616,8 @@ function renderHead() {
   const branches = s.source && (s.source["base-branch"] ? `${s.source["base-branch"]} ← ${s.source["head-branch"]}` :
     s.source.kind === "branches" ? `${s.source.target} ← ${s.source.source}` : "");
   const tabs = [["overview", "Overview", ""], ["structure", "Structure", useCases().length || ""],
-    ["code", "Code", plural(files.length, "file")], ["findings", "Findings", live(s.findings).length]];
+    ["code", "Code", plural(files.length, "file")], ["findings", "Findings", live(s.findings).length],
+    ["comments", "Comments", pr ? conversation().length + myComments("to-send").length : ""]];
   return `<div class="head"><div>
       <div class="title"><h1>${esc((s.source && s.source.title) || sourceLabel(s.source))}</h1>
         ${pr ? `<span class="tag">PR #${pr.number}</span>` : '<span class="tag">no PR</span>'}
@@ -615,7 +639,8 @@ function viewOverview() {
   const cats = {};
   open.forEach(f => { cats[f.category] ||= { "must-fix": 0, "should-fix": 0, "nit": 0, n: 0 }; cats[f.category][f.severity]++; cats[f.category].n++; });
   const most = Math.max(1, ...Object.values(cats).map(c => c.n));
-  const toSend = s.findings.filter(f => f.status === "to-send").length, sent = s.findings.filter(f => f.status === "sent").length;
+  const toSend = s.findings.filter(f => f.status === "to-send").length + myComments("to-send").length;
+  const sent = s.findings.filter(f => f.status === "sent").length + myComments("sent").length;
   const ucs = useCases(), done = ucs.filter(u => u.status === "reviewed").length, cp = s.checkpoint;
   const scope = `<div class="md">${md("scope") || '<span class="muted">AI Agent has not read the PR yet.</span>'}</div>` +
     (md("requirements") ? `<h3 style="margin-top:14px"><span>What the ticket asks for</span></h3><div class="md">${md("requirements")}</div>` : "");
@@ -629,7 +654,8 @@ function viewOverview() {
   html += `<section class="card s4"><h3><span>Comments for the author</span><a data-tab="findings" data-fstatus="to-send">Review them →</a></h3>
       <div class="kpis" style="grid-template-columns:1fr 1fr"><div><div class="kpi">${toSend}</div><div class="l">ready to send</div></div>
         <div><div class="kpi nit">${sent}</div><div class="l">sent</div></div></div>
-      <div class="muted" style="font-size:13px;margin-top:14px">${plural(open.filter(f => f.status === "proposed").length, "finding")} not marked to send yet.</div></section>`;
+      <div class="muted" style="font-size:13px;margin-top:14px">${plural(open.filter(f => f.status === "proposed").length, "finding")} not marked to send yet.
+        ${pull(s.source) ? `<a data-tab="comments" style="color:var(--neon)">The conversation on GitHub →</a>` : ""}</div></section>`;
   html += `<section class="card s4"><h3><span>Findings by severity</span><a data-tab="findings" data-fsev="">${open.length} →</a></h3>
       <div class="kpis">${SEVS.map(k => `<a data-tab="findings" data-fsev="${k}"><div class="kpi ${k.split("-")[0]}">${bySev[k]}</div><div class="l">${SEV[k].toLowerCase()}</div></a>`).join("")}</div>
       <div class="track" style="height:10px;margin-top:22px">${SEVS.map(k => `<i class="${k.split("-")[0]}" style="width:${open.length ? 100 * bySev[k] / open.length : 0}%"></i>`).join("")}</div></section>`;
@@ -694,6 +720,64 @@ function viewFindings() {
     <div class="card" style="padding:6px 10px">${list.length ? findingTable(sorted(list), true) : '<div class="muted" style="padding:14px">No finding matches.</div>'}</div>`;
 }
 
+// ================================================================ comments: the conversation on GitHub and the developer's own
+// GitHub's conversation as it reads there, oldest first: comments, reviews, and the threads on the code, each at the
+// time it started. The developer's comments wait for Send under it; a reply waits under its thread.
+function viewComments() {
+  if (!pull(S().source)) return `<div class="card"><div class="muted">This review has no pull request, so there is no conversation to read or write to.</div></div>`;
+  const g = R.github, read = ui.ghReading ? "Reading the conversation from GitHub…"
+    : g && g.fetched ? `Read from GitHub ${ago(Math.max(0, Math.round((Date.now() - Date.parse(g.fetched)) / 1000)))} ago` : "Not read from GitHub yet";
+  const items = [...conversation().filter(c => c.kind !== "inline").map(c => ({ at: c.at, html: ghComment(c) })),
+    ...[...ghThreads()].map(([root, msgs]) => ({ at: msgs[0].at, html: ghThreadCard(root, msgs) }))].sort((a, b) => (a.at || "").localeCompare(b.at || ""));
+  const general = myComments("to-send").filter(c => !c["reply-to"]);
+  return `<div class="filters" style="justify-content:space-between;align-items:center"><span class="muted" style="font-size:12.5px">${read}</span>
+      <button class="btn ghost sm" data-gh-read ${ui.ghReading ? "disabled" : ""}>⟳ Read again</button></div>
+    ${g && g.error ? `<div class="banner red" style="margin:0 0 12px">GitHub did not answer: ${esc(g.error)}</div>` : ""}
+    <div class="ghlist">${items.map(i => i.html).join("") || '<div class="card muted">Nobody has written on the pull request yet.</div>'}</div>
+    ${general.length ? `<h3 class="muted" style="font-size:12.5px;font-weight:400;margin:20px 0 8px">Waiting for Send</h3>${general.map(draftCard).join("")}` : ""}
+    <div class="card" style="margin-top:16px"><textarea class="field" id="new-comment" placeholder="Write a comment on the whole pull request… It goes with Send." style="min-height:90px"></textarea>
+      <div class="row-actions"><button class="btn go sm" data-comment-add>Add comment</button></div></div>`;
+}
+function ghHead(c, extra = "") {
+  return `<div class="who"><b>${esc(c.author || "someone")}</b> · ${when(c.at)}${extra}${c.url ? ` · <a href="${esc(c.url)}" target="_blank" rel="noopener">On GitHub ↗</a>` : ""}</div>`;
+}
+function ghComment(c) {
+  const decided = { APPROVED: ' · <span class="tag green">approved</span>', CHANGES_REQUESTED: ' · <span class="tag red">asked for changes</span>' }[c.state] || (c.kind === "review" ? " · reviewed" : "");
+  return `<div class="card ghc">${ghHead(c, decided)}${c.body ? `<div class="md">${md("github:" + c.id)}</div>` : ""}
+    ${c.kind === "issue" ? `<div class="row-actions"><a class="muted" data-gh-quote="${c.id}">Quote reply</a></div>` : ""}</div>`;
+}
+// One thread on the code: where it is, what was said, the developer's replies waiting for Send, and a reply box.
+function ghThreadMessages(root, msgs) {
+  return `<div class="msgs">${msgs.map(m => `<div class="msg"><div class="who">${esc(m.author || "someone")} · ${when(m.at)}${m.url ? ` · <a href="${esc(m.url)}" target="_blank" rel="noopener">↗</a>` : ""}</div>
+      <div class="body md">${md("github:" + m.id)}</div></div>`).join("")}
+    ${(S().comments || []).filter(c => c.status === "to-send" && c["reply-to"] === root).map(draftCard).join("")}</div>
+    ${ui.replyTo === root ? `<textarea class="field" id="reply-box" placeholder="Your reply… It goes with Send." style="margin-top:10px;min-height:70px"></textarea>
+      <div class="row-actions"><button class="btn go sm" data-gh-reply="${root}">Add reply</button><button class="btn ghost sm" data-gh-reply-open="">Cancel</button></div>`
+    : `<div class="row-actions"><a class="muted" data-gh-reply-open="${root}">Reply</a></div>`}`;
+}
+function ghPlace(first) {
+  const line = first.line ?? first["original-line"];
+  return `<span class="mono">${esc(first.path)}:${line ?? ""}</span>` + (first.line == null ? ' <span class="tag">outdated</span>'
+    : (R.files || []).some(f => f.path === first.path) ? ` <a data-goto="${esc(first.path)}|${first.line}" style="color:var(--neon)">Show in code →</a>` : "");
+}
+function ghThreadCard(root, msgs) {
+  const f = findingOfThread(root);
+  return `<div class="card ghc"><div class="thread-h"><span>${ghPlace(msgs[0])}</span>${f ? `<a data-finding="${esc(f.id)}">your finding ${esc(f.id)}</a>` : ""}</div>
+    ${ghThreadMessages(root, msgs)}</div>`;
+}
+function draftCard(c) {
+  const editing = ui.editComment === c.id;
+  return `<div class="msg developer"><div class="who">you · waits for Send${c["reply-to"] ? "" : " · comment on the pull request"}</div>
+    ${editing ? `<textarea class="field" id="cedit-${esc(c.id)}" style="min-height:70px">${esc(c.body)}</textarea>
+      <div class="row-actions"><button class="btn go sm" data-csave="${esc(c.id)}">Save</button><button class="btn ghost sm" data-cedit="">Cancel</button></div>`
+    : `<div class="body md">${md("comment:" + c.id)}</div><div class="row-actions"><a class="muted" data-cedit="${esc(c.id)}">Edit</a><a class="muted" data-cdrop="${esc(c.id)}">Drop</a></div>`}</div>`;
+}
+function panelGhThread(root) {
+  const msgs = ghThreads().get(root); if (!msgs) return `<div class="muted">This thread is not on GitHub any more.</div>`;
+  return `<div class="crumb"><span>Thread on GitHub · ${ghPlace(msgs[0])}</span><a data-close-panel>✕</a></div>
+    <div style="margin-top:12px">${ghThreadMessages(root, msgs)}</div>`;
+}
+
 // ================================================================ the side panel
 function panelFinding(id) {
   const f = S().findings.find(x => x.id === id); if (!f) return `<div class="muted">No finding ${esc(id)}.</div>`;
@@ -716,7 +800,7 @@ function panelFinding(id) {
     <div class="box"><div class="l"><span>Draft comment to the author</span>${sent || editing ? "" : `<a data-edit="${esc(f.id)}">Edit</a>`}</div>
       ${editing ? `<textarea class="field" id="edit-comment" style="min-height:140px">${esc(f.comment)}</textarea>` : `<div class="md">${md(`finding:${f.id}:comment`)}</div>`}</div>
     <div class="row-actions">${actions}</div>
-    ${(f.sent || []).flatMap(x => x.replies || []).map(r => `<div class="box"><div class="l">${esc(r.author)} on GitHub</div>${esc(r.body)}</div>`).join("")}
+    ${sentAs(f).filter(root => ghThreads().has(root)).map(root => `<div class="box"><div class="l">On GitHub</div>${ghThreadMessages(root, ghThreads().get(root))}</div>`).join("")}
     ${threadsBlock(threadsOf("finding", f.id), { kind: "finding", id: f.id }, "Ask about this finding…")}`;
 }
 // Open threads in full; resolved ones folded under one line, so the conversation that matters stays in view. A question
@@ -786,7 +870,7 @@ function panelLog() {
 }
 function renderPanel() {
   const el = document.getElementById("panel"), app = document.getElementById("app"), p = ui.panel;
-  const body = !p || !R ? "" : p.finding ? panelFinding(p.finding) : p.thread ? panelThread(p.thread) : p.ask ? panelAsk(p.ask)
+  const body = !p || !R ? "" : p.finding ? panelFinding(p.finding) : p.thread ? panelThread(p.thread) : p.ghThread ? panelGhThread(p.ghThread) : p.ask ? panelAsk(p.ask)
     : p.newFinding ? panelNewFinding(p.newFinding) : p.log ? panelLog() : p.checkpoint ? panelCheckpoint() : "";
   // The panel starts under the tabs, level with the content beside it, so the header keeps its width. Over an open
   // use case it floats on top of it instead of pushing the use case aside.
@@ -865,6 +949,7 @@ function diffView(path, position) {
       : `<div class="banner"><span class="ok">✓</span> Nothing in the reviewed code still names <code>${esc(name)}</code>.</div>`);
   }
   const notes = threadsOf("file", path), anchored = findingsAt(path), whole = ["added", "deleted"].includes(info.change);
+  const github = [...ghThreads()].filter(([root, msgs]) => msgs[0].path === path && msgs[0].line != null && !findingOfThread(root));
   const sel = ui.selection && ui.selection.path === path ? ui.selection.lines : null;
   const opened = ui.panel && ui.panel.finding ? S().findings.find(f => f.id === ui.panel.finding) : null;
   const body = hunks.map(h => `<div class="hunk">${esc(h.header)}</div>` + h.lines.map(l => {
@@ -876,7 +961,9 @@ function diffView(path, position) {
     return `<div class="ln ${l.kind}${whole ? " whole" : ""}${inSel ? " sel" : ""}${shown && !ui.inline ? " open" : ""}${lit}" data-line="${n}" data-side="${side}">` +
       `<span class="no">${l.old ?? ""}</span><span class="no">${l.now ?? ""}</span>${gutter(here, key)}<span class="sg">${l.kind === "add" ? "+" : l.kind === "del" ? "−" : ""}</span><span class="c">${l.html}</span></div>` +
       (shown ? here.map(f => `<div class="ann${f === opened ? " on" : ""}" data-finding="${esc(f.id)}">${sev(f.severity)}<span>${who(f.by)} · ${esc(f.id)} · ${inline(f.title)}</span></div>`).join("") : "") +
-      talk.map(t => `<div class="ann" data-thread="${esc(t.id)}"><span class="tag">${t.messages[0].by === "agent" ? "✦" : "💬"} ${t.messages.length}</span><span>${noteTitle(t.messages[0].text)}</span></div>`).join("");
+      talk.map(t => `<div class="ann" data-thread="${esc(t.id)}"><span class="tag">${t.messages[0].by === "agent" ? "✦" : "💬"} ${t.messages.length}</span><span>${noteTitle(t.messages[0].text)}</span></div>`).join("") +
+      github.filter(([, msgs]) => msgs[0].line === n && (msgs[0].side || "RIGHT") === side).map(([root, msgs]) =>
+        `<div class="ann${ui.panel && ui.panel.ghThread === root ? " on" : ""}" data-gh-thread="${root}"><span class="tag blue">GitHub · ${msgs.length}</span><span>${esc(msgs[0].author || "")}: ${noteTitle(msgs[0].body)}</span></div>`).join("");
   }).join("")).join("");
   return `<div class="diffcard">${head}${banner}<div class="diffbody" data-diff="${esc(path)}">${body || '<div class="banner">No lines changed.</div>'}</div></div>`;
 }
@@ -1194,7 +1281,7 @@ function render() {
   else if (!R) main.innerHTML = `<h1>${esc(current.id)}</h1><div class="card pending" style="margin-top:20px"><h3><span>Step 1 of ${STEPS.length} · Open the review</span></h3>
     <div>The AI agent reads the pull request, gives the review its own copy of the code, and stores the diff. The page fills in as soon as it has.</div>
     <div class="indeterminate"></div></div>`;
-  else main.innerHTML = renderHead() + `<div class="view">${progressLine()}${({ overview: viewOverview, findings: viewFindings, code: viewCode, structure: viewStructure }[ui.tab] || viewOverview)()}</div>`;
+  else main.innerHTML = renderHead() + `<div class="view">${progressLine()}${({ overview: viewOverview, findings: viewFindings, code: viewCode, structure: viewStructure, comments: viewComments }[ui.tab] || viewOverview)()}</div>`;
   main.scrollTop = y;
   document.title = (R && (waiting() || asking()) ? "● " : "") + "craftsman review";
   renderPanel(); layoutCards(false); ucPanel();
@@ -1238,7 +1325,8 @@ const stepIn = (list, at, by) => list[Math.min(list.length - 1, Math.max(0, list
 const CLICKABLE = ["tab", "sort", "restart", "inline", "gutter", "goto", "finding", "thread", "close-panel", "edit", "save", "status", "set-sev", "resolve", "compose", "view", "pick-file",
   "open-file", "step-file", "step-uc", "code-filter", "fsev", "fby", "fquestions", "fstatus", "answer", "live", "refresh", "send", "power",
   "close-review", "uccard", "close-uc", "ask-uc", "open-review", "archive", "new", "archived", "unarchive", "start", "pop", "new-finding", "nr-kind", "nr-how", "nr-browse",
-  "nf-sev", "nf-save", "answer-here", "agent-tools", "allow-tool", "tool-toggle", "nr-existing", "permit"].map(name => `[data-${name}]`).join(",");
+  "nf-sev", "nf-save", "answer-here", "agent-tools", "allow-tool", "tool-toggle", "nr-existing", "permit",
+  "gh-read", "gh-quote", "gh-reply-open", "gh-reply", "gh-thread", "comment-add", "cedit", "csave", "cdrop"].map(name => `[data-${name}]`).join(",");
 document.addEventListener("click", async e => {
   if (!e.target.closest("#pop")) { hidePop(); dropSelection(); }
   const t = e.target.closest(CLICKABLE); if (!t) return;
@@ -1269,6 +1357,26 @@ document.addEventListener("click", async e => {
   }
   if (d.threadFile && ui.tab === "structure" && ui.uc) { ui.ucFile = d.threadFile; ucPanel(); }
   if (d.thread) { ui.panel = ui.panel && ui.panel.thread === d.thread ? null : { thread: d.thread }; return render(); }
+  if (d.ghThread) { const root = +d.ghThread; ui.panel = ui.panel && ui.panel.ghThread === root ? null : { ghThread: root }; return render(); }
+  if (d.ghRead !== undefined) return readGithub();
+  if (d.ghQuote) {
+    const c = conversation().find(x => x.id === +d.ghQuote), box = document.getElementById("new-comment");
+    box.value = `> @${c.author} wrote:\n` + c.body.split("\n").map(l => "> " + l).join("\n") + "\n\n" + box.value;
+    box.focus(); box.scrollIntoView({ block: "center" }); return;
+  }
+  if (d.ghReplyOpen !== undefined) { ui.replyTo = d.ghReplyOpen ? +d.ghReplyOpen : null; render(); document.getElementById("reply-box")?.focus(); return; }
+  if (d.ghReply || d.commentAdd !== undefined) {
+    const box = document.getElementById(d.ghReply ? "reply-box" : "new-comment"), body = box.value.trim(); if (!body) return;
+    if (!(await change("add-comment", d.ghReply ? { body, "reply-to": +d.ghReply } : { body }))) return;
+    box.value = ""; ui.replyTo = null; return reload();
+  }
+  if (d.cedit !== undefined) { ui.editComment = d.cedit || null; return render(); }
+  if (d.csave) {
+    const body = document.getElementById("cedit-" + d.csave).value.trim(); if (!body) return;
+    if (!(await change("edit-comment", { comment: d.csave, body }))) return;
+    ui.editComment = null; return reload();
+  }
+  if (d.cdrop) return change("comment-status", { comment: d.cdrop, status: "deleted" }).then(o => o && reload());
   if (d.closePanel !== undefined) { ui.panel = null; ui.selection = null; document.querySelectorAll(".ln.sel").forEach(l => { if (!l.closest(".snip")) l.classList.remove("sel"); }); return render(); }
   if (d.edit !== undefined) { ui.editing = d.edit || null; return render(); }
   if (d.save) {
@@ -1309,19 +1417,20 @@ document.addEventListener("click", async e => {
     return api("/api/review/message", { ...K(), type: "close" }).then(o => o && toast("closing the review"));
   }
   if (d.send !== undefined) {
-    const marked = S().findings.filter(f => f.status === "to-send");
-    const ok = await ask(`Send ${plural(marked.length, "comment")} to ${esc(sourceLabel(S().source))}?`,
+    const marked = S().findings.filter(f => f.status === "to-send"), mine = myComments("to-send");
+    const ok = await ask(`Send ${plural(marked.length + mine.length, "comment")} to ${esc(sourceLabel(S().source))}?`,
       `<div class="muted" style="font-size:13px;margin-bottom:10px">Each finding goes as an inline comment on its first place; further places point back to it.
         Comments on GitHub cannot be taken back from here.</div>` +
       marked.map(f => `<div class="mrow">${sev(f.severity)}<span class="mono dim">${esc(f.id)}</span><span>${inline(f.title)}</span>` +
-        `<span class="w">${(f.locations || []).map(l => esc(l.path.split("/").pop()) + ":" + l.line).join(", ")}</span></div>`).join(""),
-      `Send ${plural(marked.length, "comment")}`);
+        `<span class="w">${(f.locations || []).map(l => esc(l.path.split("/").pop()) + ":" + l.line).join(", ")}</span></div>`).join("") +
+      mine.map(c => `<div class="mrow"><span class="tag">${c["reply-to"] ? "reply" : "comment"}</span><span class="mono dim">${esc(c.id)}</span><span>${esc(c.body.split("\n")[0].slice(0, 100))}</span><span class="w"></span></div>`).join(""),
+      `Send ${plural(marked.length + mine.length, "comment")}`);
     if (!ok) return;
     // one send at a time: the button stays disabled, through every re-render, until GitHub has answered
     ui.sending = true; render(); toast("sending…");
     const out = await api("/api/review/send", K()).finally(() => { ui.sending = false; });
     if (out) toast(`sent ${out.sent.length}` + (out.errors.length ? ` · problems: ${out.errors.join("; ")}` : ""));
-    return reload();
+    return readGithub();
   }
   if (d.uccard) return openUseCase(d.uccard);
   if (d.closeUc !== undefined) return openUseCase(ui.uc);
