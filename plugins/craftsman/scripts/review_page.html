@@ -1090,17 +1090,19 @@ function layoutCards(animate) {
     copy.style.cssText = `visibility:hidden;transition:none;left:0;top:0;width:${width}px`;
     box.appendChild(copy); const h = copy.offsetHeight; copy.remove(); return h;
   };
-  const heights = list.map(height), tops = [];
+  // in rows every card is as tall as the tallest of its row; beside the panel each keeps the height of its text
+  const heights = list.map(height), tops = [], rowHeight = [];
   let bottom = 0;
   if (ui.uc) heights.forEach(h => { tops.push(bottom); bottom += h + 14; });
   else for (let row = 0; row * cols < list.length; row++) {
-    const inRow = heights.slice(row * cols, (row + 1) * cols);
-    inRow.forEach(() => tops.push(bottom));
-    bottom += Math.max(...inRow) + 20;
+    const inRow = heights.slice(row * cols, (row + 1) * cols), tallest = Math.max(...inRow);
+    inRow.forEach(() => { tops.push(bottom); rowHeight.push(tallest); });
+    bottom += tallest + 20;
   }
   if (!animate) list.forEach(e => e.style.transition = "none");
   list.forEach((e, i) => {
     e.style.left = (ui.uc ? 0 : (i % cols) * (w + gap)) + "px"; e.style.top = tops[i] + "px"; e.style.width = width + "px";
+    e.style.height = ui.uc ? "" : rowHeight[i] + "px";
   });
   box.style.height = Math.max(0, bottom - (ui.uc ? 14 : 20)) + "px";
   if (!animate) { void box.offsetHeight; list.forEach(e => e.style.transition = ""); }

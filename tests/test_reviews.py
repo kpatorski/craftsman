@@ -494,6 +494,11 @@ class ReviewEndpointsTest(ReviewsTest):
         self.call("/api/review/change", {"id": ID, "action": "fix-prompts"})
         self.assertEqual(len(review_state.read(self.review)["comments"]), 2)
 
+    def test_the_use_case_cards_of_one_row_are_as_tall_as_its_tallest(self):
+        served = self.page(f"/review?review={ID}")
+
+        self.assertIn("e.style.height = ui.uc ? \"\" : rowHeight[i] + \"px\"", served)
+
     def test_the_review_page_has_the_fix_prompts(self):
         served = self.page(f"/review?review={ID}")
         for hook in ("data-fix-prompts", 'change("fix-prompts"', "data-in-prompt", 'change("in-prompt"'):
