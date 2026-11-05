@@ -112,7 +112,7 @@ def _tint(hex_colour, alpha):
     return f"rgba({_rgb(hex_colour)}, {_alpha(alpha)})"
 
 
-TEXT_SIZE = "112%"
+TEXT_SIZE = "109%"
 
 
 def theme_css(palette=None):
