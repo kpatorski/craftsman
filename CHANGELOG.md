@@ -3,6 +3,23 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.16.0
+
+- The review page has a **Rules** tab: every directive the review checks the code against, with a switch for this
+  review and a dot per use case for what it found there — findings, clean, not applicable, or not checked — and
+  "Check now" for a directive switched on after use cases were reviewed. One review's set can become the default for
+  every review (`review-directives` in the craftsman settings). It also lists the review's protocols.
+- `review_directives.py <review dir>` prints the directives a review checks: every directive the workshop enables,
+  unless the developer switched it for the review. `review.json` gains `directive-switches` and `checks`;
+  `review_state.py` gains `switch-directive` (the developer's) and `record-check` (the agent's). See REVIEW.md,
+  "Directives". Update the `code-review` bundle of the workshop together with this version — its `review-use-case`
+  checks every use case against all of them and records each result.
+- The directive reviewer reads a directive's `applies-when` as the code the rule is about: a change that contains such
+  code is checked against it.
+- A review that is still opening shows the permission prompts of its session on the review page, and they can be
+  answered there.
+- A review whose opening stopped before `review.json` was written starts again from the review page.
+
 ## 0.15.4
 
 - The root text size is 109% (`_theme.TEXT_SIZE`).

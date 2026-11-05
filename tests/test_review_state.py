@@ -334,6 +334,69 @@ class ReviewStateTest(unittest.TestCase):
         found = self.state()["findings"][0]
         self.assertEqual((found["severity"], found["edited"]), ("nit", ["severity"]))
 
+    def test_the_developer_switches_a_directive_on_or_off_for_this_review_only(self):
+        self.opened()
+
+        self.run_state("switch-directive", payload={"id": "naming", "on": False}, by="developer")
+        self.run_state("switch-directive", payload={"id": "prefer-lombok", "on": True}, by="developer")
+        self.run_state("switch-directive", payload={"id": "naming", "on": True}, by="developer")
+        refused = self.run_state("switch-directive", payload={"id": "naming", "on": False}, expect_ok=False)
+        self.run_state("switch-directive", payload={"id": "naming", "on": "no"}, by="developer", expect_ok=False)
+
+        self.assertIn("developer", refused.stderr)
+        self.assertEqual(self.state()["directive-switches"], {"naming": True, "prefer-lombok": True})
+
+    def test_the_developer_clears_the_reviews_own_switches_once_they_are_the_default(self):
+        self.opened()
+        self.run_state("switch-directive", payload={"id": "naming", "on": False}, by="developer")
+
+        self.run_state("clear-directive-switches", payload={}, expect_ok=False)
+        self.assertEqual(self.state()["directive-switches"], {"naming": False})
+        self.run_state("clear-directive-switches", payload={}, by="developer")
+
+        self.assertEqual(self.state()["directive-switches"], {})
+
+    def with_use_cases(self):
+        self.opened()
+        self.run_state("set", payload={"structure": {"use-cases": [
+            {"id": "u1", "name": "Cancel", "says": "Cancels.", "entry": "A.java:1", "files": ["A.java"]}]}})
+
+    def test_the_agent_records_what_each_directive_found_in_each_use_case(self):
+        self.with_use_cases()
+
+        self.run_state("record-check", payload={"use-case": "u1", "directive": "naming", "result": "findings"})
+        self.run_state("record-check", payload={"use-case": "untied", "directive": "naming", "result": "clean"})
+        self.run_state("record-check", payload={"use-case": "u1", "directive": "logging", "result": "not-applicable",
+                                                "note": "nothing is logged"})
+        self.run_state("record-check", payload={"use-case": "u1", "directive": "naming", "result": "clean"})
+
+        self.assertEqual([(c["use-case"], c["directive"], c["result"], c.get("note")) for c in self.state()["checks"]],
+                         [("untied", "naming", "clean", None), ("u1", "logging", "not-applicable", "nothing is logged"),
+                          ("u1", "naming", "clean", None)])
+        self.assertTrue(all(c["at"] for c in self.state()["checks"]))
+
+    def test_a_check_names_a_known_use_case_and_a_known_result_and_is_the_agents(self):
+        self.with_use_cases()
+
+        for payload, by in (({"use-case": "u9", "directive": "naming", "result": "clean"}, None),
+                            ({"use-case": "u1", "directive": "naming", "result": "fine"}, None),
+                            ({"use-case": "u1", "result": "clean"}, None),
+                            ({"use-case": "u1", "directive": "naming", "result": "clean"}, "developer")):
+            with self.subTest(payload=payload, by=by):
+                self.run_state("record-check", payload=payload, by=by, expect_ok=False)
+        self.assertEqual(self.state()["checks"], [])
+
+    def test_a_review_started_before_directives_were_switched_takes_the_new_fields(self):
+        self.with_use_cases()
+        state = self.state()
+        del state["checks"], state["directive-switches"]
+        (self.review / "review.json").write_text(json.dumps(state))
+
+        self.run_state("record-check", payload={"use-case": "u1", "directive": "naming", "result": "clean"})
+        self.run_state("switch-directive", payload={"id": "naming", "on": False}, by="developer")
+
+        self.assertEqual((len(self.state()["checks"]), self.state()["directive-switches"]), (1, {"naming": False}))
+
     def test_the_developer_marks_the_files_they_have_viewed(self):
         self.opened()
 

@@ -179,6 +179,17 @@ class ReleaseAndRestoreTest(unittest.TestCase):
         self.assertFalse(checkout.clone_dir(PULL).exists())
         self.assertTrue((review / "review.json").exists())
 
+    def test_a_review_that_stopped_before_its_state_was_written_is_released_through_the_checkout_given(self):
+        clone = checkout.clone(PULL)
+        review = self.tmp / "home" / "reviews" / "org-booking-pr-123"
+        review.mkdir(parents=True)
+        git("worktree", "add", "-q", "--detach", str(review / "worktree"), self.head, cwd=clone)
+
+        checkout.release(review, clone)
+
+        self.assertFalse((review / "worktree").exists())
+        self.assertFalse(clone.exists())
+
     def test_a_clone_another_open_review_reads_from_is_kept(self):
         first = self.review("org-booking-pr-123", checkout.clone_dir(PULL))
         second = self.review("org-booking-pr-124", checkout.clone_dir(PULL))

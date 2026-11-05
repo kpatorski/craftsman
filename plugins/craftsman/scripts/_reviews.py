@@ -6,12 +6,15 @@ import os
 import pathlib
 import re
 
+import _settings
 import github_conversation
+import review_directives
 import review_state
 from _markdown import render_markdown
 
 ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
-MESSAGE_FIELDS = {"answer": ("checkpoint", "option"), "refresh": (), "ask": ("thread",), "close": ()}
+MESSAGE_FIELDS = {"answer": ("checkpoint", "option"), "refresh": (), "ask": ("thread",), "close": (),
+                  "check": ("directive",)}
 DIFF_HEADER = re.compile(r"^diff --git a/(.*) b/(.*)$")
 
 
@@ -67,10 +70,11 @@ def list_reviews():
     return listed
 
 
-def read_review(review_id):
+def read_review(review_id, content=None):
     """The state, plus what the server works out from the diff: every changed file with how it changed, which use
     cases it belongs to and whether the developer viewed it, and the files no use case reaches; the head whose diff
-    is missing, or None; and the conversation last read from the pull request, or None."""
+    is missing, or None; the conversation last read from the pull request, or None; and the directives the review
+    could check, with whether it does, and the protocols it runs, from the workshop in `content`."""
     review = review_dir(review_id)
     state = review_state.read(review)
     use_cases = (state.get("structure") or {}).get("use-cases", [])
@@ -80,6 +84,9 @@ def read_review(review_id):
     conversation = github_conversation.read(review)
     return {"state": state, "pending": len(pending_messages(review)), "html": rendered(state, conversation),
             "github": conversation,
+            "directives": review_directives.listed(content or review_directives.CONTENT, state,
+                                                   _settings.review_directives()),
+            "protocols": review_directives.protocols(content or review_directives.CONTENT),
             "missing-diff": None if (review / "diff" / f"{state['head']}.diff").is_file() else state["head"],
             "console": console_lines(review), "files": files,
             "untied": [changed["path"] for changed in files if not changed["use-cases"]]}
@@ -194,7 +201,7 @@ def references(review_id, path, limit=50):
     return found[:limit]
 
 
-def developer_change(review_id, action, body):
+def developer_change(review_id, action, body, content=None):
     """A change the page makes as the developer. A question or a reply in a thread also goes to the inbox, so the
     review's session answers it. Raises Refused."""
     review = review_dir(review_id)
@@ -228,6 +235,18 @@ def developer_change(review_id, action, body):
     if action == "comment-status":
         return review_state.change(review, "comment-status", {"status": body.get("status")}, "developer",
                                    body.get("comment"))
+    if action == "switch-directive":
+        # `id` names the review; the directive comes as `directive`
+        return review_state.change(review, "switch-directive", {"id": body.get("directive"), "on": body.get("on")},
+                                   "developer")
+    if action == "default-directives":
+        # the review's set becomes the default for every review; its own switches then say nothing more
+        chosen = review_directives.listed(content or review_directives.CONTENT, review_state.read(review),
+                                          _settings.review_directives())
+        _settings.update("review-directives", {d["id"]: d["on"] for d in chosen if d["on"] != d["enabled"]})
+        return review_state.change(review, "clear-directive-switches", {}, "developer")
+    if action == "check-directive":
+        return add_message(review_id, {"type": "check", "directive": body.get("directive")})
     if action == "answer":
         checkpoint = review_state.read(review).get("checkpoint") or {}
         review_state.change(review, "answer", {"option": body.get("option"), "note": body.get("note")}, "developer")

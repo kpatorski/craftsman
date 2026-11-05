@@ -21,6 +21,8 @@ sys.path.insert(0, str(SCRIPTS))
 import _reviews as reviews  # noqa: E402
 import dashboard_server  # noqa: E402
 import review_state  # noqa: E402
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from test_review_directives import workshop  # noqa: E402
 
 SOURCE = {"kind": "pull-request", "url": "https://github.com/org/booking/pull/123", "repository": "org/booking",
           "number": 123}
@@ -155,6 +157,40 @@ class ReviewsTest(unittest.TestCase):
             reviews.add_message(ID, {"type": "ask"})
 
         self.assertEqual(self.inbox(), [])
+
+    def test_the_review_lists_every_directive_it_could_check_and_the_protocols_it_runs(self):
+        workshop(self.tmp / "content")
+        reviews.developer_change(ID, "switch-directive", {"directive": "naming", "on": False})
+
+        read = reviews.read_review(ID, self.tmp / "content")
+
+        self.assertEqual({d["id"]: d["on"] for d in read["directives"]},
+                         {"naming": False, "no-explanatory-comments": True, "prefer-lombok": False,
+                          "test-naming": True, "characterize": False})
+        self.assertEqual([p["id"] for p in read["protocols"]], ["open-review", "review-use-case"])
+
+    def test_the_developer_makes_a_reviews_set_of_directives_the_default_for_every_review(self):
+        workshop(self.tmp / "content")
+        reviews.developer_change(ID, "switch-directive", {"directive": "naming", "on": False})
+        reviews.developer_change(ID, "switch-directive", {"directive": "prefer-lombok", "on": True})
+        reviews.developer_change(ID, "switch-directive", {"directive": "test-naming", "on": True})
+
+        reviews.developer_change(ID, "default-directives", {}, self.tmp / "content")
+
+        settings = json.loads((self.home / "settings.json").read_text())
+        self.assertEqual(settings["review-directives"], {"naming": False, "prefer-lombok": True})
+        self.assertEqual(review_state.read(self.review)["directive-switches"], {})
+        read = reviews.read_review(ID, self.tmp / "content")
+        self.assertEqual({d["id"]: (d["default"], d["on"]) for d in read["directives"]}["naming"], (False, False))
+
+    def test_the_page_asks_the_agent_to_check_one_directive_in_the_use_cases_already_reviewed(self):
+        reviews.developer_change(ID, "check-directive", {"directive": "no-explanatory-comments"})
+
+        lines = (self.review / "inbox.jsonl").read_text().splitlines()
+        self.assertEqual(json.loads(lines[-1])["type"], "check")
+        self.assertEqual(json.loads(lines[-1])["directive"], "no-explanatory-comments")
+        with self.assertRaises(review_state.Refused):
+            reviews.developer_change(ID, "check-directive", {})
 
     def test_the_page_adds_the_developers_own_finding(self):
         reviews.developer_change(ID, "add-finding", {"fields": {
@@ -392,6 +428,46 @@ class ReviewEndpointsTest(ReviewsTest):
         self.assertEqual(status, 200)
         self.assertEqual(body["state"]["scope"], "Cancels a reservation.")
 
+    def test_a_review_still_opening_answers_with_its_session_and_what_it_asks_permission_for(self):
+        shutil.rmtree(self.review)
+        self.review.mkdir(parents=True)
+
+        status, body = self.call(f"/api/review?id={ID}")
+
+        self.assertEqual((status, body["opening"], body["running"], body["permissions"]), (200, True, False, []))
+        self.assertIn("opening.permissions", self.page(f"/review?review={ID}"))
+
+    def test_an_answer_to_a_permission_request_reaches_a_review_still_opening(self):
+        shutil.rmtree(self.review)
+        self.review.mkdir(parents=True)
+
+        status, body = self.call("/api/review/permission", {"id": ID, "request": "r1", "answer": "allow"})
+
+        self.assertEqual(status, 409)
+        self.assertIn("does not wait for 'r1'", body["error"])
+
+    def test_the_page_reads_the_directives_of_the_workshop_the_server_serves(self):
+        workshop(self.tmp / "content")
+
+        status, body = self.call(f"/api/review?id={ID}")
+
+        self.assertEqual(status, 200)
+        self.assertIn("no-explanatory-comments", [d["id"] for d in body["directives"]])
+
+    def test_the_page_switches_a_directive_of_the_review_it_shows(self):
+        status, body = self.call("/api/review/change", {"id": ID, "action": "switch-directive",
+                                                         "directive": "naming", "on": False})
+
+        self.assertEqual(status, 200, body)
+        self.assertEqual(review_state.read(self.review)["directive-switches"], {"naming": False})
+
+    def test_the_review_page_lists_the_directives_with_their_switches_and_results(self):
+        served = self.page(f"/review?review={ID}")
+        for hook in ('["rules", "Rules"', "data-directive-switch", "data-directive-check", "switch-directive",
+                     "data-directive-default", "default-directives"):
+            with self.subTest(hook=hook):
+                self.assertIn(hook, served)
+
     def test_the_page_sees_whether_the_agent_is_in_a_turn_and_how_long_it_has_been_quiet(self):
         status, body = self.call(f"/api/review?id={ID}")
         self.assertEqual((status, body["working"], body["quiet"]), (200, False, None))
@@ -452,6 +528,15 @@ class ReviewEndpointsTest(ReviewsTest):
 
         self.assertEqual(status, 200)
         self.assertFalse(dashboard_server.Handler.hub.session(BRANCHES).running())
+
+    def test_a_review_the_page_asked_about_before_it_existed_still_starts(self):
+        self.call(f"/api/review?id={BRANCHES}")
+        self.call("/api/review/permission", {"id": BRANCHES, "request": "r1", "answer": "allow"})
+
+        status, body = self.call("/api/review/start", {"checkout": str(self.checkout), "source": "main:feature/x"})
+
+        self.assertEqual((status, body.get("id")), (200, BRANCHES), body)
+        self.assertTrue(dashboard_server.Handler.hub.session(BRANCHES).running())
 
     def test_the_page_allows_an_mcp_server_in_reviews_and_takes_it_back(self):
         status, body = self.call("/api/review/tools", {"id": ID, "rule": "mcp__jira", "allow": True})

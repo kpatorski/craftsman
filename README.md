@@ -192,7 +192,7 @@ already has. Every finding is a proposed PR comment: edit it, delete it, or mark
 GitHub whenever you like — nothing is posted before that.
 
 Reviews have their own page, `/review` on the dashboard server, apart from the dashboard. The reviews are tiles in a
-rail on the left; the open one has five tabs:
+rail on the left; the open one has six tabs:
 
 - **Overview** — what the PR is for, as how the system behaves before it and after it, what it leaves out, the
   review's progress, and the agent's questions to answer.
@@ -207,6 +207,10 @@ rail on the left; the open one has five tabs:
 - **Comments** — the PR's conversation on GitHub as it reads there: everyone's comments, reviews and threads on the
   code, read again after every Send and on request. Write a comment on the whole PR, quote one to answer it, or reply
   in a thread; yours wait for Send. A thread on a line of the diff also shows under that line in the code.
+- **Rules** — every directive the review checks the code against, with a switch for this review and what each one
+  found in each use case: findings, clean, not applicable, or not checked yet — then "Check now". The review checks
+  every directive switched on here; the agent never picks among them. One review's set can become the default for
+  every review.
 
 Select lines in any diff to ask the agent about them or to add your own finding. A progress strip under the tabs says
 which of the review's steps the agent is at and what it does there; the header says whether it is working, idle, or

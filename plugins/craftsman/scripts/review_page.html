@@ -250,6 +250,15 @@
   .switch i { width: 28px; height: 16px; border-radius: 999px; background: var(--switch-off); position: relative; }
   .switch i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--knob); }
   .switch.on i { background: var(--neon-strong); } .switch.on i::after { left: 14px; }
+  .rrow { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto auto 92px; gap: 14px; align-items: center; padding: 10px 0;
+    border-top: 1px solid var(--line); }
+  .rrow:first-child { border-top: 0; } .rrow.off .rid, .rrow.off .muted { opacity: .55; }
+  .rid { font-family: var(--mono); font-weight: 400; font-size: .8125rem; }
+  .cks { display: inline-flex; gap: 4px; flex-wrap: wrap; max-width: 260px; }
+  .ck { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--line2); vertical-align: middle; }
+  .ck.findings { background: var(--should); border-color: var(--should); } .ck.clean { background: var(--neon); border-color: var(--neon); }
+  .ck-legend > span { margin-left: 14px; white-space: nowrap; } .ck-legend .ck { margin-right: 5px; }
+  .ck.not-applicable { background: var(--nit-dot); border-color: var(--nit-dot); } .ck.failed, .ck.missing { border-color: var(--must); }
   .sevn { display: inline-flex; gap: 4px; align-items: center; color: var(--muted); } .sevn i { width: 7px; height: 7px; border-radius: 50%; margin-left: 4px; }
   .ln.sel { background: var(--select-bg); box-shadow: 2px 0 0 var(--select) inset; }
   .ann { margin: 4px 16px 8px 106px; padding: 8px 12px; border-radius: 10px; background: var(--card2); border: 1px solid var(--line);
@@ -341,7 +350,7 @@ let reviewsList = [], R = null, deferred = false;
 const ui = { tab: params.get("tab") || "overview", panel: null, file: params.get("file"), uc: null, ucFile: null,
   fsev: null, fby: null, fstatus: "open", fcat: "", fquestions: false, search: "", codeFilter: "all", editing: null,
   selection: null, sort: { key: "severity", dir: 1 }, inline: localStorage.getItem("craftsman-review-inline") === "1", open: new Set(),
-  ghRead: new Set(), ghReading: false, replyTo: null, editComment: null };
+  ghRead: new Set(), ghReading: false, replyTo: null, editComment: null, rfilter: "all" };
 ui.nr = newReview();
 if (params.has("new")) {
   // opened by /craftsman:pr-review <source>: the wizard, with the source filled in
@@ -377,6 +386,8 @@ const STEPS = [["open-review", "Open the review", "fetches the PR, checks out it
 const stepAt = id => STEPS.findIndex(([k]) => k === id);
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
+// a review the agent is still opening: no state yet, only whether its session runs and what it asks permission for
+let opening = null;
 async function reload() {
   const list = await fetch("/api/reviews");
   reviewsList = list.ok ? (await list.json()).reviews : [];
@@ -387,10 +398,12 @@ async function reload() {
   }
   if (current.id) {
     const r = await fetch("/api/review?" + q());
-    const fresh = r.ok ? await r.json() : null;
+    let fresh = r.ok ? await r.json() : null;
+    opening = fresh && fresh.opening ? fresh : null;
+    if (opening) fresh = null;
     if (fresh && R && fresh.state.head !== R.state.head) Object.keys(diffs).forEach(k => delete diffs[k]);
     R = fresh; if (R) R.seenAt = Date.now();
-  } else R = null;
+  } else R = opening = null;
   render();
   if (R && pull(S().source) && !ui.ghRead.has(current.id)) readGithub();
 }
@@ -617,7 +630,8 @@ function renderHead() {
     s.source.kind === "branches" ? `${s.source.target} ← ${s.source.source}` : "");
   const tabs = [["overview", "Overview", ""], ["structure", "Structure", useCases().length || ""],
     ["code", "Code", plural(files.length, "file")], ["findings", "Findings", live(s.findings).length],
-    ["comments", "Comments", pr ? conversation().length + myComments("to-send").length : ""]];
+    ["comments", "Comments", pr ? conversation().length + myComments("to-send").length : ""],
+    ["rules", "Rules", (R.directives || []).filter(d => d.on).length]];
   return `<div class="head"><div>
       <div class="title"><h1>${esc((s.source && s.source.title) || sourceLabel(s.source))}</h1>
         ${pr ? `<span class="tag">PR #${pr.number}</span>` : '<span class="tag">no PR</span>'}
@@ -1154,6 +1168,51 @@ function showTip(card) {
   tip.style.display = "block";
 }
 
+// ================================================================ rules
+// Every directive the review could check, as the server lists it, with what it found in each use case; the review's
+// agent checks every directive switched on here, never a choice of its own.
+const CHECK = { findings: "findings", clean: "clean", "not-applicable": "not applicable", failed: "not checked: the reviewer failed" };
+function checkPlaces() {
+  const list = useCases().map(u => ({ id: u.id, name: u.name, reviewed: u.status === "reviewed" }));
+  if ((R.untied || []).length) list.push({ id: "untied", name: "Not tied to a use case", reviewed: useCases().every(u => u.status === "reviewed") });
+  return list;
+}
+function checksOf(id) { return (S().checks || []).filter(c => c.directive === id); }
+function unchecked(d) {
+  const done = new Set(checksOf(d.id).filter(c => c.result !== "failed").map(c => c["use-case"]));
+  return checkPlaces().filter(u => u.reviewed && !done.has(u.id));
+}
+function viewRules() {
+  const all = R.directives || [], found = id => live(S().findings).filter(f => f.directive === id).length;
+  const groups = { all: () => true, on: d => d.on, off: d => !d.on, findings: d => d.on && found(d.id),
+    unchecked: d => d.on && unchecked(d).length };
+  const shown = all.filter(groups[ui.rfilter] || groups.all), places = checkPlaces();
+  const chip = (k, l) => `<button class="chip${ui.rfilter === k ? " on" : ""}" data-rfilter="${k}">${l} <b>${all.filter(groups[k]).length}</b></button>`;
+  const cell = (d, u) => {
+    const c = checksOf(d.id).find(x => x["use-case"] === u.id);
+    const what = !d.on ? "switched off" : c ? CHECK[c.result] + (c.note ? ` — ${c.note}` : "") : u.reviewed ? "not checked" : "not reviewed yet";
+    return `<i class="ck ${d.on && c ? c.result : u.reviewed && d.on ? "missing" : "none"}" title="${esc(u.name)}: ${esc(what)}"></i>`;
+  };
+  const row = d => {
+    const missing = d.on ? unchecked(d) : [], n = found(d.id);
+    return `<div class="rrow${d.on ? "" : " off"}">
+      <span class="switch${d.on ? " on" : ""}" data-directive-switch="${esc(d.id)}" title="${d.on ? "Checked by this review — click to switch off" : "Not checked — click to switch on"}"><i></i></span>
+      <div style="min-width:0"><div><b class="rid">${esc(d.id)}</b>${d.bundle ? ` <span class="tag">${esc(d.bundle)}</span>` : ""}${d.on !== d.default ? ` <span class="muted" style="font-size:.75rem">${d.on ? "on for this review only" : "off for this review only"}</span>`
+          : d.default !== d.enabled ? ` <span class="muted" style="font-size:.75rem">${d.on ? "on in your review set" : "off in your review set"}</span>` : ""}</div>
+        <div class="muted" style="font-size:.8125rem">${esc(d.title)}</div></div>
+      <span class="cks">${places.map(u => cell(d, u)).join("")}</span>
+      <span class="muted" style="font-size:.8125rem;white-space:nowrap">${n ? `<a data-tab="findings" style="color:var(--should)">${plural(n, "finding")}</a>` : ""}</span>
+      <span>${missing.length ? `<button class="btn ghost sm" data-directive-check="${esc(d.id)}" title="Check ${esc(missing.map(u => u.name).join(", "))}">Check now</button>` : ""}</span></div>`;
+  };
+  const steps = R.protocols || [];
+  return `<div class="filters">${chip("all", "All")}${chip("on", "Checked")}${chip("off", "Switched off")}${chip("findings", "With findings")}${chip("unchecked", "Not checked yet")}
+      ${all.some(d => d.on !== d.default) ? `<button class="btn ghost sm" data-directive-default title="New and open reviews check this set unless switched for one review">Make this set the default for every review</button>` : ""}
+      <span class="muted ck-legend" style="font-size:.8125rem">Each dot is a use case: <span><i class="ck findings"></i>findings</span><span><i class="ck clean"></i>clean</span><span><i class="ck not-applicable"></i>not applicable</span><span><i class="ck missing"></i>not checked</span></span></div>
+    <div class="card" style="padding:6px 20px">${shown.map(row).join("") || '<div class="muted" style="padding:14px 0">No directive matches.</div>'}</div>
+    <section class="card" style="margin-top:16px"><h3><span>Protocols the review runs</span><span>switched in the workshop, on the dashboard</span></h3>
+      ${steps.map((p, i) => `<div class="row"><span class="muted">${i + 1}</span><span${p.enabled ? "" : ' class="muted"'}>${esc(p.title)} <span class="muted rid">${esc(p.id)}</span></span><span class="muted">${p.enabled ? "" : "off"}</span></div>`).join("") || '<div class="muted">No review protocols are installed.</div>'}</section>`;
+}
+
 // ================================================================ new and archived reviews
 // The new-review wizard: what is reviewed, then where its code is read from. `ui.nr` holds what is filled in, so a
 // refresh of the page never loses it; the checkout is checked by the server as it is typed or picked.
@@ -1295,10 +1354,10 @@ function render() {
   if (ui.tab === "new" || (!current.id && !R && !["archived", "tools"].includes(ui.tab))) main.innerHTML = viewNew();
   else if (ui.tab === "archived") main.innerHTML = viewArchived();
   else if (ui.tab === "tools") main.innerHTML = viewTools();
-  else if (!R) main.innerHTML = `<h1>${esc(current.id)}</h1><div class="card pending" style="margin-top:20px"><h3><span>Step 1 of ${STEPS.length} · Open the review</span></h3>
+  else if (!R) main.innerHTML = `<h1>${esc(current.id)}</h1>${opening && opening.running ? (opening.permissions || []).map(permitCard).join("") : ""}<div class="card pending" style="margin-top:20px"><h3><span>Step 1 of ${STEPS.length} · Open the review</span></h3>
     <div>The AI agent reads the pull request, gives the review its own copy of the code, and stores the diff. The page fills in as soon as it has.</div>
     <div class="indeterminate"></div></div>`;
-  else main.innerHTML = renderHead() + `<div class="view">${progressLine()}${({ overview: viewOverview, findings: viewFindings, code: viewCode, structure: viewStructure, comments: viewComments }[ui.tab] || viewOverview)()}</div>`;
+  else main.innerHTML = renderHead() + `<div class="view">${progressLine()}${({ overview: viewOverview, findings: viewFindings, code: viewCode, structure: viewStructure, comments: viewComments, rules: viewRules }[ui.tab] || viewOverview)()}</div>`;
   main.scrollTop = y;
   document.title = (R && (waiting() || asking()) ? "● " : "") + "craftsman review";
   renderPanel(); layoutCards(false); ucPanel();
@@ -1343,7 +1402,8 @@ const CLICKABLE = ["tab", "sort", "restart", "inline", "gutter", "goto", "findin
   "open-file", "step-file", "step-uc", "code-filter", "fsev", "fby", "fquestions", "fstatus", "answer", "live", "refresh", "send", "power",
   "close-review", "uccard", "close-uc", "ask-uc", "open-review", "archive", "new", "archived", "unarchive", "start", "pop", "new-finding", "nr-kind", "nr-how", "nr-browse",
   "nf-sev", "nf-save", "answer-here", "agent-tools", "allow-tool", "tool-toggle", "nr-existing", "permit",
-  "gh-read", "gh-quote", "gh-reply-open", "gh-reply", "gh-thread", "comment-add", "cedit", "csave", "cdrop"].map(name => `[data-${name}]`).join(",");
+  "gh-read", "gh-quote", "gh-reply-open", "gh-reply", "gh-thread", "comment-add", "cedit", "csave", "cdrop",
+  "directive-switch", "directive-check", "directive-default", "rfilter"].map(name => `[data-${name}]`).join(",");
 document.addEventListener("click", async e => {
   if (!e.target.closest("#pop")) { hidePop(); dropSelection(); }
   const t = e.target.closest(CLICKABLE); if (!t) return;
@@ -1423,6 +1483,15 @@ document.addEventListener("click", async e => {
     if (!R.running && !S().closed) return api("/api/review/resume", K()).then(() => reload());
     ui.panel = ui.panel && ui.panel.log ? null : { log: true }; return render();
   }
+  if (d.rfilter) { ui.rfilter = d.rfilter; return render(); }
+  if (d.directiveSwitch) {
+    const on = !(R.directives || []).find(x => x.id === d.directiveSwitch).on;
+    return change("switch-directive", { directive: d.directiveSwitch, on }).then(o => o && reload());
+  }
+  if (d.directiveDefault !== undefined) return change("default-directives", {})
+    .then(o => o && (toast("this set of directives is now the default for every review"), reload()));
+  if (d.directiveCheck) return change("check-directive", { directive: d.directiveCheck })
+    .then(o => o && toast(`asked AI Agent to check ${d.directiveCheck} in the use cases already reviewed`));
   if (d.refresh !== undefined) return api("/api/review/message", { ...K(), type: "refresh" }).then(o => o && toast("asked AI Agent to read the PR again"));
   if (d.restart !== undefined) {
     toast("restarting the session");

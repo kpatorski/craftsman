@@ -19,8 +19,10 @@ Your prompt gives you:
 Do this:
 
 1. Read every directive file in full. Its `## Directive` section is the rule set: each "Must" item, each "Must not"
-   item, each explicit rule. `applies-when` says when it applies; if it does not apply to this change, say so for
-   that directive and move on.
+   item, each explicit rule. `applies-when` names the moment a developer writes the code the rule is about — "about
+   to write a comment explaining what code does" — so here it applies when the change contains such code: a change
+   that adds an explaining comment is checked against that directive. A directive is not applicable only when the
+   change contains nothing its rules are about; say so for that directive, with what you looked for, and move on.
 2. Read the diff, and every new file in full. Read surrounding code only where a rule needs it (a name's other uses,
    a class's other methods).
 3. For every directive, check every rule against every changed line it can apply to.
@@ -47,7 +49,7 @@ then one line per file you could not read:
     VIOLATION | <directive id> | <file>:<line> | "<the rule, quoted from the directive>" | <what the line does> | <the smallest change that satisfies the rule>
     CONVENTION | <directive id> | <file>:<line> | "<the rule, quoted from the directive>" | <what the line does> | <existing file>:<line> that does the same
     CLEAN | <directive id> | <one phrase: what you checked it against>
-    NOT APPLICABLE | <directive id> | <why its applies-when does not match this change>
+    NOT APPLICABLE | <directive id> | <what its rules are about, and that the change contains none of it>
     UNREADABLE | <path> | <the error>
 
 Every directive you were given appears in exactly one CLEAN or NOT APPLICABLE line, or in at least one VIOLATION or

@@ -158,10 +158,12 @@ def restore(review):
         raise Refused(f"the worktree of {review.name} at {state['head'][:12]} failed: {made.stderr.strip()}")
 
 
-def release(review):
-    """Delete the review's worktree, and its clone when no other open review reads from it. The state stays."""
+def release(review, checkout=None):
+    """Delete the review's worktree, and its clone when no other open review reads from it. The state stays. A review
+    that stopped before its state was written names no checkout: `checkout` is the one it was started in."""
     review = pathlib.Path(review)
-    folder = pathlib.Path(review_state.read(review).get("checkout") or "")
+    state = review_state.read(review) if (review / "review.json").is_file() else {}
+    folder = pathlib.Path(state.get("checkout") or checkout or "")
     worktree = review / "worktree"
     if (folder / ".git").exists():
         git("worktree", "remove", "--force", str(worktree), cwd=folder)

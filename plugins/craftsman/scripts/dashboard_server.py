@@ -93,7 +93,14 @@ class Hub:
         with self.lock:
             if review_id not in self.sessions:
                 self.sessions[review_id] = _review_session.ReviewSession(review_id, checkout)
+            elif checkout is not None:
+                self.sessions[review_id].checkout = pathlib.Path(checkout)
             return self.sessions[review_id]
+
+    def running_session(self, review_id):
+        """The review's session when the server has one, without making one."""
+        with self.lock:
+            return self.sessions.get(review_id)
 
     def forget(self, review_id):
         """Stop a review's session and drop it, so the review can start over with a new one."""
@@ -267,7 +274,7 @@ class Handler(BaseHTTPRequestHandler):
                         existing=dict(id=review_id, archived=archived, closed=closed)))
                 if existing.exists():
                     self.hub.forget(review_id)
-                    checkouts.release(existing)
+                    checkouts.release(existing, checkout)
                     shutil.rmtree(existing)
                 if body.get("clone"):
                     checkout = checkouts.clone(source)
@@ -278,10 +285,21 @@ class Handler(BaseHTTPRequestHandler):
                     raise review_state.Refused(f"not a review id: {review_id!r}")
                 self.hub.session(review_id).stop()
                 return self.send(200, dict(ok=True))
+            if path in ("/api/review", "/api/review/permission") and reviews.ID.match(review_id) and \
+                    not (reviews.reviews_root() / review_id / "review.json").is_file():
+                # the agent is still opening it: the page shows the step, and what the agent asks permission for
+                runner = self.hub.running_session(review_id)
+                if path == "/api/review/permission":
+                    if runner is None:
+                        raise review_state.Refused(f"the session does not wait for {body.get('request')!r}")
+                    runner.answer(str(body.get("request", "")), str(body.get("answer", "")), rule=body.get("rule"),
+                                  reason=body.get("reason"))
+                return self.send(200, dict(opening=True, running=bool(runner and runner.running()),
+                                           permissions=runner.permission_requests() if runner else []))
             review = reviews.review_dir(review_id)
             runner = self.hub.session(review_id)
             if path == "/api/review":
-                return self.send(200, dict(reviews.read_review(review_id), running=runner.running(),
+                return self.send(200, dict(reviews.read_review(review_id, self.hub.content), running=runner.running(),
                                            working=runner.working(), background=runner.background,
                                            quiet=runner.quiet(), restoring=runner.restoring,
                                            problem=runner.problem, tools=_review_session.agent_tools(review),
@@ -312,7 +330,7 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/review/github":
                 return self.send(200, github_conversation.fetch(review))
             if path == "/api/review/change":
-                reviews.developer_change(review_id, body.get("action"), body)
+                reviews.developer_change(review_id, body.get("action"), body, self.hub.content)
                 if body.get("action") == "archive" and body.get("archived"):
                     runner.stop()
                     checkouts.release(review)

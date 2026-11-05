@@ -99,6 +99,9 @@ be missed:
 - `untied` — the changed files no use case reaches. The page shows them as one more card, so every changed file is
   in a card;
 - `github` — the content of `github.json`, or null before the conversation was first read;
+- `directives` — every directive the review could check, from `review_directives.py`: `id`, `title`, `description`,
+  `bundle`, `path`, `enabled` (by the workshop) and `on` (for this review) — see "Directives";
+- `protocols` — the protocols of the `code-review` bundle, in order, each with `id`, `title` and `enabled`;
 - `missing-diff` — `head` when `diff/<head>.diff` is missing, or null. The Code tab then says so instead of a diff,
   and `files` is empty.
 
@@ -166,6 +169,28 @@ request, or a reply in a thread on GitHub. Only the developer writes them, on th
 - `url` — its link on GitHub once sent, else null.
 - `at` — when it was written.
 
+### Directives
+
+The review checks every use case against every directive it has switched on, never a choice the agent makes.
+`scripts/review_directives.py <review dir>` prints them, `[{"id", "title", "path"}]`: every directive of the workshop,
+top-level or in an enabled bundle, that is switched on: by the review's own switch, else by the developer's default set
+for every review (`review-directives` in the craftsman settings), else by the workshop. The directives of the
+`code-review` bundle are not among them: they say how a finding is kinded and written.
+
+- `directive-switches` — `{<directive id>: true | false}`, what the developer switched on or off for this review on
+  the Rules tab. A directive not named here follows the default set. Only the developer changes it. "Make this set the
+  default for every review" stores the review's set, where it differs from the workshop, as `review-directives`, and
+  empties the review's own switches.
+- `checks` — what each directive found in each use case: `{"use-case", "directive", "result", "note", "at"}`, where
+  `use-case` is a use case's id or `untied` (the changed files no use case reaches), and `result` is `findings`,
+  `clean`, `not-applicable` (with the reviewer's reason in `note`) or `failed` (the reviewer did not answer for it). A
+  later check of the same directive in the same use case replaces the earlier one. Only the agent records them:
+  `review_state.py <review dir> record-check '{"use-case", "directive", "result", "note"}'`.
+
+The Rules tab lists every directive with its switch and a dot per use case for what it found there; a directive
+switched on with a reviewed use case it has not checked offers "Check now", which asks the agent to check it there.
+The tab also lists the review's protocols; they are switched in the workshop, not per review.
+
 ## Rules on changing the state
 
 - **The developer's edits win.** The agent never changes a field listed in a finding's `edited`. To propose a
@@ -210,12 +235,13 @@ not yet in `handled`, it passes those first.
 | `ask`     | `thread`                       | reads the thread's last message and replies in the same thread |
 | `refresh` | —                              | reads the PR or branches again, re-checks the findings         |
 | `close`   | —                              | sets `closed` and ends the run                                 |
+| `check`   | `directive`                    | checks the use cases already reviewed against that directive   |
 
 A question from the page opens a thread, or adds to one, before its `ask` line is written.
 
-Edits, deletions, "to send", comments, "viewed" and archiving on the page do not go through the inbox: the server
-applies them to `review.json` through `review_state.py` directly, and the agent sees them the next time it reads the
-state.
+Edits, deletions, "to send", comments, "viewed", directive switches and archiving on the page do not go through the
+inbox: the server applies them to `review.json` through `review_state.py` directly, and the agent sees them the next
+time it reads the state.
 
 ## The review's session
 

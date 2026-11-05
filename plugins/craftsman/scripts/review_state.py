@@ -7,7 +7,8 @@ The payload is one argument, in single quotes; an apostrophe inside it is writte
 
 Commands: init, refresh, set, add-finding, update-finding <id>, set-status <id>, mark-sent <id>, add-comment,
 update-comment <id>, comment-status <id>, comment-sent <id>, use-case-status <id>, open-thread,
-reply <thread id>, resolve <thread id>, view, unview, archive, answer, handled <message id>, show.
+reply <thread id>, resolve <thread id>, view, unview, archive, answer, handled <message id>,
+switch-directive, clear-directive-switches, record-check, show.
 
 The agent and the review page change review.json at the same time. Every change takes an exclusive lock, reads the
 file fresh, checks the change against REVIEW.md's rules, and replaces the file atomically -- so neither side loses
@@ -37,6 +38,8 @@ STATUS_BY = {
     "developer": ("to-send", "deleted", "proposed"),
 }
 USE_CASE_STATUS = ("pending", "reviewing", "reviewed")
+CHECK_RESULT = ("findings", "clean", "not-applicable", "failed")
+UNTIED = "untied"  # the changed files no use case reaches, reviewed together as a use case of their own
 CHANGES = ("added", "modified", "deleted", "unchanged")
 ABOUT = ("review", "finding", "file", "use-case")
 COMMENT_STATUS = ("to-send", "deleted")
@@ -49,7 +52,8 @@ class Refused(Exception):
 def empty_state(source, base, head, checkout=None):
     return {"source": source, "checkout": checkout, "base": base, "head": head, "refreshed": None, "session": None, "closed": None,
             "language": None, "scope": None, "requirements": None, "tickets": [], "structure": None, "rules": [],
-            "checkpoint": None, "findings": [], "comments": [], "threads": [], "viewed": [], "archived": False, "handled": []}
+            "checkpoint": None, "findings": [], "comments": [], "threads": [], "viewed": [], "archived": False, "handled": [],
+            "directive-switches": {}, "checks": []}
 
 
 @contextmanager
@@ -371,6 +375,43 @@ def use_case_status(state, payload, by, use_case_id):
     return state, None
 
 
+def switch_directive(state, payload, by):
+    """The developer switches a directive on or off for this review; the workshop's switch stays as it is."""
+    if by != "developer":
+        raise Refused("a directive is switched for a review by the developer")
+    if not payload.get("id") or not isinstance(payload.get("on"), bool):
+        raise Refused("a switch names a directive `id` and says `on`, true or false")
+    state.setdefault("directive-switches", {})[payload["id"]] = payload["on"]
+    return state, None
+
+
+def clear_directive_switches(state, payload, by):
+    """The review's own switches go once the developer made its set the default for every review."""
+    if by != "developer":
+        raise Refused("a directive is switched for a review by the developer")
+    state["directive-switches"] = {}
+    return state, None
+
+
+def record_check(state, payload, by):
+    """What one directive found in one use case; a later check of the same pair replaces it."""
+    if by != "agent":
+        raise Refused("a check is recorded by the agent")
+    use_cases = [u["id"] for u in (state.get("structure") or {}).get("use-cases", [])] + [UNTIED]
+    if payload.get("use-case") not in use_cases:
+        raise Refused(f"no use case {payload.get('use-case')!r}")
+    if not payload.get("directive"):
+        raise Refused("a check names its directive")
+    if payload.get("result") not in CHECK_RESULT:
+        raise Refused(f"result must be one of {', '.join(CHECK_RESULT)}")
+    pair = (payload["use-case"], payload["directive"])
+    checks = [c for c in state.get("checks", []) if (c["use-case"], c["directive"]) != pair]
+    checks.append({"use-case": pair[0], "directive": pair[1], "result": payload["result"],
+                   "note": payload.get("note"), "at": now()})
+    state["checks"] = checks
+    return state, None
+
+
 def answer(state, payload, by):
     if by != "developer":
         raise Refused("a checkpoint is answered by the developer")
@@ -387,7 +428,9 @@ def handled(state, payload, by, message_id):
 
 
 COMMANDS = {"set": set_fields, "add-finding": add_finding, "add-comment": add_comment, "open-thread": open_thread,
-            "view": view, "unview": unview, "archive": archive, "answer": answer}
+            "view": view, "unview": unview, "archive": archive, "answer": answer,
+            "switch-directive": switch_directive, "clear-directive-switches": clear_directive_switches,
+            "record-check": record_check}
 COMMANDS_WITH_ID = {"update-finding": update_finding, "set-status": set_status, "mark-sent": mark_sent,
                     "update-comment": update_comment, "comment-status": comment_status,
                     "comment-sent": comment_sent, "use-case-status": use_case_status, "reply": reply,
