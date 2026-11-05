@@ -278,6 +278,10 @@ class Handler(BaseHTTPRequestHandler):
                     shutil.rmtree(existing)
                 if body.get("clone"):
                     checkout = checkouts.clone(source)
+                if str(body.get("context") or "").strip():
+                    # review.json does not exist yet: init takes the context in from here
+                    existing.mkdir(parents=True, exist_ok=True)
+                    (existing / "context.md").write_text(str(body["context"]).strip() + "\n")
                 self.hub.session(review_id, checkout).start(source)
                 return self.send(200, dict(ok=True, id=review_id))
             if path == "/api/review/stop":

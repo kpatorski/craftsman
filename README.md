@@ -195,7 +195,8 @@ Reviews have their own page, `/review` on the dashboard server, apart from the d
 rail on the left; the open one has six tabs:
 
 - **Overview** — what the PR is for, as how the system behaves before it and after it, what it leaves out, the
-  review's progress, and the agent's questions to answer.
+  review's progress, and the agent's questions to answer. Under what the PR is for, notes of context for the agent:
+  what it should know that the PR does not say. The new-review wizard asks for the first one.
 - **Structure** — the change as use cases, each a card: what it does before and after, how it runs from its entry
   point (a call the PR leaves unchanged shows where it is called from; a call that crosses a boundary is marked), its
   branches and whether a test covers each, and its files' diffs beside it.

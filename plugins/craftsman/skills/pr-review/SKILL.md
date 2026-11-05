@@ -37,7 +37,10 @@ repository's checkout; the review's state lives in the folder after `--review`, 
 
 1. **Load [EXECUTION.md](../../EXECUTION.md)** and **[REVIEW.md](../../REVIEW.md)**.
 2. **Resolve the `pr-review` entry-point protocol and execute it** per EXECUTION.md's dispatch rules, with the source
-   after `--headless`, the review's folder and the checkout as its input.
+   after `--headless`, the review's folder and the checkout as its input. Before every step, read `context` from
+   the review state: what the developer tells the agent that the pull request does not say. Weigh it like the PR's
+   description, give it to every reviewer a step starts, and where it disagrees with the description or a ticket,
+   ask at the step's checkpoint.
 3. Every change to the review's state goes through `scripts/review_state.py`, never by editing `review.json`. Its
    payload is one JSON argument in single quotes, an apostrophe inside it written as `\u0027`, never a
    heredoc or a pipe.

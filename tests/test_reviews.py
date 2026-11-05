@@ -461,6 +461,38 @@ class ReviewEndpointsTest(ReviewsTest):
         self.assertEqual(status, 200, body)
         self.assertEqual(review_state.read(self.review)["directive-switches"], {"naming": False})
 
+    def test_the_page_gives_the_agent_context_and_tells_it(self):
+        status, body = self.call("/api/review/change", {"id": ID, "action": "add-context",
+                                                         "text": "Cancelling is free since last week."})
+        self.assertEqual(status, 200, body)
+        self.assertEqual([n["text"] for n in review_state.read(self.review)["context"]],
+                         ["Cancelling is free since last week."])
+        self.assertEqual([m["type"] for m in reviews.pending_messages(self.review)][-1:], ["context"])
+
+        status, body = self.call("/api/review/change", {"id": ID, "action": "remove-context", "note": "x1"})
+
+        self.assertEqual(status, 200, body)
+        self.assertEqual(self.call(f"/api/review?id={ID}")[1]["state"]["context"], [])
+        self.assertEqual([m["type"] for m in reviews.pending_messages(self.review)][-2:], ["context", "context"])
+
+    def test_a_review_started_with_context_opens_with_it(self):
+        status, body = self.call("/api/review/start", {"checkout": str(self.checkout), "source": "main:feature/x",
+                                                        "context": "Only the cancel path changed."})
+        self.assertEqual(status, 200, body)
+        review = self.home / "reviews" / BRANCHES
+        deadline = time.time() + 10
+        while not (review / "review.json").exists() and time.time() < deadline:
+            time.sleep(0.05)
+
+        self.assertEqual([n["text"] for n in review_state.read(review)["context"]], ["Only the cancel path changed."])
+
+    def test_the_review_page_has_a_place_for_the_agents_context(self):
+        served = self.page(f"/review?review={ID}")
+        for hook in ("data-context-save", "Context for the AI Agent", 'change("add-context"', 'change("remove-context"', "data-context-remove", "nr-context",
+                     'e.target.id === "context" && e.key === "Enter"'):
+            with self.subTest(hook=hook):
+                self.assertIn(hook, served)
+
     def test_the_review_page_lists_the_directives_with_their_switches_and_results(self):
         served = self.page(f"/review?review={ID}")
         for hook in ('["rules", "Rules"', "data-directive-switch", "data-directive-check", "switch-directive",

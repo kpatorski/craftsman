@@ -356,6 +356,42 @@ class ReviewStateTest(unittest.TestCase):
 
         self.assertEqual(self.state()["directive-switches"], {})
 
+    def test_the_developer_gives_the_agent_context_for_the_review_note_by_note(self):
+        self.opened()
+        self.assertEqual(self.state()["context"], [])
+
+        first = self.run_state("add-context", payload={"text": " The ticket is out of date: cancelling is free. "},
+                               by="developer").stdout.strip()
+        self.run_state("add-context", payload={"text": "Look closely at the owner check."}, by="developer")
+        refused = self.run_state("add-context", payload={"text": "Ignore the tests."}, expect_ok=False)
+        self.run_state("add-context", payload={"text": "  \n"}, by="developer", expect_ok=False)
+
+        self.assertIn("developer", refused.stderr)
+        self.assertEqual([(n["id"], n["text"]) for n in self.state()["context"]],
+                         [(first, "The ticket is out of date: cancelling is free."),
+                          ("x2", "Look closely at the owner check.")])
+        self.assertTrue(all(n["at"] for n in self.state()["context"]))
+
+    def test_the_developer_takes_a_note_of_context_back(self):
+        self.opened()
+        self.run_state("add-context", payload={"text": "Cancelling is free."}, by="developer")
+        self.run_state("add-context", payload={"text": "Owner check only."}, by="developer")
+
+        self.run_state("remove-context", "x1", payload={}, expect_ok=False)
+        self.run_state("remove-context", "x9", payload={}, by="developer", expect_ok=False)
+        self.run_state("remove-context", "x1", payload={}, by="developer")
+
+        self.assertEqual([n["text"] for n in self.state()["context"]], ["Owner check only."])
+
+    def test_the_context_given_when_the_review_was_started_is_kept_when_it_opens(self):
+        self.review.mkdir(parents=True)
+        (self.review / "context.md").write_text("Only the cancel path changed.\n")
+
+        self.opened()
+
+        self.assertEqual([n["text"] for n in self.state()["context"]], ["Only the cancel path changed."])
+        self.assertFalse((self.review / "context.md").exists())
+
     def with_use_cases(self):
         self.opened()
         self.run_state("set", payload={"structure": {"use-cases": [

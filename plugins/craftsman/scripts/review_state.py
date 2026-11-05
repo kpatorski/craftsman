@@ -8,7 +8,7 @@ The payload is one argument, in single quotes; an apostrophe inside it is writte
 Commands: init, refresh, set, add-finding, update-finding <id>, set-status <id>, mark-sent <id>, add-comment,
 update-comment <id>, comment-status <id>, comment-sent <id>, use-case-status <id>, open-thread,
 reply <thread id>, resolve <thread id>, view, unview, archive, answer, handled <message id>,
-switch-directive, clear-directive-switches, record-check, show.
+switch-directive, clear-directive-switches, record-check, add-context, remove-context <id>, show.
 
 The agent and the review page change review.json at the same time. Every change takes an exclusive lock, reads the
 file fresh, checks the change against REVIEW.md's rules, and replaces the file atomically -- so neither side loses
@@ -53,7 +53,7 @@ def empty_state(source, base, head, checkout=None):
     return {"source": source, "checkout": checkout, "base": base, "head": head, "refreshed": None, "session": None, "closed": None,
             "language": None, "scope": None, "requirements": None, "tickets": [], "structure": None, "rules": [],
             "checkpoint": None, "findings": [], "comments": [], "threads": [], "viewed": [], "archived": False, "handled": [],
-            "directive-switches": {}, "checks": []}
+            "directive-switches": {}, "checks": [], "context": []}
 
 
 @contextmanager
@@ -141,7 +141,13 @@ def init(review, payload, by):
         shutil.move(diff, kept)  # written into the review folder for this: nothing is left behind
     else:
         shutil.copyfile(diff, kept)
-    return empty_state(payload["source"], payload["base"], payload["head"], payload.get("checkout")), None
+    state = empty_state(payload["source"], payload["base"], payload["head"], payload.get("checkout"))
+    given = review / "context.md"  # what the developer gave when starting the review, before review.json existed
+    if given.is_file():
+        text = given.read_text().strip()
+        state["context"] = [{"id": "x1", "text": text, "at": now()}] if text else []
+        given.unlink()
+    return state, None
 
 
 def file_changes(text):
@@ -412,6 +418,37 @@ def record_check(state, payload, by):
     return state, None
 
 
+def context_notes(state):
+    """The developer's notes of context; a review that kept one text as its context has it as its first note."""
+    kept = state.get("context")
+    if isinstance(kept, str):
+        return [{"id": "x1", "text": kept, "at": None}]
+    return list(kept or [])
+
+
+def add_context(state, payload, by):
+    """A note on what the pull request does not say, from the developer to the agent; prints its id."""
+    if by != "developer":
+        raise Refused("the context of a review is the developer's")
+    text = str(payload.get("text") or "").strip()
+    if not text:
+        raise Refused("a note of context has text")
+    notes = context_notes(state)
+    note = {"id": next_id(notes, "x"), "text": text, "at": now()}
+    state["context"] = notes + [note]
+    return state, note["id"]
+
+
+def remove_context(state, payload, by, note_id):
+    if by != "developer":
+        raise Refused("the context of a review is the developer's")
+    notes = context_notes(state)
+    if note_id not in [n["id"] for n in notes]:
+        raise Refused(f"no note of context {note_id!r}")
+    state["context"] = [n for n in notes if n["id"] != note_id]
+    return state, None
+
+
 def answer(state, payload, by):
     if by != "developer":
         raise Refused("a checkpoint is answered by the developer")
@@ -430,11 +467,11 @@ def handled(state, payload, by, message_id):
 COMMANDS = {"set": set_fields, "add-finding": add_finding, "add-comment": add_comment, "open-thread": open_thread,
             "view": view, "unview": unview, "archive": archive, "answer": answer,
             "switch-directive": switch_directive, "clear-directive-switches": clear_directive_switches,
-            "record-check": record_check}
+            "record-check": record_check, "add-context": add_context}
 COMMANDS_WITH_ID = {"update-finding": update_finding, "set-status": set_status, "mark-sent": mark_sent,
                     "update-comment": update_comment, "comment-status": comment_status,
                     "comment-sent": comment_sent, "use-case-status": use_case_status, "reply": reply,
-                    "resolve": resolve, "handled": handled}
+                    "resolve": resolve, "handled": handled, "remove-context": remove_context}
 
 
 def change(review, command, payload=None, by="agent", item_id=None):

@@ -14,7 +14,7 @@ from _markdown import render_markdown
 
 ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 MESSAGE_FIELDS = {"answer": ("checkpoint", "option"), "refresh": (), "ask": ("thread",), "close": (),
-                  "check": ("directive",)}
+                  "check": ("directive",), "context": ()}
 DIFF_HEADER = re.compile(r"^diff --git a/(.*) b/(.*)$")
 
 
@@ -245,6 +245,12 @@ def developer_change(review_id, action, body, content=None):
                                           _settings.review_directives())
         _settings.update("review-directives", {d["id"]: d["on"] for d in chosen if d["on"] != d["enabled"]})
         return review_state.change(review, "clear-directive-switches", {}, "developer")
+    if action == "add-context":
+        review_state.change(review, "add-context", {"text": body.get("text")}, "developer")
+        return add_message(review_id, {"type": "context"})
+    if action == "remove-context":
+        review_state.change(review, "remove-context", {}, "developer", body.get("note"))
+        return add_message(review_id, {"type": "context"})
     if action == "check-directive":
         return add_message(review_id, {"type": "check", "directive": body.get("directive")})
     if action == "answer":

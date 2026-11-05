@@ -3,6 +3,15 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.17.0
+
+- The developer can tell the review's agent what the pull request does not say: "Context for the AI Agent" under "What
+  the PR is for" on the Overview tab, where each text sent (⌘ Enter) becomes a note that can be taken back, and an
+  optional third step in the new-review wizard. The notes are `context` in `review.json` (`review_state.py add-context`
+  and `remove-context`, the developer's); each change also sends a `context` message to the agent. See REVIEW.md,
+  "Understanding". Update the `code-review` bundle of the workshop together with this version — its `read-pr-scope`,
+  `review-use-case` and `serve-page` read and handle it.
+
 ## 0.16.0
 
 - The review page has a **Rules** tab: every directive the review checks the code against, with a switch for this

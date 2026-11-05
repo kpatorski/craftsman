@@ -257,6 +257,9 @@
   .cks { display: inline-flex; gap: 4px; flex-wrap: wrap; max-width: 260px; }
   .ck { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--line2); vertical-align: middle; }
   .ck.findings { background: var(--should); border-color: var(--should); } .ck.clean { background: var(--neon); border-color: var(--neon); }
+  .ctx-note { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: start; padding: 8px 10px; margin-bottom: 8px;
+    background: var(--card2); border: 1px solid var(--line2); border-left: 3px solid var(--neon); border-radius: 10px; }
+  .ctx-text { white-space: pre-wrap; } .ctx-at { font-size: .75rem; padding-top: 2px; } .ctx-x { padding: 0 8px; line-height: 1.4; }
   .ck-legend > span { margin-left: 14px; white-space: nowrap; } .ck-legend .ck { margin-right: 5px; }
   .ck.not-applicable { background: var(--nit-dot); border-color: var(--nit-dot); } .ck.failed, .ck.missing { border-color: var(--must); }
   .sevn { display: inline-flex; gap: 4px; align-items: center; color: var(--muted); } .sevn i { width: 7px; height: 7px; border-radius: 50%; margin-left: 4px; }
@@ -647,6 +650,8 @@ function renderHead() {
 }
 
 // ================================================================ overview
+// the developer's notes of context; a review that kept one text as its context shows it as one note
+const contextNotes = s => Array.isArray(s.context) ? s.context : s.context ? [{ id: "x1", text: s.context, at: null }] : [];
 function viewOverview() {
   const s = S(), open = live(s.findings);
   const bySev = Object.fromEntries(SEVS.map(k => [k, open.filter(f => f.severity === k).length]));
@@ -657,7 +662,13 @@ function viewOverview() {
   const sent = s.findings.filter(f => f.status === "sent").length + myComments("sent").length;
   const ucs = useCases(), done = ucs.filter(u => u.status === "reviewed").length, cp = s.checkpoint;
   const scope = `<div class="md">${md("scope") || '<span class="muted">AI Agent has not read the PR yet.</span>'}</div>` +
-    (md("requirements") ? `<h3 style="margin-top:14px"><span>What the ticket asks for</span></h3><div class="md">${md("requirements")}</div>` : "");
+    (md("requirements") ? `<h3 style="margin-top:14px"><span>What the ticket asks for</span></h3><div class="md">${md("requirements")}</div>` : "") +
+    `<h3 style="margin-top:14px"><span>Context for the AI Agent</span></h3>
+      ${contextNotes(s).map(n => `<div class="ctx-note"><div class="ctx-text">${esc(n.text)}</div>
+        <span class="muted ctx-at">${when(n.at)}</span><button class="btn ghost ctx-x" data-context-remove="${esc(n.id)}" title="Take this note back; AI Agent is told">×</button></div>`).join("")}
+      <textarea class="field" id="context" placeholder="What the pull request does not say: why it is built this way, what is out of date, what to look at closely…"></textarea>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:8px"><button class="btn" data-context-save>Send to AI Agent</button>
+        <span class="muted" style="font-size:.8125rem">⌘ Enter · AI Agent takes it into account from its next step on.</span></div>`;
   let html = `<div class="grid">`;
   html += waiting() ? `<section class="card now s8"><h3><span>AI Agent asks you · ${esc(cp.step || "")}</span></h3>
       <div class="q">${esc(cp.question)}</div>
@@ -1219,7 +1230,7 @@ function viewRules() {
 // a pull request on github.com or on a GitHub Enterprise host: https://<host>/<owner>/<repo>/pull/<number>
 const PR_URL = /^https:\/\/([^/\s]+)\/([^/\s]+)\/([^/\s]+)\/pull\/\d+\/?$/, BRANCH = /^[^\s:]+$/;
 function newReview() {
-  return { kind: "pr", url: "", target: "", source: "", how: "clone", path: "", check: null, starting: false };
+  return { kind: "pr", url: "", target: "", source: "", how: "clone", path: "", context: "", check: null, starting: false };
 }
 function nrSource() {
   const n = ui.nr;
@@ -1257,6 +1268,10 @@ function viewNew() {
           worktree, so your branch and your changes are never touched.</div>${pathField}`}`
         : `<div class="muted wnote">The top folder of the git checkout that holds both branches. The review reads the code from its own
           worktree, so your branch and your changes are never touched.</div>${pathField}`}
+    </div></div>
+    <div class="wstep"><div class="wn">3</div><div class="grow"><div class="wl">What AI Agent should know <span class="muted" style="font-weight:400">· optional</span></div>
+      <textarea class="field" id="nr-context" placeholder="What the pull request does not say: why it is built this way, what is out of date, what to look at closely…" style="margin-top:10px">${esc(n.context)}</textarea>
+      <div class="muted wnote">You can change it later on the Overview tab.</div>
     </div></div>
     <button class="btn go" data-start disabled>Start the review</button>${existingReview()}</div>`;
 }
@@ -1403,7 +1418,7 @@ const CLICKABLE = ["tab", "sort", "restart", "inline", "gutter", "goto", "findin
   "close-review", "uccard", "close-uc", "ask-uc", "open-review", "archive", "new", "archived", "unarchive", "start", "pop", "new-finding", "nr-kind", "nr-how", "nr-browse",
   "nf-sev", "nf-save", "answer-here", "agent-tools", "allow-tool", "tool-toggle", "nr-existing", "permit",
   "gh-read", "gh-quote", "gh-reply-open", "gh-reply", "gh-thread", "comment-add", "cedit", "csave", "cdrop",
-  "directive-switch", "directive-check", "directive-default", "rfilter"].map(name => `[data-${name}]`).join(",");
+  "directive-switch", "directive-check", "directive-default", "rfilter", "context-save", "context-remove"].map(name => `[data-${name}]`).join(",");
 document.addEventListener("click", async e => {
   if (!e.target.closest("#pop")) { hidePop(); dropSelection(); }
   const t = e.target.closest(CLICKABLE); if (!t) return;
@@ -1490,6 +1505,17 @@ document.addEventListener("click", async e => {
   }
   if (d.directiveDefault !== undefined) return change("default-directives", {})
     .then(o => o && (toast("this set of directives is now the default for every review"), reload()));
+  if (d.contextSave !== undefined) {
+    // cleared at once, so a refresh while it is sent never puts the text back; given back if it is refused
+    const text = document.getElementById("context").value;
+    if (!text.trim()) return;
+    document.getElementById("context").value = "";
+    return change("add-context", { text }).then(o => {
+      const box = document.getElementById("context");
+      if (o) toast("sent to AI Agent"); else if (box && !box.value) box.value = text;
+    });
+  }
+  if (d.contextRemove) return change("remove-context", { note: d.contextRemove }).then(o => o && toast("note taken back; AI Agent is told"));
   if (d.directiveCheck) return change("check-directive", { directive: d.directiveCheck })
     .then(o => o && toast(`asked AI Agent to check ${d.directiveCheck} in the use cases already reviewed`));
   if (d.refresh !== undefined) return api("/api/review/message", { ...K(), type: "refresh" }).then(o => o && toast("asked AI Agent to read the PR again"));
@@ -1564,7 +1590,8 @@ document.addEventListener("click", async e => {
   if (d.toolToggle !== undefined) return api("/api/review/tools", { ...K(), rule: d.toolToggle, allow: d.on !== "1" }).then(() => reload());
   if (d.start !== undefined) {
     if (!nrReady()) return;
-    const n = ui.nr, body = { source: nrSource(), ...(nrNeedsPath() ? { checkout: n.check.checkout } : { clone: true }) };
+    const n = ui.nr, body = { source: nrSource(), ...(nrNeedsPath() ? { checkout: n.check.checkout } : { clone: true }),
+      ...(n.context.trim() ? { context: n.context } : {}) };
     n.starting = true; paintNew();
     const r = await fetch("/api/review/start", { method: "POST", headers: { "Content-Type": "application/json", "X-Craftsman": "1" },
       body: JSON.stringify(body) });
@@ -1608,10 +1635,11 @@ document.addEventListener("click", async e => {
 });
 document.addEventListener("change", e => { if (e.target.id === "fcat") { ui.fcat = e.target.value; render(); } });
 document.addEventListener("input", e => { if (e.target.id === "fsearch") { ui.search = e.target.value; render(); } if (e.target.id.startsWith("nr-")) {
-  const field = { "nr-url": "url", "nr-target": "target", "nr-source": "source", "nr-path": "path" }[e.target.id];
-  if (field) { ui.nr[field] = e.target.value; nrCheck(); } } });
+  const field = { "nr-url": "url", "nr-target": "target", "nr-source": "source", "nr-path": "path", "nr-context": "context" }[e.target.id];
+  if (field) { ui.nr[field] = e.target.value; if (field !== "context") nrCheck(); } } });
 document.addEventListener("keydown", e => {
   if (e.target.id === "compose" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); document.querySelector("[data-compose]")?.click(); }
+  if (e.target.id === "context" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); document.querySelector("[data-context-save]")?.click(); }
   if (e.key === "Escape") { hidePop(); if (ui.uc) openUseCase(ui.uc); }
 });
 document.addEventListener("selectionchange", () => { if (deferred && !busy()) render(); });

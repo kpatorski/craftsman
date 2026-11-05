@@ -17,6 +17,7 @@ written into the reviewed repository; `review.json` records the path of its chec
 | `inbox.jsonl`    | the dashboard server      | messages from the page to the agent, one JSON per line          |
 | `session.jsonl`  | the dashboard server      | the review's Claude session as it runs, one stream event a line |
 | `session.stderr` | the dashboard server      | what the review's Claude process wrote to stderr                |
+| `context.md`     | the dashboard server      | the context given in the wizard, until `init` takes it in       |
 | `diff/`          | `scripts/review_state.py` | the diff of every refresh, `<head-sha>.diff`                    |
 | `worktree/`      | the agent, the server     | a `git worktree` of the checkout at the reviewed commit         |
 
@@ -70,6 +71,12 @@ What the page shows above the findings. Every text field is GitHub markdown.
   how it behaves after, and what the PR leaves out.
 - `requirements` — what the linked Jira ticket asks for; `tickets` lists the keys found in the description. Empty,
   with the reason in `requirements`, when no ticket is linked or Jira cannot be read.
+- `context` — what the developer tells the agent that the pull request does not say: why the change is built this
+  way, what in the ticket is out of date, what to look at closely. A list of notes, `{"id", "text", "at"}`, written
+  only by the developer: sent from the review page's Overview tab (`add-context`), taken back there
+  (`remove-context <id>`), or given in the new-review wizard. The agent reads every note before every step and weighs
+  them like the description; where they disagree, it asks. The wizard's text waits as `context.md` in the review's
+  folder until `init` makes it the first note.
 - `structure` — the shape of the change: `use-cases`, each `{"id", "name", "says", "before", "after", "entry",
   "files": [...], "status", "flow"}`:
   - `says` — one sentence on what the use case does, for someone who has not read the code;
@@ -236,8 +243,11 @@ not yet in `handled`, it passes those first.
 | `refresh` | —                              | reads the PR or branches again, re-checks the findings         |
 | `close`   | —                              | sets `closed` and ends the run                                 |
 | `check`   | `directive`                    | checks the use cases already reviewed against that directive   |
+| `context` | —                              | reads the notes in `context` and works by them from now on     |
 
 A question from the page opens a thread, or adds to one, before its `ask` line is written.
+
+A note of context is added to or taken out of `review.json` before its `context` line is written.
 
 Edits, deletions, "to send", comments, "viewed", directive switches and archiving on the page do not go through the
 inbox: the server applies them to `review.json` through `review_state.py` directly, and the agent sees them the next
