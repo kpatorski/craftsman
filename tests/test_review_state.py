@@ -323,6 +323,92 @@ class ReviewStateTest(unittest.TestCase):
         self.assertEqual((found["by"], found["kind"], found["category"], found["status"]),
                          ("developer", "violation", "yours", "proposed"))
 
+    def test_every_file_keeps_its_own_draft_of_a_finding(self):
+        self.opened()
+
+        self.run_state("save-draft", by="developer", payload={"path": "A.java", "text": "the name says nothing",
+                                                             "lines": [3, 5], "side": "RIGHT"})
+        self.run_state("save-draft", by="developer", payload={"path": "B.java", "text": "this loop again"})
+        self.run_state("save-draft", by="developer", payload={"path": "A.java", "text": "the name says nothing, rename",
+                                                             "lines": [3, 5], "side": "RIGHT"})
+
+        drafts = self.state()["drafts"]
+        self.assertEqual(drafts["A.java"]["text"], "the name says nothing, rename")
+        self.assertEqual(drafts["A.java"]["lines"], [3, 5])
+        self.assertIsNone(drafts["B.java"]["lines"])
+
+    def test_a_draft_belongs_to_the_developer_and_to_a_file(self):
+        self.opened()
+
+        self.run_state("save-draft", payload={"path": "A.java", "text": "mine"}, expect_ok=False)
+        refused = self.run_state("save-draft", by="developer", payload={"text": "no file"}, expect_ok=False)
+        self.assertIn("names the file", refused.stderr)
+
+    def test_a_discarded_draft_is_gone(self):
+        self.opened()
+        self.run_state("save-draft", by="developer", payload={"path": "A.java", "text": "not worth it"})
+
+        self.run_state("discard-draft", by="developer", payload={"path": "A.java"})
+
+        self.assertEqual(self.state()["drafts"], {})
+
+    def test_a_draft_becomes_the_developers_finding_on_its_last_selected_line(self):
+        self.opened()
+        self.run_state("save-draft", by="developer", payload={"path": "A.java", "text": "Rename `process`.",
+                                                             "lines": [3, 5], "side": "RIGHT"})
+
+        made = self.run_state("draft-to-finding", by="developer", payload={
+            "path": "A.java", "title": "Name says nothing", "severity": "nit"}).stdout.strip()
+
+        found = self.state()["findings"][0]
+        self.assertEqual(made, "f1")
+        self.assertEqual((found["by"], found["title"], found["comment"], found["severity"], found["status"]),
+                         ("developer", "Name says nothing", "Rename `process`.", "nit", "proposed"))
+        self.assertEqual(found["locations"], [{"path": "A.java", "line": 5, "side": "RIGHT", "commit": "bbb"}])
+        self.assertEqual(self.state()["drafts"], {})
+
+    def test_a_finding_made_of_a_draft_with_no_title_is_named_by_its_first_sentence(self):
+        self.opened()
+        self.run_state("save-draft", by="developer", payload={
+            "path": "A.java", "text": "The class need not be **public**. Nothing outside `booking` uses it.\n\nMore."})
+
+        self.run_state("draft-to-finding", by="developer", payload={"path": "A.java", "severity": "nit"})
+
+        self.assertEqual(self.state()["findings"][0]["title"], "The class need not be public")
+
+    def test_a_long_first_sentence_makes_a_short_title(self):
+        self.opened()
+        self.run_state("save-draft", by="developer", payload={"path": "A.java", "text": "```java\nvar a;\n```\n" +
+                                                             "word " * 40})
+
+        self.run_state("draft-to-finding", by="developer", payload={"path": "A.java", "severity": "nit"})
+
+        title = self.state()["findings"][0]["title"]
+        self.assertTrue(title.startswith("word word"), title)
+        self.assertLessEqual(len(title), 80)
+        self.assertTrue(title.endswith("…"), title)
+
+    def test_a_draft_about_the_whole_file_becomes_a_finding_with_no_line(self):
+        self.opened()
+        self.run_state("save-draft", by="developer", payload={"path": "A.java", "text": "Split this class."})
+
+        self.run_state("draft-to-finding", by="developer", payload={"path": "A.java", "title": "Too big",
+                                                                   "severity": "should-fix"})
+
+        self.assertEqual(self.state()["findings"][0]["locations"],
+                         [{"path": "A.java", "line": None, "side": "RIGHT", "commit": "bbb"}])
+
+    def test_an_empty_draft_or_none_at_all_makes_no_finding(self):
+        self.opened()
+        self.run_state("save-draft", by="developer", payload={"path": "A.java", "text": "  "})
+
+        empty = self.run_state("draft-to-finding", by="developer", payload={"path": "A.java", "title": "T",
+                                                                           "severity": "nit"}, expect_ok=False)
+        self.assertIn("no draft about A.java", empty.stderr)
+        self.run_state("draft-to-finding", by="developer", payload={"path": "B.java", "title": "T",
+                                                                   "severity": "nit"}, expect_ok=False)
+        self.assertEqual(self.state()["findings"], [])
+
     def test_the_developer_changes_how_serious_a_finding_is_and_the_agent_keeps_it(self):
         self.opened()
         self.run_state("add-finding", payload=finding())

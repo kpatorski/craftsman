@@ -246,6 +246,30 @@
   .gtip { position: fixed; display: none; z-index: 30; max-width: 520px; padding: 8px 12px; border-radius: 10px; background: var(--float);
     border: 1px solid var(--line2); box-shadow: 0 10px 30px var(--shadow); font-size: .7812rem; pointer-events: none; }
   .gtip div { display: flex; gap: 8px; align-items: center; padding: 2px 0; } .gtip .hint { color: var(--dim); font-size: .75rem; margin-top: 4px; }
+  .panel.card { right: 16px; bottom: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--card);
+    width: calc(var(--panel-w, clamp(560px, 42vw, 980px)) - 32px); overflow-x: hidden; padding: 18px 20px; }
+  .panel.card:has(#draft-box) { gap: 12px; }
+  .panel.card .grip { left: -6px; }
+  .crumb-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .about-chip { align-self: flex-start; display: inline-flex; gap: 8px; align-items: center; padding: 4px 12px; border-radius: var(--pill);
+    border: 1px solid var(--select); font-size: .7812rem; color: var(--muted); max-width: 100%; }
+  .about-chip a { cursor: pointer; color: var(--text); }
+  .draft-out, .draft-in { flex: 1 1 0; min-height: 140px; display: flex; flex-direction: column; border-radius: 12px; border: 1px solid var(--line); }
+  .draft-out { background: var(--code-bg); }
+  .draft-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 14px;
+    border-bottom: 1px solid var(--line); font-size: .75rem; color: var(--muted); }
+  .draft-sev { display: flex; gap: 6px; } .draft-sev .chip { padding: 3px 10px; cursor: pointer; }
+  .draft-preview { flex: 1; overflow: auto; padding: 12px 16px; }
+  .draft-preview pre { overflow-x: auto; }
+  .draft-in { background: var(--card2); border-color: var(--line2); }
+  .draft-in:focus-within { border-color: var(--select); }
+  .md-tools { display: flex; gap: 2px; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  .md-tools button { background: none; border: 0; color: var(--muted); min-width: 30px; height: 28px; border-radius: 7px;
+    cursor: pointer; font: inherit; font-size: .8125rem; }
+  .md-tools button:hover { background: var(--card); color: var(--text); }
+  .draft-in textarea { flex: 1; resize: none; background: none; border: 0; outline: none; color: var(--text); font: inherit;
+    font-weight: 300; line-height: 1.55; padding: 12px 14px; }
+  .draft-actions { margin-top: 0; }
   .switch { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; color: var(--muted); }
   .switch i { width: 28px; height: 16px; border-radius: 999px; background: var(--switch-off); position: relative; }
   .switch i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--knob); }
@@ -817,7 +841,7 @@ function panelFinding(id) {
   // every place it points at, grouped by file; a line number scrolls the diff to it
   const byFile = new Map(); (f.locations || []).forEach(l => byFile.set(l.path, [...(byFile.get(l.path) || []), l.line]));
   const places = [...byFile].map(([path, lines]) => `<span title="${esc(path)}">${esc(path.split("/").pop())}</span> ` +
-    lines.map(n => `<a data-goto="${esc(path)}|${n}" style="color:var(--neon)">${n}</a>`).join(", ")).join(" · ");
+    lines.map(n => n == null ? `<a data-open-file="${esc(path)}" style="color:var(--neon)">whole file</a>` : `<a data-goto="${esc(path)}|${n}" style="color:var(--neon)">${n}</a>`).join(", ")).join(" · ");
   return `<div class="crumb"><span>Finding ${esc(f.id)} · ${esc(f.category)} · ${who(f.by)}${places ? " · " + places : ""}</span><a data-close-panel>✕</a></div>
     ${editing ? `<input class="field" id="edit-title" value="${esc(f.title)}" style="margin-top:8px">` : `<h2>${inline(f.title)}</h2>`}
     <div class="filters" style="margin:6px 0 0">${SEVS.map(k => `<button class="chip${f.severity === k ? " on" : ""}" data-set-sev="${k}" ${sent ? "disabled" : ""}>${SEV[k]}</button>`).join("")}</div>
@@ -871,13 +895,81 @@ function panelThread(id) {
     ${threadsBlock([t], t.about, "Reply…")}
     ${t.about.kind === "file" ? `<div class="row-actions"><button class="btn sm" data-open-file="${esc(t.about.path)}">Show the code</button></div>` : ""}`;
 }
-function panelNewFinding(p) {
-  return `<div class="crumb"><span>Your finding · ${esc(p.path)}:${p.lines[0]}${p.lines[1] !== p.lines[0] ? "–" + p.lines[1] : ""}</span><a data-close-panel>✕</a></div>
-    <h2>New finding</h2>${p.quote ? `<div class="quote">${esc(p.quote)}</div>` : ""}
-    <div class="filters" style="margin-top:12px">${SEVS.map(k => `<button class="chip${p.severity === k ? " on" : ""}" data-nf-sev="${k}">${SEV[k]}</button>`).join("")}</div>
-    <input class="field" id="nf-title" placeholder="Title — a few words" style="margin-top:4px">
-    <textarea class="field" id="nf-comment" placeholder="The comment for the author: what is wrong, why it matters, what to do" style="margin-top:10px;min-height:140px"></textarea>
-    <div class="row-actions"><button class="btn go sm" data-nf-save>Add finding</button><button class="btn ghost sm" data-close-panel>Cancel</button></div>`;
+// ================================================================ the comment panel
+// One draft of a finding per file, kept on the server; the panel shows the draft of the file open in Code, so moving
+// between files moves between their drafts.
+const drafts = {};  // path -> { text, lines, side, severity, html }
+function draftOf(path) {
+  if (!drafts[path]) {
+    const kept = (S().drafts || {})[path] || {};
+    drafts[path] = { text: kept.text || "", lines: kept.lines || null, side: kept.side || "RIGHT", severity: "should-fix", html: null };
+    if (drafts[path].text) previewDraft(path);
+  }
+  return drafts[path];
+}
+const draftPlace = (path, d) => esc(path.split("/").pop()) + (d.lines ? `:${d.lines[0]}${d.lines[1] !== d.lines[0] ? "–" + d.lines[1] : ""}` : " · whole file");
+const MD_TOOLS = [["bold", "<b>B</b>", "Bold"], ["italic", "<i>I</i>", "Italic"], ["code", "&lt;/&gt;", "Inline code"],
+  ["block", "{ }", "Code block"], ["list", "☰", "List"], ["quote", "❝", "Quote"], ["link", "🔗", "Link"]];
+const EMPTY_PREVIEW = '<div class="muted">What you write below shows here as the author will read it on GitHub.</div>';
+function panelComment() {
+  const path = ui.file; if (!path) return `<div class="muted">Open a file in Code to comment on it.</div>`;
+  const d = draftOf(path);
+  return `<div class="crumb"><span class="crumb-path">Comment · <span class="mono" title="${esc(path)}">${esc(path.split("/").pop())}</span></span><a data-close-panel>✕</a></div>
+    <div class="about-chip"><span>About <b class="mono">${draftPlace(path, d)}</b></span>${d.lines ? `<a data-draft-whole title="Make it about the whole file">×</a>` : ""}</div>
+    <section class="draft-out"><div class="draft-h"><span>The finding</span>
+        <span class="draft-sev">${SEVS.map(k => `<button class="chip${d.severity === k ? " on" : ""}" data-draft-sev="${k}">${SEV[k]}</button>`).join("")}</span></div>
+      <div class="md draft-preview" id="draft-preview">${d.html || EMPTY_PREVIEW}</div></section>
+    <section class="draft-in"><div class="md-tools">${MD_TOOLS.map(([k, label, title]) => `<button data-md-tool="${k}" title="${title}">${label}</button>`).join("")}</div>
+      <textarea id="draft-box" placeholder="What would you change here, and why? Markdown works; Enter is a new line.">${esc(d.text)}</textarea></section>
+    <div class="row-actions draft-actions"><button class="btn go sm" data-draft-make title="⌘ Enter">Make it a finding</button><button class="btn ghost sm" data-draft-discard>Discard</button></div>`;
+}
+let draftTimer, previewTimer;
+function saveDraft(path, now) {
+  clearTimeout(draftTimer);
+  const d = drafts[path], save = () => change("save-draft", { path, text: d.text, lines: d.lines, side: d.side });
+  if (now) return save();
+  draftTimer = setTimeout(save, 700);
+}
+function previewDraft(path) {
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(async () => {
+    const d = drafts[path]; if (!d) return;
+    const out = d.text.trim() ? await api("/api/review/markdown", { ...K(), text: d.text }) : { html: null };
+    if (!out) return;
+    d.html = out.html;
+    const el = document.getElementById("draft-preview");
+    if (el && ui.file === path) el.innerHTML = d.html || EMPTY_PREVIEW;
+  }, 300);
+}
+function openComment(path, lines, side) {
+  const d = draftOf(path);
+  if (lines !== undefined) { d.lines = lines; d.side = side || "RIGHT"; saveDraft(path, true); }
+  ui.file = path; ui.panel = { comment: true };
+  render();
+  document.getElementById("draft-box")?.focus();
+}
+async function makeFinding() {
+  const path = ui.file, d = drafts[path]; if (!d) return;
+  if (!d.text.trim()) return toast("Write the comment first");
+  clearTimeout(draftTimer);
+  if (!(await change("save-draft", { path, text: d.text, lines: d.lines, side: d.side }))) return;
+  if (!(await change("draft-to-finding", { path, severity: d.severity }))) return;
+  delete drafts[path]; ui.selection = null;
+  await reload();
+  toast(`${S().findings[S().findings.length - 1].id} is a finding now`);
+}
+// A markdown mark around the selected words of the draft, or a placeholder to type over.
+function mdTool(kind) {
+  const box = document.getElementById("draft-box"); if (!box) return;
+  const a = box.selectionStart, b = box.selectionEnd, picked = box.value.slice(a, b);
+  const lineStart = a === 0 || box.value[a - 1] === "\n" ? "" : "\n";
+  const [open, close, blank] = { bold: ["**", "**", "bold"], italic: ["_", "_", "italic"], code: ["`", "`", "code"],
+    link: ["[", "](https://)", "text"], block: [lineStart + "```\n", "\n```\n", "code"], list: [lineStart + "- ", "", "item"],
+    quote: [lineStart + "> ", "", "quote"] }[kind];
+  const inner = ["list", "quote"].includes(kind) ? (picked || blank).split("\n").join(kind === "list" ? "\n- " : "\n> ") : picked || blank;
+  box.setRangeText(open + inner + close, a, b, "end");
+  box.focus(); box.setSelectionRange(a + open.length, a + open.length + inner.length);
+  box.dispatchEvent(new Event("input", { bubbles: true }));
 }
 function panelCheckpoint() {
   const cp = S().checkpoint;
@@ -899,13 +991,14 @@ function panelLog() {
 function renderPanel() {
   const el = document.getElementById("panel"), app = document.getElementById("app"), p = ui.panel;
   const body = !p || !R ? "" : p.finding ? panelFinding(p.finding) : p.thread ? panelThread(p.thread) : p.ghThread ? panelGhThread(p.ghThread) : p.ask ? panelAsk(p.ask)
-    : p.newFinding ? panelNewFinding(p.newFinding) : p.log ? panelLog() : p.checkpoint ? panelCheckpoint() : "";
+    : p.comment ? panelComment() : p.log ? panelLog() : p.checkpoint ? panelCheckpoint() : "";
   // The panel starts under the tabs, level with the content beside it, so the header keeps its width. Over an open
   // use case it floats on top of it instead of pushing the use case aside.
   const over = !!body && ui.tab === "structure" && !!ui.uc;
   app.classList.toggle("with-panel", !!body && !over);
   el.classList.toggle("over", over);
   el.classList.toggle("dock", !!body && !over);
+  el.classList.toggle("card", !!body && !over);
   placePanel();
   el.style.display = body ? "flex" : "none";
   el.innerHTML = body ? `<div class="grip" id="grip"></div>` + body : "";
@@ -913,7 +1006,9 @@ function renderPanel() {
 
 function placePanel() {
   const tabs = document.querySelector(".tabs"), el = document.getElementById("panel");
-  el.style.top = Math.max(0, tabs ? tabs.getBoundingClientRect().bottom : 0) + "px";
+  const below = Math.max(0, tabs ? tabs.getBoundingClientRect().bottom : 0), view = document.querySelector("#main .view");
+  // a card starts level with the content beside it, and stays under the tabs once the page scrolls
+  el.style.top = (el.classList.contains("card") && view ? Math.max(below + 12, view.getBoundingClientRect().top) : below) + "px";
 }
 
 // ================================================================ diffs
@@ -950,6 +1045,7 @@ function colourCode(hunks, path) {
 function snippetAt(path, line, side) {
   const hunks = diffs[path];
   if (!hunks) { fileDiff(path); return '<div class="muted">Loading…</div>'; }
+  if (line == null) return "";
   const all = hunks.flatMap(h => h.lines), at = all.findIndex(l => (side === "LEFT" ? l.old : l.now) === line);
   if (at < 0) return "";
   return `<div class="snip">${all.slice(Math.max(0, at - 3), at + 4).map((l, i, shown) => `<div class="ln ${l.kind}${l === all[at] ? " sel" : ""}">` +
@@ -962,7 +1058,7 @@ function diffView(path, position) {
   const counts = [info.added ? "+" + info.added : "", info.removed ? "−" + info.removed : ""].filter(Boolean).join(" ");
   const head = `<div class="diffhead"><span>${position ? `<span class="muted" style="font-size:.7812rem">${position}</span><br>` : ""}<b class="mono">${esc(path)}</b>
       <span class="tag ${{ added: "green", deleted: "red" }[info.change] || "blue"}" style="margin-left:6px">${info.change}${counts ? " · " + counts : ""}</span></span>
-    <span style="display:flex;gap:14px;align-items:center;font-size:.7812rem"><span class="muted">select lines to ask AI Agent or add a finding</span>${sevCounts(findingsAt(path))}
+    <span style="display:flex;gap:14px;align-items:center;font-size:.7812rem"><span class="muted">select lines to ask AI Agent or comment on them</span><button class="btn ghost sm" data-comment-file="${esc(path)}">✎ Comment on file</button>${sevCounts(findingsAt(path))}
       <span class="switch${ui.inline ? " on" : ""}" data-inline title="Every finding under its line, or dots beside the line number"><i></i>Show all inline</span>
       <span style="display:inline-flex;gap:6px;align-items:center;cursor:pointer" data-view="${esc(path)}"><span class="vbox${info.viewed ? " on" : ""}">${info.viewed ? "✓" : ""}</span>Viewed</span></span></div>`;
   if (!hunks) { fileDiff(path); return `<div class="diffcard">${head}<div class="banner">Loading…</div></div>`; }
@@ -978,7 +1074,8 @@ function diffView(path, position) {
   }
   const notes = threadsOf("file", path), anchored = findingsAt(path), whole = ["added", "deleted"].includes(info.change);
   const github = [...ghThreads()].filter(([root, msgs]) => msgs[0].path === path && msgs[0].line != null && !findingOfThread(root));
-  const sel = ui.selection && ui.selection.path === path ? ui.selection.lines : null;
+  const sel = ui.selection && ui.selection.path === path ? ui.selection.lines
+    : ui.panel && ui.panel.comment && ui.file === path && drafts[path] ? drafts[path].lines : null;
   const opened = ui.panel && ui.panel.finding ? S().findings.find(f => f.id === ui.panel.finding) : null;
   const body = hunks.map(h => `<div class="hunk">${esc(h.header)}</div>` + h.lines.map(l => {
     const n = l.now ?? l.old, side = l.now === null ? "LEFT" : "RIGHT";
@@ -993,6 +1090,8 @@ function diffView(path, position) {
       github.filter(([, msgs]) => msgs[0].line === n && (msgs[0].side || "RIGHT") === side).map(([root, msgs]) =>
         `<div class="ann${ui.panel && ui.panel.ghThread === root ? " on" : ""}" data-gh-thread="${root}"><span class="tag blue">GitHub · ${msgs.length}</span><span>${esc(msgs[0].author || "")}: ${noteTitle(msgs[0].body)}</span></div>`).join("");
   }).join("")).join("");
+  const onFile = anchored.filter(f => f.locations.some(x => x.path === path && x.line == null));
+  banner += onFile.map(f => `<div class="ann" data-finding="${esc(f.id)}">${sev(f.severity)}<span>${who(f.by)} · ${esc(f.id)} · whole file · ${inline(f.title)}</span></div>`).join("");
   return `<div class="diffcard">${head}${banner}<div class="diffbody" data-diff="${esc(path)}">${body || '<div class="banner">No lines changed.</div>'}</div></div>`;
 }
 // An in-page confirmation: resolves true on the confirm button, false on Cancel, Escape, or a click outside the box.
@@ -1384,7 +1483,7 @@ function render() {
   panel.scrollTop = py; side.scrollTop = sy;
   Object.entries(typed).forEach(([id, [value, start, end]]) => {
     const el = document.getElementById(id); if (!el) return;
-    if (!id.startsWith("nr-")) el.value = value;  // the wizard's fields are drawn from ui.nr, which may be newer
+    if (!id.startsWith("nr-") && !id.startsWith("draft-")) el.value = value;  // drawn from ui.nr and drafts, which may be newer
     if (id === focused) { el.focus(); try { el.setSelectionRange(start, end); } catch (_) {} }
   });
   const search = document.getElementById("fsearch"); if (search && search.value !== ui.search) search.value = ui.search;
@@ -1412,7 +1511,7 @@ function hidePop() {
 }
 // A click elsewhere lets go of the selected lines, unless a question or a finding about them is open in the panel.
 function dropSelection() {
-  if (!ui.selection || (ui.panel && (ui.panel.ask || ui.panel.newFinding))) return;
+  if (!ui.selection || (ui.panel && ui.panel.ask)) return;
   ui.selection = null;
   document.querySelectorAll(".ln.sel").forEach(l => { if (!l.closest(".snip")) l.classList.remove("sel"); });
 }
@@ -1421,7 +1520,7 @@ const stepIn = (list, at, by) => list[Math.min(list.length - 1, Math.max(0, list
 const CLICKABLE = ["tab", "sort", "restart", "inline", "gutter", "goto", "finding", "thread", "close-panel", "edit", "save", "status", "set-sev", "resolve", "compose", "view", "pick-file",
   "open-file", "step-file", "step-uc", "code-filter", "fsev", "fby", "fquestions", "fstatus", "answer", "live", "refresh", "send", "power",
   "close-review", "uccard", "close-uc", "ask-uc", "open-review", "archive", "new", "archived", "unarchive", "start", "pop", "new-finding", "nr-kind", "nr-how", "nr-browse",
-  "nf-sev", "nf-save", "answer-here", "agent-tools", "allow-tool", "tool-toggle", "nr-existing", "permit",
+  "comment-file", "draft-whole", "draft-sev", "draft-make", "draft-discard", "md-tool", "answer-here", "agent-tools", "allow-tool", "tool-toggle", "nr-existing", "permit",
   "gh-read", "gh-quote", "gh-reply-open", "gh-reply", "gh-thread", "comment-add", "cedit", "csave", "cdrop",
   "directive-switch", "directive-check", "directive-default", "rfilter", "context-save", "context-remove", "fix-prompts", "in-prompt"].map(name => `[data-${name}]`).join(",");
 document.addEventListener("click", async e => {
@@ -1546,7 +1645,7 @@ document.addEventListener("click", async e => {
       `<div class="muted" style="font-size:.8125rem;margin-bottom:10px">Each finding goes as an inline comment on its first place; further places point back to it.
         Comments on GitHub cannot be taken back from here.</div>` +
       marked.map(f => `<div class="mrow">${sev(f.severity)}<span class="mono dim">${esc(f.id)}</span><span>${inline(f.title)}</span>` +
-        `<span class="w">${(f.locations || []).map(l => esc(l.path.split("/").pop()) + ":" + l.line).join(", ")}</span></div>`).join("") +
+        `<span class="w">${(f.locations || []).map(l => esc(l.path.split("/").pop()) + (l.line == null ? "" : ":" + l.line)).join(", ")}</span></div>`).join("") +
       mine.map(c => `<div class="mrow"><span class="tag">${c["reply-to"] ? "reply" : "comment"}</span><span class="mono dim">${esc(c.id)}</span><span>${esc(c.body.split("\n")[0].slice(0, 100))}</span><span class="w"></span></div>`).join(""),
       `Send ${plural(marked.length + mine.length, "comment")}`);
     if (!ok) return;
@@ -1631,27 +1730,33 @@ document.addEventListener("click", async e => {
     const s = ui.selection;
     getSelection().removeAllRanges(); hidePop();
     if (d.pop === "ask") ui.panel = { ask: { about: s.about, quote: s.quote } };
-    if (d.pop === "finding") ui.panel = { newFinding: { path: s.about.path, lines: s.about.lines, side: s.side, quote: s.quote, severity: "should-fix" } };
+    if (d.pop === "comment") return openComment(s.path, s.lines, s.side);
     if (d.pop === "quote") { ui.editing = ui.panel.finding; render(); const box = document.getElementById("edit-comment"); box.value = `> ${s.quote}\n\n` + box.value; return box.focus(); }
     return render();
   }
-  if (d.newFinding !== undefined) { const a = ui.panel.ask; ui.panel = { newFinding: { path: a.about.path, lines: a.about.lines, side: "RIGHT", quote: a.quote, severity: "should-fix" } }; return render(); }
-  if (d.nfSev) { ui.panel.newFinding.severity = d.nfSev; return render(); }
-  if (d.nfSave !== undefined) {
-    const p = ui.panel.newFinding, fields = { title: document.getElementById("nf-title").value.trim(), comment: document.getElementById("nf-comment").value.trim(),
-      severity: p.severity, locations: [{ path: p.path, line: p.lines[1], side: p.side || "RIGHT", commit: S().head }] };
-    if (!(await change("add-finding", { fields }))) return;
-    ui.selection = null; await reload();
-    ui.panel = { finding: S().findings[S().findings.length - 1].id }; return render();
+  if (d.newFinding !== undefined) { const a = ui.panel.ask; return openComment(a.about.path, a.about.lines || null, "RIGHT"); }
+  if (d.commentFile) { const dr = draftOf(d.commentFile); if (!dr.text.trim()) dr.lines = null; return openComment(d.commentFile); }
+  if (d.draftWhole !== undefined) { draftOf(ui.file).lines = null; saveDraft(ui.file, true); return render(); }
+  if (d.draftSev) { draftOf(ui.file).severity = d.draftSev; return render(); }
+  if (d.draftMake !== undefined) return makeFinding();
+  if (d.draftDiscard !== undefined) {
+    if (draftOf(ui.file).text.trim() && !(await ask("Discard this draft?", `<p>The draft about ${draftPlace(ui.file, drafts[ui.file])} is thrown away.</p>`, "Discard"))) return;
+    clearTimeout(draftTimer);
+    if (!(await change("discard-draft", { path: ui.file }))) return;
+    delete drafts[ui.file]; return render();
   }
+  if (d.mdTool) return mdTool(d.mdTool);
 });
 document.addEventListener("change", e => { if (e.target.id === "fcat") { ui.fcat = e.target.value; render(); } });
-document.addEventListener("input", e => { if (e.target.id === "fsearch") { ui.search = e.target.value; render(); } if (e.target.id.startsWith("nr-")) {
+document.addEventListener("input", e => { if (e.target.id === "fsearch") { ui.search = e.target.value; render(); }
+  if (e.target.id === "draft-box" && ui.file) { draftOf(ui.file).text = e.target.value; saveDraft(ui.file); previewDraft(ui.file); }
+  if (e.target.id.startsWith("nr-")) {
   const field = { "nr-url": "url", "nr-target": "target", "nr-source": "source", "nr-path": "path", "nr-context": "context" }[e.target.id];
   if (field) { ui.nr[field] = e.target.value; if (field !== "context") nrCheck(); } } });
 document.addEventListener("keydown", e => {
   if (e.target.id === "compose" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); document.querySelector("[data-compose]")?.click(); }
   if (e.target.id === "context" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); document.querySelector("[data-context-save]")?.click(); }
+  if (e.target.id === "draft-box" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); makeFinding(); }
   if (e.key === "Escape") onEscape(e);
 });
 function closePanel() {
@@ -1688,7 +1793,7 @@ document.addEventListener("mouseup", e => {
       const first = Math.min(...rows.map(r => +r.dataset.line)), last = Math.max(...rows.map(r => +r.dataset.line));
       ui.selection = { path: diff.dataset.diff, lines: [first, last], side, quote: text, about: { kind: "file", path: diff.dataset.diff, lines: [first, last] } };
       diff.querySelectorAll(".ln").forEach(l => l.classList.toggle("sel", l.dataset.side === side && +l.dataset.line >= first && +l.dataset.line <= last));
-      pop.innerHTML = `<button class="btn go sm" data-pop="ask">✦ Ask AI Agent</button><button class="btn ghost sm" data-pop="finding">Add finding</button>`;
+      pop.innerHTML = `<button class="btn go sm" data-pop="ask">✦ Ask AI Agent</button><button class="btn ghost sm" data-pop="comment">✎ Comment</button>`;
     } else if (about) {
       const [kind, id] = about.dataset.quoteAbout.split(":");
       ui.selection = { quote: text, about: { kind, id } };

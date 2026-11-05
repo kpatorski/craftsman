@@ -136,6 +136,17 @@ class SendReviewTest(unittest.TestCase):
         self.assertIn("Exposes a mutable list.", general[0]["body"])
         self.assertEqual(self.findings()[found]["status"], "sent")
 
+    def test_a_finding_about_a_whole_file_goes_as_a_general_comment_naming_the_file(self):
+        self.opened()
+        found = self.finding("Split this class.", [at("src/Cancel.java", None)])
+
+        send_review.send(self.review, gh=self.gh)
+
+        general = self.posted("/issues/123/comments")
+        self.assertEqual([g["body"] for g in general], ["**`src/Cancel.java`**\n\nSplit this class."])
+        self.assertEqual(self.posted_reviews(), [])
+        self.assertEqual(self.findings()[found]["status"], "sent")
+
     def test_a_comment_already_on_github_is_not_sent_again(self):
         self.opened()
         inline = self.finding("Use a value object.", [at("src/Cancel.java", 2)])

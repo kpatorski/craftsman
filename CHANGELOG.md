@@ -3,6 +3,21 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.18.0
+
+- The Code tab has a comment panel: "✎ Comment" over selected lines, or "✎ Comment on file" in a file's header, opens
+  a markdown editor with a toolbar, the finding rendered above it as the author will read it, a severity, and "Make it
+  a finding" (⌘ Enter); the finding's title is the comment's first sentence. Each file keeps one draft, saved as you
+  type, so moving between files moves between their drafts. Drafts are `drafts` in
+  `review.json` (`review_state.py save-draft`, `discard-draft`, `draft-to-finding`, the developer's); see REVIEW.md,
+  "Drafts". It replaces the "Add finding" panel.
+- A finding can be about a whole file: its location's `line` is null, the Code tab shows it above the file's diff,
+  and Send posts it to the pull request's conversation, naming the file.
+- The review page's side panel is a rounded card beside the content, level with it, instead of a strip along the
+  window's edge; over an open use case it still floats on top.
+- Esc steps back one layer on the review page: out of a text box, then the selection popover, the side panel, and the
+  open use case.
+
 ## 0.17.0
 
 - The developer can tell the review's agent what the pull request does not say: "Context for the AI Agent" under "What

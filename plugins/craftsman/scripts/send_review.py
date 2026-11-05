@@ -90,7 +90,7 @@ def send(review, gh=None):
 
     findings = [f for f in state["findings"] if f["status"] == "to-send"]
     inline = changed_lines((review / "diff" / f"{state['head']}.diff").read_text())
-    on_diff = lambda loc: loc["line"] in inline.get(loc["path"], set())  # noqa: E731
+    on_diff = lambda loc: loc.get("line") in inline.get(loc["path"], set())  # noqa: E731
     pulls = f"repos/{repository}/pulls/{number}"
     sent, errors, urls = [], [], {}
     # what is on the pull request already: a comment sent before, but never recorded as sent, is not sent again
@@ -113,7 +113,8 @@ def send(review, gh=None):
 
     def general(found, index, body):
         location = found["locations"][index]
-        text = f"**`{location['path']}:{location['line']}`**\n\n{body}"
+        place = f"{location['path']}:{location['line']}" if location.get("line") else location["path"]
+        text = f"**`{place}`**\n\n{body}"
         if text in on_github["general"]:
             urls[(found["id"], index)] = on_github["general"][text]
             return

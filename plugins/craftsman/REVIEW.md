@@ -151,7 +151,7 @@ For a deleted file, the server also lists where the reviewed code in `worktree/`
 - `description` — a short introduction to what it is about.
 - `comment` — the proposed PR comment: what is wrong, why it matters, the proposed solution.
 - `locations` — `{"path", "line", "side", "commit"}`, one or more. The first is where the comment goes; every
-  other location gets a short reference to it.
+  other location gets a short reference to it. `line` is null for a finding about the whole file.
 - `directive` — the id of the directive it comes from, or null.
 - `kind` — `violation`; `new-convention` (the project does it this way elsewhere, new code need not); `scout` (the
   change leaves nearby code no better than it found it); `out-of-scope` (worth doing, outside this PR).
@@ -165,6 +165,24 @@ For a deleted file, the server also lists where the reviewed code in `worktree/`
   finding is sent.
 - `sent` — `{"location", "url"}` for each comment posted to GitHub. The answers to it are in its thread in
   `github.json`.
+
+### Drafts
+
+`drafts` — the developer's drafts of findings, one per file, by the file's path, written in the comment panel of the
+Code tab. Each one:
+
+- `text` — the comment so far, in markdown.
+- `lines` — `[first, last]`, the lines it is about, or null for the whole file.
+- `side` — `RIGHT` or `LEFT`, the side of the diff the lines are on.
+- `at` — when it was last saved.
+
+Only the developer writes them, with `review_state.py <review dir> <command> '<payload>' --by developer`:
+
+- `save-draft` `{"path", "text", "lines", "side"}` — writes the file's draft, replacing the one before;
+- `discard-draft` `{"path"}` — throws it away;
+- `draft-to-finding` `{"path", "severity", "title"}` — makes it the developer's own finding, on the last of its lines
+  or on the whole file, with the draft's text as the comment, and removes the draft. Without a `title`, the first
+  sentence of the comment's prose is the title, cut to 80 characters. An empty draft makes no finding.
 
 ### Fix prompts
 
@@ -219,7 +237,8 @@ The tab also lists the review's protocols; they are switched in the workshop, no
   ever sent. A refresh that no longer sees the problem sets `maybe-resolved`; only the developer decides it is gone.
 - **Sent is final.** A `sent` finding or comment is not edited or sent again; a follow-up is a new one.
 - **Only `to-send` is sent.** Sending posts every `to-send` finding and comment, and changes it to `sent` only once it
-  exists on GitHub. A finding goes as an inline comment, a comment on the whole pull request to its conversation, a
+  exists on GitHub. A finding goes as an inline comment; one about a whole file, or a place outside the diff, goes to
+  the pull request's conversation naming its place. A comment on the whole pull request goes to its conversation, a
   reply into its thread. A comment already on the pull request, at the same place with the same text, is not posted
   again; its link is recorded. When what is on the pull request cannot be read, nothing is posted.
 

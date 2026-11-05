@@ -513,6 +513,51 @@ class ReviewEndpointsTest(ReviewsTest):
         self.assertIn("blur()", escape)
         self.assertIn("closePanel()", escape)
 
+    def test_the_page_keeps_a_draft_per_file_and_makes_a_finding_of_it(self):
+        status, body = self.call("/api/review/change", {"id": ID, "action": "save-draft", "path": "B.java",
+                                                         "text": "Split it.", "lines": [4, 6], "side": "RIGHT"})
+        self.assertEqual(status, 200, body)
+        self.assertEqual(self.call(f"/api/review?id={ID}")[1]["state"]["drafts"]["B.java"]["text"], "Split it.")
+
+        status, body = self.call("/api/review/change", {"id": ID, "action": "draft-to-finding", "path": "B.java",
+                                                         "title": "Too big", "severity": "should-fix"})
+
+        self.assertEqual(status, 200, body)
+        state = review_state.read(self.review)
+        self.assertEqual((state["findings"][-1]["title"], state["findings"][-1]["locations"][0]["line"]),
+                         ("Too big", 6))
+        self.assertEqual(state["drafts"], {})
+
+    def test_the_page_throws_a_draft_away(self):
+        self.call("/api/review/change", {"id": ID, "action": "save-draft", "path": "B.java", "text": "Hm."})
+
+        status, body = self.call("/api/review/change", {"id": ID, "action": "discard-draft", "path": "B.java"})
+
+        self.assertEqual(status, 200, body)
+        self.assertEqual(review_state.read(self.review)["drafts"], {})
+
+    def test_the_page_previews_markdown_as_the_findings_show_it(self):
+        status, body = self.call("/api/review/markdown", {"id": ID, "text": "Use **one** name:\n```\nvar a;\n```"})
+
+        self.assertEqual(status, 200, body)
+        self.assertIn("<strong>one</strong>", body["html"])
+        self.assertIn("<pre>", body["html"])
+
+    def test_every_docked_side_panel_is_a_rounded_card(self):
+        served = self.page(f"/review?review={ID}")
+
+        self.assertIn('el.classList.toggle("card", !!body && !over)', served)
+
+    def test_the_review_page_has_the_comment_panel(self):
+        served = self.page(f"/review?review={ID}")
+        for hook in ("data-comment-file", 'data-pop="comment"', 'change("save-draft"', 'change("discard-draft"',
+                     'change("draft-to-finding"', "/api/review/markdown", "draft-box", "panelComment", "data-md-tool"):
+            with self.subTest(hook=hook):
+                self.assertIn(hook, served)
+        for gone in ("panelNewFinding", "data-nf-save"):
+            with self.subTest(gone=gone):
+                self.assertNotIn(gone, served)
+
     def test_a_review_started_with_context_opens_with_it(self):
         status, body = self.call("/api/review/start", {"checkout": str(self.checkout), "source": "main:feature/x",
                                                         "context": "Only the cancel path changed."})

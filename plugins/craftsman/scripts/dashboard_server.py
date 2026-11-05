@@ -46,7 +46,7 @@ import _settings  # noqa: E402
 import github_conversation  # noqa: E402
 import review_state  # noqa: E402
 import send_review  # noqa: E402
-from _markdown import MD_CSS  # noqa: E402
+from _markdown import MD_CSS, render_markdown  # noqa: E402
 import _theme  # noqa: E402
 
 STATE = pathlib.Path.home() / ".claude" / "craftsman-dashboard.json"
@@ -333,6 +333,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, send_review.send(review))
             if path == "/api/review/github":
                 return self.send(200, github_conversation.fetch(review))
+            if path == "/api/review/markdown":
+                return self.send(200, dict(html=render_markdown(str(body.get("text", "")), lambda url: None)))
             if path == "/api/review/change":
                 reviews.developer_change(review_id, body.get("action"), body, self.hub.content)
                 if body.get("action") == "archive" and body.get("archived"):

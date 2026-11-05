@@ -9,7 +9,8 @@ Commands: init, refresh, set, add-finding, update-finding <id>, set-status <id>,
 update-comment <id>, comment-status <id>, comment-sent <id>, use-case-status <id>, open-thread,
 reply <thread id>, resolve <thread id>, view, unview, archive, answer, handled <message id>,
 switch-directive, clear-directive-switches, record-check, add-context, remove-context <id>,
-in-prompt <id>, show.
+in-prompt <id>, save-draft,
+discard-draft, draft-to-finding, show.
 
 The agent and the review page change review.json at the same time. Every change takes an exclusive lock, reads the
 file fresh, checks the change against REVIEW.md's rules, and replaces the file atomically -- so neither side loses
@@ -21,6 +22,7 @@ import fcntl
 import json
 import os
 import pathlib
+import re
 import shutil
 import sys
 import tempfile
@@ -54,7 +56,7 @@ def empty_state(source, base, head, checkout=None):
     return {"source": source, "checkout": checkout, "base": base, "head": head, "refreshed": None, "session": None, "closed": None,
             "language": None, "scope": None, "requirements": None, "tickets": [], "structure": None, "rules": [],
             "checkpoint": None, "findings": [], "comments": [], "threads": [], "viewed": [], "archived": False, "handled": [],
-            "directive-switches": {}, "checks": [], "context": []}
+            "directive-switches": {}, "checks": [], "context": [], "drafts": {}}
 
 
 @contextmanager
@@ -262,6 +264,62 @@ def in_prompt(state, payload, by, finding_id):
         raise Refused("in-prompt says `included`, true or false")
     by_id(state["findings"], finding_id)["in-prompt"] = payload["included"]
     return state, None
+
+
+def drafts_of(state, payload, by):
+    """The developer's drafts of findings, one per file; a draft is about the selected lines, or the whole file."""
+    if by != "developer":
+        raise Refused("a draft of a finding is the developer's")
+    if not payload.get("path"):
+        raise Refused("a draft names the file it is about")
+    return state.setdefault("drafts", {})
+
+
+def save_draft(state, payload, by):
+    drafts = drafts_of(state, payload, by)
+    lines = payload.get("lines")
+    if lines is not None and not (isinstance(lines, list) and len(lines) == 2 and all(isinstance(n, int) for n in lines)):
+        raise Refused("a draft's lines are [first, last]")
+    drafts[payload["path"]] = {"text": payload.get("text") or "", "lines": lines,
+                               "side": payload.get("side") or "RIGHT", "at": now()}
+    return state, None
+
+
+def discard_draft(state, payload, by):
+    drafts_of(state, payload, by).pop(payload["path"], None)
+    return state, None
+
+
+def title_of(text, longest=80):
+    """A finding's title from its comment: the first sentence of its first line of prose, without markdown marks."""
+    prose, fenced = "", False
+    for line in text.splitlines():
+        if line.lstrip().startswith(("```", "~~~")):
+            fenced = not fenced
+        elif not fenced and line.strip():
+            prose = line.strip()
+            break
+    plain = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", prose)
+    plain = re.sub(r"[*_`#>]+", "", plain).lstrip("-+ ").strip()
+    sentence = re.split(r"(?<=[.!?])\s", plain, maxsplit=1)[0].rstrip(".!?:; ")
+    return sentence if len(sentence) <= longest else sentence[:longest - 1].rsplit(" ", 1)[0] + "…"
+
+
+def draft_to_finding(state, payload, by):
+    """The draft becomes the developer's finding, on the last line it is about, or on the whole file, and is gone."""
+    drafts = drafts_of(state, payload, by)
+    draft = drafts.get(payload["path"])
+    if not draft or not draft["text"].strip():
+        raise Refused(f"no draft about {payload['path']} to make a finding of")
+    lines = draft.get("lines")
+    location = {"path": payload["path"], "line": lines[1] if lines else None, "side": draft.get("side") or "RIGHT",
+                "commit": state["head"]}
+    fields = {key: payload[key] for key in ("title", "severity", "comment") if payload.get(key)}
+    fields.setdefault("title", title_of(fields.get("comment") or draft["text"])
+                      or f"About {payload['path'].rsplit('/', 1)[-1]}")
+    state, made = add_finding(state, {"comment": draft["text"].strip(), **fields, "locations": [location]}, by)
+    del drafts[payload["path"]]
+    return state, made
 
 
 def developers_comment(by):
@@ -478,7 +536,8 @@ def handled(state, payload, by, message_id):
 COMMANDS = {"set": set_fields, "add-finding": add_finding, "add-comment": add_comment, "open-thread": open_thread,
             "view": view, "unview": unview, "archive": archive, "answer": answer,
             "switch-directive": switch_directive, "clear-directive-switches": clear_directive_switches,
-            "record-check": record_check, "add-context": add_context}
+            "record-check": record_check, "add-context": add_context, "save-draft": save_draft,
+            "discard-draft": discard_draft, "draft-to-finding": draft_to_finding}
 COMMANDS_WITH_ID = {"update-finding": update_finding, "set-status": set_status, "mark-sent": mark_sent,
                     "update-comment": update_comment, "comment-status": comment_status,
                     "comment-sent": comment_sent, "use-case-status": use_case_status, "reply": reply,

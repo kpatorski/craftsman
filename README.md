@@ -202,7 +202,9 @@ rail on the left; the open one has six tabs:
   branches and whether a test covers each, and its files' diffs beside it.
 - **Code** — every changed file with its diff, the code coloured by its language (Java, Kotlin, TypeScript, JavaScript,
   Python, Go, C#, SQL, shell, YAML, JSON, XML); findings are dots beside the line numbers, opened under the line on a
-  click, or all inline with a switch. A folder shortened in the file list shows its full path on hover.
+  click, or all inline with a switch. A folder shortened in the file list shows its full path on hover. "✎ Comment"
+  over selected lines, or "✎ Comment on file" in a file's header, opens the comment panel: a markdown editor with a
+  rendered preview, one draft per file that stays while you move between files, and "Make it a finding".
 - **Findings** — a table to filter, search and sort; a finding opens in a side panel to edit, ask about, drop, or mark
   to send. "Fix prompts → comment" turns the findings marked to send into a comment for the author: one prompt per
   category for their AI coding agent, each fixed as one commit. A finding's "In fix prompt" switch leaves it out.
