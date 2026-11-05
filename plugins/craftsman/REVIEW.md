@@ -160,8 +160,21 @@ For a deleted file, the server also lists where the reviewed code in `worktree/`
 - `merged-into` — for `merged` only: the id of the finding this one was joined into, as one problem in several
   places. A `merged` finding is never sent; the page shows it folded under that finding.
 - `edited` — the fields the developer changed: any of `title`, `description`, `comment`, `severity`.
+- `in-prompt` — `false` when the developer leaves the finding out of the fix prompts; missing or `true` otherwise. Set
+  with `review_state.py <review dir> in-prompt <id> '{"included": true | false}' --by developer`, also once the
+  finding is sent.
 - `sent` — `{"location", "url"}` for each comment posted to GitHub. The answers to it are in its thread in
   `github.json`.
+
+### Fix prompts
+
+The Findings tab's "Fix prompts → comment" writes one comment on the whole pull request for the author's own AI coding
+agent, made by `scripts/fix_prompts.py` from the findings marked to send or sent whose `in-prompt` is not `false`. It
+holds one prompt per category, each in a fenced block longer than any run of backticks inside it: what is reviewed and
+at which commit, every finding of the category — severity, place, title, comment and its other places — and the ask to
+make these fixes and nothing else as one commit. Categories come worst severity first. The comment starts with
+`<!-- craftsman:fix-prompts -->`; while it waits for Send, writing the prompts again rewrites it, and once it is sent,
+the next one is a new comment.
 
 ### Comments
 

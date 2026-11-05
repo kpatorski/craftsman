@@ -204,7 +204,8 @@ rail on the left; the open one has six tabs:
   Python, Go, C#, SQL, shell, YAML, JSON, XML); findings are dots beside the line numbers, opened under the line on a
   click, or all inline with a switch. A folder shortened in the file list shows its full path on hover.
 - **Findings** — a table to filter, search and sort; a finding opens in a side panel to edit, ask about, drop, or mark
-  to send.
+  to send. "Fix prompts → comment" turns the findings marked to send into a comment for the author: one prompt per
+  category for their AI coding agent, each fixed as one commit. A finding's "In fix prompt" switch leaves it out.
 - **Comments** — the PR's conversation on GitHub as it reads there: everyone's comments, reviews and threads on the
   code, read again after every Send and on request. Write a comment on the whole PR, quote one to answer it, or reply
   in a thread; yours wait for Send. A thread on a line of the diff also shows under that line in the code.

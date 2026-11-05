@@ -260,6 +260,7 @@
   .ctx-note { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: start; padding: 8px 10px; margin-bottom: 8px;
     background: var(--card2); border: 1px solid var(--line2); border-left: 3px solid var(--neon); border-radius: 10px; }
   .ctx-text { white-space: pre-wrap; } .ctx-at { font-size: .75rem; padding-top: 2px; } .ctx-x { padding: 0 8px; line-height: 1.4; }
+  .in-prompt { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; cursor: pointer; font-size: .8125rem; color: var(--muted); }
   .ck-legend > span { margin-left: 14px; white-space: nowrap; } .ck-legend .ck { margin-right: 5px; }
   .ck.not-applicable { background: var(--nit-dot); border-color: var(--nit-dot); } .ck.failed, .ck.missing { border-color: var(--must); }
   .sevn { display: inline-flex; gap: 4px; align-items: center; color: var(--muted); } .sevn i { width: 7px; height: 7px; border-radius: 50%; margin-left: 4px; }
@@ -741,7 +742,8 @@ function viewFindings() {
       ${chip("Open questions", base.filter(openQ).length, ui.fquestions, "data-fquestions")}
       <span class="fsep"></span>${[["open", "Open"], ["to-send", "To send"], ["sent", "Sent"], ["deleted", "Dropped"]].map(([k, l]) =>
         chip(l, all.filter(STATUS[k]).length, ui.fstatus === k, `data-fstatus="${k}"`)).join("")}
-      <input class="search" id="fsearch" placeholder="Search findings…"></div>
+      <input class="search" id="fsearch" placeholder="Search findings…">
+      <button class="btn sm" data-fix-prompts title="One prompt per category, from the findings marked to send that are in the fix prompts, as a comment on the whole PR">Fix prompts → comment</button></div>
     <div class="card" style="padding:6px 10px">${list.length ? findingTable(sorted(list), true) : '<div class="muted" style="padding:14px">No finding matches.</div>'}</div>`;
 }
 
@@ -824,7 +826,8 @@ function panelFinding(id) {
     ${snippet ? `<div class="box"><div class="l"><span class="mono">${esc(loc.path)}</span><a style="color:var(--neon)" data-open-file="${esc(loc.path)}">Open in Code →</a></div>${snippet}</div>` : ""}
     <div class="box"><div class="l"><span>Draft comment to the author</span>${sent || editing ? "" : `<a data-edit="${esc(f.id)}">Edit</a>`}</div>
       ${editing ? `<textarea class="field" id="edit-comment" style="min-height:140px">${esc(f.comment)}</textarea>` : `<div class="md">${md(`finding:${f.id}:comment`)}</div>`}</div>
-    <div class="row-actions">${actions}</div>
+    <div class="row-actions">${actions}${f.status === "deleted" ? "" : `<span class="in-prompt" data-in-prompt="${esc(f.id)}" title="Whether the fix prompts ask the author's AI agent to fix this one">
+      <span class="switch${f["in-prompt"] === false ? "" : " on"}"><i></i></span>In fix prompt</span>`}</div>
     ${sentAs(f).filter(root => ghThreads().has(root)).map(root => `<div class="box"><div class="l">On GitHub</div>${ghThreadMessages(root, ghThreads().get(root))}</div>`).join("")}
     ${threadsBlock(threadsOf("finding", f.id), { kind: "finding", id: f.id }, "Ask about this finding…")}`;
 }
@@ -1418,7 +1421,7 @@ const CLICKABLE = ["tab", "sort", "restart", "inline", "gutter", "goto", "findin
   "close-review", "uccard", "close-uc", "ask-uc", "open-review", "archive", "new", "archived", "unarchive", "start", "pop", "new-finding", "nr-kind", "nr-how", "nr-browse",
   "nf-sev", "nf-save", "answer-here", "agent-tools", "allow-tool", "tool-toggle", "nr-existing", "permit",
   "gh-read", "gh-quote", "gh-reply-open", "gh-reply", "gh-thread", "comment-add", "cedit", "csave", "cdrop",
-  "directive-switch", "directive-check", "directive-default", "rfilter", "context-save", "context-remove"].map(name => `[data-${name}]`).join(",");
+  "directive-switch", "directive-check", "directive-default", "rfilter", "context-save", "context-remove", "fix-prompts", "in-prompt"].map(name => `[data-${name}]`).join(",");
 document.addEventListener("click", async e => {
   if (!e.target.closest("#pop")) { hidePop(); dropSelection(); }
   const t = e.target.closest(CLICKABLE); if (!t) return;
@@ -1505,6 +1508,13 @@ document.addEventListener("click", async e => {
   }
   if (d.directiveDefault !== undefined) return change("default-directives", {})
     .then(o => o && (toast("this set of directives is now the default for every review"), reload()));
+  if (d.fixPrompts !== undefined) return change("fix-prompts", {}).then(o => {
+    if (o) { toast("fix prompts written as a comment; it goes with Send"); go({ ui: { tab: "comments" } }); }
+  });
+  if (d.inPrompt) {
+    const f = S().findings.find(x => x.id === d.inPrompt);
+    return change("in-prompt", { finding: d.inPrompt, included: f["in-prompt"] === false }).then(o => o && reload());
+  }
   if (d.contextSave !== undefined) {
     // cleared at once, so a refresh while it is sent never puts the text back; given back if it is refused
     const text = document.getElementById("context").value;

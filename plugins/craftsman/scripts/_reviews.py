@@ -7,6 +7,7 @@ import pathlib
 import re
 
 import _settings
+import fix_prompts
 import github_conversation
 import review_directives
 import review_state
@@ -245,6 +246,20 @@ def developer_change(review_id, action, body, content=None):
                                           _settings.review_directives())
         _settings.update("review-directives", {d["id"]: d["on"] for d in chosen if d["on"] != d["enabled"]})
         return review_state.change(review, "clear-directive-switches", {}, "developer")
+    if action == "in-prompt":
+        return review_state.change(review, "in-prompt", {"included": body.get("included")}, "developer",
+                                   body.get("finding"))
+    if action == "fix-prompts":
+        # one comment of fix prompts at a time: rewritten from the findings until it is sent
+        state = review_state.read(review)
+        text = fix_prompts.comment(state)
+        if text is None:
+            raise review_state.Refused("no finding marked to send is in the fix prompts")
+        waiting = [c for c in state.get("comments", []) if c["status"] == "to-send" and c.get("reply-to") is None
+                   and fix_prompts.is_fix_prompts(c["body"])]
+        if waiting:
+            return review_state.change(review, "update-comment", {"body": text}, "developer", waiting[0]["id"])
+        return review_state.change(review, "add-comment", {"body": text}, "developer")
     if action == "add-context":
         review_state.change(review, "add-context", {"text": body.get("text")}, "developer")
         return add_message(review_id, {"type": "context"})

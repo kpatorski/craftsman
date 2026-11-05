@@ -86,10 +86,14 @@ def render_markdown(text, resolve):
         st = line.strip()
         if not st:
             i += 1
+        elif st.startswith("<!--") and st.endswith("-->"):
+            i += 1  # a comment in the text, hidden as GitHub hides it
         elif st.startswith("```"):
+            # as GitHub reads it: only a line of as many backticks or more ends the block, so a longer fence holds one
+            fence = len(st) - len(st.lstrip("`"))
             code = []
             i += 1
-            while i < n and not lines[i].strip().startswith("```"):
+            while i < n and not (set(lines[i].strip()) == {"`"} and len(lines[i].strip()) >= fence):
                 code.append(lines[i])
                 i += 1
             i += 1

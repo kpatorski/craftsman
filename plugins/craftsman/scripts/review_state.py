@@ -8,7 +8,8 @@ The payload is one argument, in single quotes; an apostrophe inside it is writte
 Commands: init, refresh, set, add-finding, update-finding <id>, set-status <id>, mark-sent <id>, add-comment,
 update-comment <id>, comment-status <id>, comment-sent <id>, use-case-status <id>, open-thread,
 reply <thread id>, resolve <thread id>, view, unview, archive, answer, handled <message id>,
-switch-directive, clear-directive-switches, record-check, add-context, remove-context <id>, show.
+switch-directive, clear-directive-switches, record-check, add-context, remove-context <id>,
+in-prompt <id>, show.
 
 The agent and the review page change review.json at the same time. Every change takes an exclusive lock, reads the
 file fresh, checks the change against REVIEW.md's rules, and replaces the file atomically -- so neither side loses
@@ -253,6 +254,16 @@ def mark_sent(state, payload, by, finding_id):
     return state, None
 
 
+def in_prompt(state, payload, by, finding_id):
+    """The developer leaves a finding in the fix prompts, or out of them; it can change after the finding is sent."""
+    if by != "developer":
+        raise Refused("what goes in the fix prompts is the developer's choice")
+    if not isinstance(payload.get("included"), bool):
+        raise Refused("in-prompt says `included`, true or false")
+    by_id(state["findings"], finding_id)["in-prompt"] = payload["included"]
+    return state, None
+
+
 def developers_comment(by):
     if by != "developer":
         raise Refused("a comment on the pull request is the developer's")
@@ -471,7 +482,8 @@ COMMANDS = {"set": set_fields, "add-finding": add_finding, "add-comment": add_co
 COMMANDS_WITH_ID = {"update-finding": update_finding, "set-status": set_status, "mark-sent": mark_sent,
                     "update-comment": update_comment, "comment-status": comment_status,
                     "comment-sent": comment_sent, "use-case-status": use_case_status, "reply": reply,
-                    "resolve": resolve, "handled": handled, "remove-context": remove_context}
+                    "resolve": resolve, "handled": handled, "remove-context": remove_context,
+                    "in-prompt": in_prompt}
 
 
 def change(review, command, payload=None, by="agent", item_id=None):

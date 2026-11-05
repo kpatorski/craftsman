@@ -475,6 +475,31 @@ class ReviewEndpointsTest(ReviewsTest):
         self.assertEqual(self.call(f"/api/review?id={ID}")[1]["state"]["context"], [])
         self.assertEqual([m["type"] for m in reviews.pending_messages(self.review)][-2:], ["context", "context"])
 
+    def test_the_page_writes_the_fix_prompts_as_one_comment_and_rewrites_it_until_it_is_sent(self):
+        status, body = self.call("/api/review/change", {"id": ID, "action": "fix-prompts"})
+        self.assertEqual(status, 409, body)
+        self.assertIn("to send", body["error"])
+        self.call("/api/review/change", {"id": ID, "action": "status", "finding": "f1", "status": "to-send"})
+
+        self.assertEqual(self.call("/api/review/change", {"id": ID, "action": "fix-prompts"})[0], 200)
+        self.call("/api/review/change", {"id": ID, "action": "edit", "finding": "f1", "fields": {"title": "Renamed"}})
+        self.assertEqual(self.call("/api/review/change", {"id": ID, "action": "fix-prompts"})[0], 200)
+
+        comments = review_state.read(self.review)["comments"]
+        self.assertEqual([c["status"] for c in comments], ["to-send"])
+        self.assertIn("Renamed", comments[0]["body"])
+        self.assertIn("A.java:3", comments[0]["body"])
+
+        review_state.change(self.review, "comment-sent", {"url": "https://x/c1"}, "agent", "c1")
+        self.call("/api/review/change", {"id": ID, "action": "fix-prompts"})
+        self.assertEqual(len(review_state.read(self.review)["comments"]), 2)
+
+    def test_the_review_page_has_the_fix_prompts(self):
+        served = self.page(f"/review?review={ID}")
+        for hook in ("data-fix-prompts", 'change("fix-prompts"', "data-in-prompt", 'change("in-prompt"'):
+            with self.subTest(hook=hook):
+                self.assertIn(hook, served)
+
     def test_a_review_started_with_context_opens_with_it(self):
         status, body = self.call("/api/review/start", {"checkout": str(self.checkout), "source": "main:feature/x",
                                                         "context": "Only the cancel path changed."})

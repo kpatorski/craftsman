@@ -392,6 +392,19 @@ class ReviewStateTest(unittest.TestCase):
         self.assertEqual([n["text"] for n in self.state()["context"]], ["Only the cancel path changed."])
         self.assertFalse((self.review / "context.md").exists())
 
+    def test_the_developer_leaves_a_finding_out_of_the_fix_prompts_even_once_it_is_sent(self):
+        self.opened()
+        self.run_state("add-finding", payload=finding())
+        self.run_state("set-status", "f1", payload={"status": "to-send"}, by="developer")
+        self.run_state("mark-sent", "f1", payload={"sent": [{"location": 0, "url": "https://x/1"}]})
+
+        self.run_state("in-prompt", "f1", payload={"included": False}, expect_ok=False)
+        self.run_state("in-prompt", "f1", payload={"included": "no"}, by="developer", expect_ok=False)
+        self.run_state("in-prompt", "f1", payload={"included": False}, by="developer")
+
+        found = self.state()["findings"][0]
+        self.assertEqual((found["in-prompt"], found["edited"]), (False, []))
+
     def with_use_cases(self):
         self.opened()
         self.run_state("set", payload={"structure": {"use-cases": [

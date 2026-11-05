@@ -11,6 +11,13 @@ not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets s
   and `remove-context`, the developer's); each change also sends a `context` message to the agent. See REVIEW.md,
   "Understanding". Update the `code-review` bundle of the workshop together with this version — its `read-pr-scope`,
   `review-use-case` and `serve-page` read and handle it.
+- "Fix prompts → comment" on the Findings tab writes the findings marked to send as a comment on the whole PR: one
+  prompt per category, in a fenced block, for the author's AI coding agent to fix as one commit (`fix_prompts.py`).
+  Each finding has an "In fix prompt" switch, on by default (`in-prompt`, `review_state.py in-prompt <id>`). See
+  REVIEW.md, "Fix prompts".
+- Markdown on the review page and in the reports is read as GitHub reads it in two more places: a fenced block ends
+  only at a line of as many backticks or more, so a longer fence holds a code block, and a line that is an HTML
+  comment is not shown.
 
 ## 0.16.0
 
