@@ -1474,7 +1474,7 @@ document.addEventListener("click", async e => {
     ui.editComment = null; return reload();
   }
   if (d.cdrop) return change("comment-status", { comment: d.cdrop, status: "deleted" }).then(o => o && reload());
-  if (d.closePanel !== undefined) { ui.panel = null; ui.selection = null; document.querySelectorAll(".ln.sel").forEach(l => { if (!l.closest(".snip")) l.classList.remove("sel"); }); return render(); }
+  if (d.closePanel !== undefined) return closePanel();
   if (d.edit !== undefined) { ui.editing = d.edit || null; return render(); }
   if (d.save) {
     const f = S().findings.find(x => x.id === d.save), fields = {};
@@ -1652,8 +1652,22 @@ document.addEventListener("input", e => { if (e.target.id === "fsearch") { ui.se
 document.addEventListener("keydown", e => {
   if (e.target.id === "compose" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); document.querySelector("[data-compose]")?.click(); }
   if (e.target.id === "context" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); document.querySelector("[data-context-save]")?.click(); }
-  if (e.key === "Escape") { hidePop(); if (ui.uc) openUseCase(ui.uc); }
+  if (e.key === "Escape") onEscape(e);
 });
+function closePanel() {
+  ui.panel = null; ui.selection = null;
+  document.querySelectorAll(".ln.sel").forEach(l => { if (!l.closest(".snip")) l.classList.remove("sel"); });
+  render();
+}
+// Esc steps back one layer: out of a text box first, so a half-written text stays; then the popover, the side panel,
+// and the use case.
+function onEscape(e) {
+  const box = e.target.closest && e.target.closest("textarea, input, select, [contenteditable]");
+  if (box) return box.blur();
+  if (document.getElementById("pop").style.display === "flex") return hidePop();
+  if (ui.panel) return closePanel();
+  if (ui.uc) openUseCase(ui.uc);
+}
 document.addEventListener("selectionchange", () => { if (deferred && !busy()) render(); });
 setInterval(() => { if (R && R.working) render(); }, 30000);
 // restoring writes nothing the server watches until the session starts, so the page asks

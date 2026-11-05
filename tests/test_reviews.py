@@ -505,6 +505,14 @@ class ReviewEndpointsTest(ReviewsTest):
             with self.subTest(hook=hook):
                 self.assertIn(hook, served)
 
+    def test_escape_leaves_a_text_box_first_then_closes_the_side_panel(self):
+        served = self.page(f"/review?review={ID}")
+        self.assertIn('if (e.key === "Escape") onEscape(e)', served)
+        escape = served[served.index("function onEscape("):]
+        escape = escape[:escape.index("\n}\n")]
+        self.assertIn("blur()", escape)
+        self.assertIn("closePanel()", escape)
+
     def test_a_review_started_with_context_opens_with_it(self):
         status, body = self.call("/api/review/start", {"checkout": str(self.checkout), "source": "main:feature/x",
                                                         "context": "Only the cancel path changed."})
