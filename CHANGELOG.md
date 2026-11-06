@@ -3,6 +3,11 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.19.2
+
+- A finding the developer adds on the review page, or turns a draft into, is marked to send from the start; the AI
+  Agent's findings still wait to be picked.
+
 ## 0.19.1
 
 - The comment panel's AI Agent writes the code the developer asks for: a code block in the draft, a placeholder like

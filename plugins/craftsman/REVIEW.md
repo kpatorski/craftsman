@@ -157,7 +157,8 @@ For a deleted file, the server also lists where the reviewed code in `worktree/`
 - `kind` — `violation`; `new-convention` (the project does it this way elsewhere, new code need not); `scout` (the
   change leaves nearby code no better than it found it); `out-of-scope` (worth doing, outside this PR).
 - `when` — for `out-of-scope` only: `now` or `later`.
-- `status` — `proposed`, `to-send`, `sent`, `deleted`, `maybe-resolved`, or `merged`.
+- `status` — `proposed`, `to-send`, `sent`, `deleted`, `maybe-resolved`, or `merged`. The AI Agent's finding starts
+  `proposed`; the developer's own starts `to-send`.
 - `merged-into` — for `merged` only: the id of the finding this one was joined into, as one problem in several
   places. A `merged` finding is never sent; the page shows it folded under that finding.
 - `edited` — the fields the developer changed: any of `title`, `description`, `comment`, `severity`.

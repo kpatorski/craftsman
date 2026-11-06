@@ -147,7 +147,7 @@ class ReviewStateTest(unittest.TestCase):
 
         self.assertEqual(self.state()["viewed"], ["B.java", "C.java"])
 
-    def test_findings_get_ids_in_order_and_start_proposed(self):
+    def test_the_agents_findings_get_ids_in_order_and_start_proposed(self):
         self.opened()
 
         first = self.run_state("add-finding", payload=finding()).stdout.strip()
@@ -310,7 +310,7 @@ class ReviewStateTest(unittest.TestCase):
         found = self.state()["findings"][0]
         self.assertEqual((found["severity"], found["by"]), ("must-fix", "agent"))
 
-    def test_the_developer_adds_a_finding_of_their_own(self):
+    def test_the_developer_adds_a_finding_of_their_own_marked_to_send(self):
         self.opened()
 
         added = self.run_state("add-finding", by="developer", payload={
@@ -321,7 +321,7 @@ class ReviewStateTest(unittest.TestCase):
         found = self.state()["findings"][0]
         self.assertEqual(added, "f1")
         self.assertEqual((found["by"], found["kind"], found["category"], found["status"]),
-                         ("developer", "violation", "yours", "proposed"))
+                         ("developer", "violation", "yours", "to-send"))
 
     def test_every_file_keeps_its_own_draft_of_a_finding(self):
         self.opened()
@@ -363,7 +363,7 @@ class ReviewStateTest(unittest.TestCase):
         found = self.state()["findings"][0]
         self.assertEqual(made, "f1")
         self.assertEqual((found["by"], found["title"], found["comment"], found["severity"], found["status"]),
-                         ("developer", "Name says nothing", "Rename `process`.", "nit", "proposed"))
+                         ("developer", "Name says nothing", "Rename `process`.", "nit", "to-send"))
         self.assertEqual(found["locations"], [{"path": "A.java", "line": 5, "side": "RIGHT", "commit": "bbb"}])
         self.assertEqual(self.state()["drafts"], {})
 

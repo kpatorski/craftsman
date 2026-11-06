@@ -198,7 +198,8 @@ def set_fields(state, payload, by):
 
 
 def add_finding(state, payload, by):
-    """The agent's finding names its category and kind; the developer's own needs only what a PR comment needs."""
+    """The agent's finding names its category and kind, and waits for the developer to pick it; the developer's own
+    needs only what a PR comment needs, and is marked to send."""
     required = ("category", "title", "description", "comment", "locations", "kind", "severity") if by == "agent" \
         else ("title", "comment", "locations", "severity")
     missing = [field for field in required if not payload.get(field)]
@@ -206,7 +207,7 @@ def add_finding(state, payload, by):
         raise Refused(f"a finding needs {', '.join(missing)}")
     defaults = {"category": "yours", "description": "", "kind": "violation"} if by == "developer" else {}
     found = {"id": next_id(state["findings"], "f"), "directive": None, "when": None, **defaults, **payload, "by": by,
-             "status": "proposed", "edited": [], "sent": []}
+             "status": "to-send" if by == "developer" else "proposed", "edited": [], "sent": []}
     check_kind(found)
     check_severity(found)
     state["findings"].append(found)
