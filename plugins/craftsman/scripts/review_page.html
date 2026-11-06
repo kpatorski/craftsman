@@ -1846,6 +1846,18 @@ setInterval(() => { if (R && R.working) render(); }, 30000);
 // restoring writes nothing the server watches until the session starts, so the page asks
 setInterval(() => { if (R && R.restoring && !busy()) reload(); }, 2000);
 document.addEventListener("focusout", () => setTimeout(() => { if (deferred && !busy()) render(); }, 0));
+// The popover opens next to the pointer where the selection ended, kept inside the box that holds the selection: the
+// selection's own rectangle runs to the end of every row it crosses, under the side panel.
+function popAt(pop, e, box) {
+  pop.style.display = "flex";
+  const area = box.getBoundingClientRect(), width = pop.offsetWidth, height = pop.offsetHeight;
+  const panel = document.getElementById("panel"), aside = panel.style.display !== "none" && !panel.contains(box)
+    ? panel.getBoundingClientRect().left : innerWidth;
+  const right = Math.min(area.right, aside > area.left ? aside : innerWidth, innerWidth) - width - 8;
+  const left = Math.max(area.left, 0) + 8;
+  pop.style.left = Math.max(left, Math.min(right, e.clientX - width / 2)) + "px";
+  pop.style.top = (e.clientY - height - 12 >= 8 ? e.clientY - height - 12 : e.clientY + 16) + "px";
+}
 // Selecting lines of a diff, or words of a finding's text, offers to ask AI Agent about them.
 document.addEventListener("mouseup", e => {
   if (e.target.closest("#pop")) return;
@@ -1854,7 +1866,7 @@ document.addEventListener("mouseup", e => {
     if (!text || !sel.rangeCount) return;
     const range = sel.getRangeAt(0), node = n => n.nodeType === 1 ? n : n.parentElement;
     const start = node(range.startContainer), end = node(range.endContainer);
-    const pop = document.getElementById("pop"), at = range.getBoundingClientRect();
+    const pop = document.getElementById("pop");
     const diff = start && start.closest("[data-diff]"), about = start && start.closest("[data-quote-about]");
     if (diff && end && end.closest("[data-diff]") === diff && start.closest(".ln") && end.closest(".ln")) {
       const rows = [start.closest(".ln"), end.closest(".ln")], side = rows[0].dataset.side;
@@ -1862,14 +1874,13 @@ document.addEventListener("mouseup", e => {
       ui.selection = { path: diff.dataset.diff, lines: [first, last], side, quote: text, about: { kind: "file", path: diff.dataset.diff, lines: [first, last] } };
       diff.querySelectorAll(".ln").forEach(l => l.classList.toggle("sel", l.dataset.side === side && +l.dataset.line >= first && +l.dataset.line <= last));
       pop.innerHTML = `<button class="btn go sm" data-pop="ask">✦ Ask AI Agent</button><button class="btn ghost sm" data-pop="comment">✎ Comment</button>`;
+      popAt(pop, e, diff);
     } else if (about) {
       const [kind, id] = about.dataset.quoteAbout.split(":");
       ui.selection = { quote: text, about: { kind, id } };
       pop.innerHTML = `<button class="btn go sm" data-pop="ask">✦ Ask AI Agent</button>` + (kind === "finding" ? `<button class="btn ghost sm" data-pop="quote">Quote in comment</button>` : "");
-    } else return;
-    pop.style.display = "flex";
-    pop.style.left = Math.min(innerWidth - 260, Math.max(8, at.right - 200)) + "px";
-    pop.style.top = Math.max(8, at.top - 44) + "px";
+      popAt(pop, e, about);
+    }
   }, 0);
 });
 // dragging a tile of the rail reorders the reviews

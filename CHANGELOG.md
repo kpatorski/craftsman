@@ -26,6 +26,9 @@ not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets s
   sentence or two), what is wrong and what to do, why only when it is not obvious, no report language, and nothing
   the comment already sits on. The comment panel's AI Agent writes to the same measure, keeping the size of the draft,
   and the panel shows the finding's title and comment, as the author reads it.
+- The selection popover ("Ask AI Agent", "Comment") opens by the pointer where the selection ended, inside the diff or
+  text it was made in, never under the side panel.
+
 ## 0.18.0
 
 - The Code tab has a comment panel: "✎ Comment" over selected lines, or "✎ Comment on file" in a file's header, opens

@@ -469,6 +469,13 @@ class ReviewEndpointsTest(ReviewsTest):
                 self.assertIn("directive-scope.md", served)
                 self.assertIn("data-unscoped", served)
 
+    def test_the_selection_popover_opens_where_the_selection_ends_inside_what_was_selected(self):
+        served = self.page(f"/review?review={ID}")
+        for hook in ("function popAt(", "popAt(pop, e, diff)", "popAt(pop, e, about)", "e.clientX", "e.clientY"):
+            with self.subTest(hook=hook):
+                self.assertIn(hook, served)
+        self.assertNotIn("at.right - 200", served)
+
     def test_the_comment_panel_shows_the_finding_as_the_author_reads_it_without_the_reviewers_why(self):
         self.assertNotIn("draft-why", self.page(f"/review?review={ID}"))
 
