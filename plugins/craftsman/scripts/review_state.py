@@ -46,6 +46,7 @@ UNTIED = "untied"  # the changed files no use case reaches, reviewed together as
 CHANGES = ("added", "modified", "deleted", "unchanged")
 ABOUT = ("review", "finding", "file", "use-case")
 COMMENT_STATUS = ("to-send", "deleted")
+NO_CATEGORY = "yours"  # the category of a developer's finding that names none
 
 
 class Refused(Exception):
@@ -205,7 +206,7 @@ def add_finding(state, payload, by):
     missing = [field for field in required if not payload.get(field)]
     if missing:
         raise Refused(f"a finding needs {', '.join(missing)}")
-    defaults = {"category": "yours", "description": "", "kind": "violation"} if by == "developer" else {}
+    defaults = {"category": NO_CATEGORY, "description": "", "kind": "violation"} if by == "developer" else {}
     found = {"id": next_id(state["findings"], "f"), "directive": None, "when": None, **defaults, **payload, "by": by,
              "status": "to-send" if by == "developer" else "proposed", "edited": [], "sent": []}
     check_kind(found)

@@ -3,6 +3,11 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.19.3
+
+- Fix prompts name no severity, only list the worst first, and the developer's findings with no category go in one
+  prompt headed "Other fixes" instead of "yours".
+
 ## 0.19.2
 
 - A finding the developer adds on the review page, or turns a draft into, is marked to send from the start; the AI

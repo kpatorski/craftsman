@@ -59,6 +59,30 @@ class FixPromptsTest(unittest.TestCase):
         self.assertIn("org/booking", prompts[1])
         self.assertIn("one commit", prompts[1])
 
+    def test_a_prompt_names_no_severity_but_keeps_the_worst_first(self):
+        body = fix_prompts.comment(state(finding("f1", "naming", "nit"), finding("f2", "naming", "must-fix", line=3),
+                                         finding("f3", "naming", "should-fix", line=5)))
+
+        prompt = blocks(body)[0]
+        for severity in fix_prompts.SEVERITY:
+            with self.subTest(severity=severity):
+                self.assertNotIn(severity, body)
+        self.assertLess(prompt.index("Title f2"), prompt.index("Title f3"))
+        self.assertLess(prompt.index("Title f3"), prompt.index("Title f1"))
+        self.assertIn("1. src/A.java:3 — Title f2", prompt)
+
+    def test_the_developers_findings_without_a_category_go_in_as_other_fixes(self):
+        body = fix_prompts.comment(state(finding("f1", "yours", "nit", by="developer"),
+                                         finding("f2", "yours", "should-fix", by="developer"),
+                                         finding("f3", "naming", "nit")))
+
+        self.assertNotIn("yours", body)
+        self.assertIn("#### Other fixes · 2 findings", body)
+        other = next(p for p in blocks(body) if "Title f1" in p)
+        self.assertNotIn("All of them are about", other)
+        self.assertIn("Make every fix below and nothing else", other)
+        self.assertIn("All of them are about naming", next(p for p in blocks(body) if "Title f3" in p))
+
     def test_only_what_is_sent_to_the_author_and_left_in_the_prompts_goes_in(self):
         body = fix_prompts.comment(state(
             finding("f1", "naming", "nit"), finding("f2", "naming", "nit", status="sent"),

@@ -3,9 +3,13 @@
 The findings the developer sends to the author -- marked to send, or sent -- and leaves in the prompts (`in-prompt` is
 not false) become one comment on the whole pull request: one prompt per category, each in a fenced block, for the
 author to paste into their own AI coding agent. Each prompt asks for its category's fixes and nothing else, made as one
-commit, so the author's history gets one atomic commit per kind of problem.
+commit, so the author's history gets one atomic commit per kind of problem. The developer's findings with no category
+of their own go in one prompt of other fixes. A prompt names no severity, it only lists the worst first: the labels are
+the review's, not words for the author's agent.
 """
 import re
+
+from review_state import NO_CATEGORY
 
 MARKER = "<!-- craftsman:fix-prompts -->"
 SEVERITY = ("must-fix", "should-fix", "nit")
@@ -34,14 +38,13 @@ def what_is_reviewed(state):
 
 
 def prompt(state, category, findings):
+    about = "" if category == NO_CATEGORY else f"All of them are about {category}. "
     lines = [f"Fix these review findings in {what_is_reviewed(state)}, reviewed at commit {state['head'][:12]}.",
-             f"All of them are about {category}. Make every fix below and nothing else, then make one commit with only "
-             "these changes. When a finding says it applies to every place in the change, fixing every such place is "
-             "part of that fix.", ""]
+             f"{about}Make every fix below and nothing else, then make one commit with only these changes. When a "
+             "finding says it applies to every place in the change, fixing every such place is part of that fix.", ""]
     for number, found in enumerate(findings, 1):
         locations = found.get("locations") or []
-        lines.append(f"{number}. {found['severity']} · {place(locations[0]) if locations else 'no place'} — "
-                     f"{found['title']}")
+        lines.append(f"{number}. {place(locations[0]) if locations else 'no place'} — {found['title']}")
         lines += ["   " + line if line else "" for line in found["comment"].strip().splitlines()]
         if len(locations) > 1:
             lines.append("   Also at: " + ", ".join(place(location) for location in locations[1:]))
@@ -70,7 +73,8 @@ def comment(state):
                      "in one commit."]
     for category in order:
         findings = by_category[category]
-        parts += [f"#### {category} · {len(findings)} finding{'s' if len(findings) > 1 else ''}",
+        heading = "Other fixes" if category == NO_CATEGORY else category
+        parts += [f"#### {heading} · {len(findings)} finding{'s' if len(findings) > 1 else ''}",
                   fenced(prompt(state, category, findings))]
     return "\n\n".join(parts) + "\n"
 
