@@ -1522,6 +1522,8 @@ function busy() {
   return dragging !== null || document.getElementById("pop").style.display === "flex" || (document.activeElement?.id || "").startsWith("nr-") ||
     (getSelection().toString() !== "" && !["TEXTAREA", "INPUT"].includes(document.activeElement?.tagName));
 }
+// the file the Code tab showed last: opening another one starts at its top, while a refresh keeps the place
+let shownFile = null;
 function render() {
   // a refresh never takes away a selection or a popover the developer is using; it waits until they are done
   if (busy()) { deferred = true; return; }
@@ -1539,7 +1541,9 @@ function render() {
     <div>The AI agent reads the pull request, gives the review its own copy of the code, and stores the diff. The page fills in as soon as it has.</div>
     <div class="indeterminate"></div></div>`;
   else main.innerHTML = renderHead() + `<div class="view">${progressLine()}${({ overview: viewOverview, findings: viewFindings, code: viewCode, structure: viewStructure, comments: viewComments, rules: viewRules }[ui.tab] || viewOverview)()}</div>`;
-  main.scrollTop = y;
+  const opened = ui.tab === "code" && R && shownFile !== null && ui.file !== shownFile;
+  if (ui.tab === "code" && R) shownFile = ui.file;
+  main.scrollTop = opened ? 0 : y;
   document.title = (R && (waiting() || asking()) ? "● " : "") + "craftsman review";
   renderPanel(); layoutCards(false); ucPanel();
   panel.scrollTop = py; side.scrollTop = sy;

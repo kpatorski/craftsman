@@ -29,6 +29,7 @@ not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets s
 - A comment can hold for every place in the change, the way it would be said on a call: "please remove these
   everywhere you added them". The comment panel's AI Agent keeps that sentence, and the fix prompts tell the author's
   agent that such a fix covers every such place.
+- Opening another file in the Code tab shows it from its top; a refresh of the same file keeps the place.
 - The selection popover ("Ask AI Agent", "Comment") opens by the pointer where the selection ended, inside the diff or
   text it was made in, never under the side panel.
 

@@ -479,6 +479,12 @@ class ReviewEndpointsTest(ReviewsTest):
     def test_the_comment_panel_shows_the_finding_as_the_author_reads_it_without_the_reviewers_why(self):
         self.assertNotIn("draft-why", self.page(f"/review?review={ID}"))
 
+    def test_opening_another_file_in_the_code_tab_starts_at_its_top(self):
+        served = self.page(f"/review?review={ID}")
+        for hook in ("let shownFile", "main.scrollTop = opened ? 0 : y"):
+            with self.subTest(hook=hook):
+                self.assertIn(hook, served)
+
     def test_the_rules_tab_says_how_each_directive_is_checked(self):
         served = self.page(f"/review?review={ID}")
         for hook in ("function howChecked", "once over the change", "per use case", "not in reviews"):
