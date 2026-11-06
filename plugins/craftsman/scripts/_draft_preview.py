@@ -123,6 +123,8 @@ Write the finding, in {language}, except the category:
   do; why it matters only when the author would not see it. Plain spoken words — "we", "let's", "I'd" are fine — no
   report language and no labels. Do not repeat what the comment sits on: the file, the line, the names right above
   it. A code block only when the fix is not clear from a sentence.
+  When the draft says the point holds for every place in the change, the comment says so in one plain sentence
+  ("please remove these everywhere you added them").
 - title: a few words naming the problem, the way you would say it in a stand-up.
 - description: one short sentence on why it matters, not a repeat of the comment.
 - category: a short English kebab-case name; use one of the categories above when it fits.

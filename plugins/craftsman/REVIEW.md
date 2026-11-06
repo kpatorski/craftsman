@@ -203,7 +203,9 @@ The Findings tab's "Fix prompts → comment" writes one comment on the whole pul
 agent, made by `scripts/fix_prompts.py` from the findings marked to send or sent whose `in-prompt` is not `false`. It
 holds one prompt per category, each in a fenced block longer than any run of backticks inside it: what is reviewed and
 at which commit, every finding of the category — severity, place, title, comment and its other places — and the ask to
-make these fixes and nothing else as one commit. Categories come worst severity first. The comment starts with
+make these fixes and nothing else as one commit. The comment goes in word for word, so a finding whose comment says it
+holds for every place in the change ("please remove these everywhere you added them") is fixed everywhere: the
+prompt says such a fix covers every such place. Categories come worst severity first. The comment starts with
 `<!-- craftsman:fix-prompts -->`; while it waits for Send, writing the prompts again rewrites it, and once it is sent,
 the next one is a new comment.
 

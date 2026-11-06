@@ -36,7 +36,8 @@ def what_is_reviewed(state):
 def prompt(state, category, findings):
     lines = [f"Fix these review findings in {what_is_reviewed(state)}, reviewed at commit {state['head'][:12]}.",
              f"All of them are about {category}. Make every fix below and nothing else, then make one commit with only "
-             "these changes.", ""]
+             "these changes. When a finding says it applies to every place in the change, fixing every such place is "
+             "part of that fix.", ""]
     for number, found in enumerate(findings, 1):
         locations = found.get("locations") or []
         lines.append(f"{number}. {found['severity']} · {place(locations[0]) if locations else 'no place'} — "

@@ -110,7 +110,8 @@ class DraftPreviewTest(unittest.TestCase):
         self.preview("tylko reminder")
 
         prompt = self.calls()[0]["prompt"]
-        for part in ("a teammate", "as long as the draft", "one or two sentences", "the file, the line"):
+        for part in ("a teammate", "as long as the draft", "one or two sentences", "the file, the line",
+                     "every place in the change, the comment says so"):
             with self.subTest(part=part):
                 self.assertIn(part, prompt)
 

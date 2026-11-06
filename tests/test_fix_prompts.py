@@ -84,6 +84,14 @@ class FixPromptsTest(unittest.TestCase):
 
         self.assertIn("src/C.java:44", blocks(fix_prompts.comment(state(two)))[0])
 
+    def test_a_finding_that_says_it_applies_everywhere_is_fixed_everywhere_and_its_words_go_in_as_they_are(self):
+        said = "Let's not put implementation details in the OpenAPI docs. Please remove them everywhere you added them."
+
+        prompt = blocks(fix_prompts.comment(state(finding("f1", "api-docs", "should-fix", comment=said))))[0]
+
+        self.assertIn(said, " ".join(line.strip() for line in prompt.splitlines()))
+        self.assertIn("applies to every place in the change, fixing every such place is part of that fix", prompt)
+
     def test_the_comment_is_known_again_by_its_marker(self):
         body = fix_prompts.comment(state(finding("f1", "naming", "nit")))
 
