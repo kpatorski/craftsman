@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """A stand-in for `gh api`, for the sending and conversation tests. It records every call in $FAKE_GH_LOG (argv and
 the JSON sent), keeps what is on the pull request in $FAKE_GH_STATE, and answers the way GitHub's REST API does for the
-calls send_review.py and github_conversation.py make. FAKE_GH_FAIL=1 makes every call fail.
+calls send_review.py and github_conversation.py make. FAKE_GH_FAIL=1 makes every call fail; FAKE_GH_NO_FILE=1 makes
+a comment on a whole file fail, as a GitHub that does not know `subject_type` answers.
 
 The state: `reviews` -- the inline comments of each review sent, by review id; `comments` -- further inline comments,
 written by others or posted as replies; `issue_comments` -- the general comments; `review_list` -- the reviews as
@@ -55,6 +56,13 @@ elif endpoint.endswith("/replies") and "POST" in args:
     answer = {"id": reply_id, "in_reply_to_id": root, "body": payload["body"], "user": ME, "created_at": AT,
               "path": parent["path"], "line": parent["line"], "side": parent.get("side", "RIGHT"),
               "html_url": f"https://github.com/org/booking/pull/123#discussion_r{reply_id}"}
+    state["comments"].append(answer)
+elif endpoint.endswith("/pulls/123/comments") and "POST" in args:
+    if os.environ.get("FAKE_GH_NO_FILE"):
+        sys.exit("HTTP 422: Unprocessable Entity")
+    comment_id = 9000 + len(state["comments"])
+    answer = dict(payload, id=comment_id, line=None, user=ME, created_at=AT,
+                  html_url=f"https://github.com/org/booking/pull/123#discussion_r{comment_id}")
     state["comments"].append(answer)
 elif endpoint.endswith("/pulls/123/comments"):
     answer = pull_comments()

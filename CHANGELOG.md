@@ -7,6 +7,8 @@ not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets s
 
 - Fix prompts name no severity, only list the worst first, and the developer's findings with no category go in one
   prompt headed "Other fixes" instead of "yours".
+- A finding about a whole file goes on that file in the pull request, not into its conversation; a GitHub that takes no
+  comment on a whole file still gets it in the conversation. A finding on a removed line goes on that line.
 
 ## 0.19.2
 

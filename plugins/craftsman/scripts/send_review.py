@@ -7,10 +7,11 @@ REVIEW.md.
 Run by the dashboard server when the developer presses Send, never by the agent. Every finding marked `to-send` is
 sent; nothing else is. Its first location gets the comment, in one GitHub review on the reviewed commit; every
 further location gets a short reference to that first comment, in a second review once the first comment's link
-exists. A location GitHub cannot comment on inline -- a line outside the diff -- gets a general comment on the pull
-request that names the place. A finding becomes `sent` only once its first comment exists on GitHub; a failure
-leaves it `to-send`, with the reason in the result. A comment already on the pull request -- the same place and text
--- is not sent again: its link is recorded instead.
+exists. A line of the diff, added, kept or removed, gets an inline comment; a whole file of the change gets a comment
+on that file. A line outside the diff, a file outside the change, or a whole file a GitHub cannot comment on (one
+that knows no `subject_type`) gets a general comment on the pull request that names the place. A finding becomes
+`sent` only once its first comment exists on GitHub; a failure leaves it `to-send`, with the reason in the result. A
+comment already on the pull request -- the same place and text -- is not sent again: its link is recorded instead.
 
 Every comment of the developer's waiting for Send goes too: a comment on the whole pull request to its conversation, a
 reply to its thread on GitHub. Each becomes `sent` once it exists there; one already there, with the same text in the
@@ -49,20 +50,33 @@ def pages(text):
 
 
 def changed_lines(diff_text):
-    """{path: set of line numbers on the new side} that a review can comment on inline."""
-    lines, path, number = {}, None, None
+    """{(path, side): set of line numbers} that a review can comment on inline: RIGHT counts the new file's lines,
+    LEFT the old one's. Every file of the diff has an entry for both sides, maybe empty."""
+    lines, path, old, new = {}, None, None, None
     for line in diff_text.splitlines():
-        if line.startswith("+++ "):
-            path = line[6:] if line.startswith("+++ b/") else None
+        if line.startswith("diff "):
+            path, old, new = None, None, None
             continue
-        hunk = re.match(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@", line)
+        if new is None and line.startswith("--- "):
+            path = line[6:] if line.startswith("--- a/") else None
+            continue
+        if new is None and line.startswith("+++ "):
+            path = line[6:] if line.startswith("+++ b/") else path
+            for side in ("LEFT", "RIGHT"):
+                lines.setdefault((path, side), set())
+            continue
+        hunk = re.match(r"^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@", line)
         if hunk:
-            number = int(hunk.group(1))
+            old, new = int(hunk.group(1)), int(hunk.group(2))
             continue
-        if path is None or number is None or line.startswith(("-", "\\", "diff ", "--- ", "index ")):
+        if path is None or new is None or line.startswith("\\"):
             continue
-        lines.setdefault(path, set()).add(number)
-        number += 1
+        if not line.startswith("+"):
+            lines[(path, "LEFT")].add(old)
+            old += 1
+        if not line.startswith("-"):
+            lines[(path, "RIGHT")].add(new)
+            new += 1
     return lines
 
 
@@ -90,7 +104,9 @@ def send(review, gh=None):
 
     findings = [f for f in state["findings"] if f["status"] == "to-send"]
     inline = changed_lines((review / "diff" / f"{state['head']}.diff").read_text())
-    on_diff = lambda loc: loc.get("line") in inline.get(loc["path"], set())  # noqa: E731
+    on_diff = lambda loc: loc.get("line") in inline.get((loc["path"], loc.get("side", "RIGHT")), set())  # noqa: E731
+    # a whole file of the change takes a comment of its own, on the file
+    on_file = lambda loc: loc.get("line") is None and (loc["path"], "RIGHT") in inline  # noqa: E731
     pulls = f"repos/{repository}/pulls/{number}"
     sent, errors, urls = [], [], {}
     # what is on the pull request already: a comment sent before, but never recorded as sent, is not sent again
@@ -121,6 +137,24 @@ def send(review, gh=None):
         made = api(f"repos/{repository}/issues/{number}/comments", {"body": text})
         urls[(found["id"], index)] = made["html_url"]
 
+    def whole_file(found, index, body):
+        path = found["locations"][index]["path"]
+        earlier = on_github["inline"].get((path, None, body))
+        if earlier:
+            urls[(found["id"], index)] = earlier
+            return
+        try:
+            made = api(f"{pulls}/comments", {"commit_id": state["head"], "path": path, "subject_type": "file",
+                                             "body": body})
+        except RuntimeError:
+            # a GitHub that knows no comment on a whole file: the conversation gets it, naming the file
+            general(found, index, body)
+            return
+        urls[(found["id"], index)] = made["html_url"]
+
+    def elsewhere(found, index, body):
+        (whole_file if on_file(found["locations"][index]) else general)(found, index, body)
+
     def inline_round(pairs):
         for found, index, body in pairs:
             location = found["locations"][index]
@@ -144,7 +178,7 @@ def send(review, gh=None):
         inline_round([(f, 0, f["comment"]) for f in findings if on_diff(f["locations"][0])])
         for found in findings:
             if not on_diff(found["locations"][0]):
-                general(found, 0, found["comment"])
+                elsewhere(found, 0, found["comment"])
     except RuntimeError as failure:
         errors.append(str(failure))
     further = []
@@ -156,7 +190,7 @@ def send(review, gh=None):
         inline_round([pair for pair in further if on_diff(pair[0]["locations"][pair[1]])])
         for found, index, body in further:
             if not on_diff(found["locations"][index]):
-                general(found, index, body)
+                elsewhere(found, index, body)
     except RuntimeError as failure:
         errors.append(str(failure))
     for found in findings:

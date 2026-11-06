@@ -283,9 +283,10 @@ The tab also lists the review's protocols; they are switched in the workshop, no
   ever sent. A refresh that no longer sees the problem sets `maybe-resolved`; only the developer decides it is gone.
 - **Sent is final.** A `sent` finding or comment is not edited or sent again; a follow-up is a new one.
 - **Only `to-send` is sent.** Sending posts every `to-send` finding and comment, and changes it to `sent` only once it
-  exists on GitHub. A finding goes as an inline comment; one about a whole file, or a place outside the diff, goes to
-  the pull request's conversation naming its place. A comment on the whole pull request goes to its conversation, a
-  reply into its thread. A comment already on the pull request, at the same place with the same text, is not posted
+  exists on GitHub. A finding goes as an inline comment, on a removed line too; one about a whole file of the change
+  goes on that file. A place outside the diff, or a whole file GitHub takes no comment on, goes to the pull request's
+  conversation naming its place. A comment on the whole pull request goes to its conversation, a reply into its
+  thread. A comment already on the pull request, at the same place with the same text, is not posted
   again; its link is recorded. When what is on the pull request cannot be read, nothing is posted.
 
 ## `github.json`

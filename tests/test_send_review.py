@@ -22,17 +22,25 @@ PULL = {"kind": "pull-request", "url": "https://github.com/org/booking/pull/123"
 DIFF = """diff --git a/src/Cancel.java b/src/Cancel.java
 --- a/src/Cancel.java
 +++ b/src/Cancel.java
-@@ -1,3 +1,6 @@
+@@ -1,3 +1,5 @@
  class Cancel {
+-    // to do
 +    void cancel(String id) {
 +        if (id == null) return;
 +    }
  }
+diff --git a/src/Old.java b/src/Old.java
+deleted file mode 100644
+--- a/src/Old.java
++++ /dev/null
+@@ -1,2 +0,0 @@
+-class Old {
+-}
 """
 
 
-def at(path, line):
-    return {"path": path, "line": line, "side": "RIGHT", "commit": "bbb"}
+def at(path, line, side="RIGHT"):
+    return {"path": path, "line": line, "side": side, "commit": "bbb"}
 
 
 class SendReviewTest(unittest.TestCase):
@@ -42,6 +50,7 @@ class SendReviewTest(unittest.TestCase):
         self.log = self.root / "gh.log"
         os.environ.update(FAKE_GH_LOG=str(self.log), FAKE_GH_STATE=str(self.root / "gh.json"))
         os.environ.pop("FAKE_GH_FAIL", None)
+        os.environ.pop("FAKE_GH_NO_FILE", None)
         self.gh = [sys.executable, str(TESTS / "fake_gh.py")]
 
     def tearDown(self):
@@ -95,6 +104,14 @@ class SendReviewTest(unittest.TestCase):
         self.assertEqual(send_review.pages('[{"id": 1}, {"id": 2}]\n[{"id": 3}]'), [{"id": 1}, {"id": 2}, {"id": 3}])
         self.assertEqual(send_review.pages('{"id": 7}'), {"id": 7})
 
+    def test_a_line_that_looks_like_a_header_is_still_a_line_of_the_file(self):
+        diff = ("diff --git a/db/init.sql b/db/init.sql\n--- a/db/init.sql\n+++ b/db/init.sql\n@@ -1,3 +1,3 @@\n"
+                "--- old note\n+++ new note\n select 1;\n-select 2;\n+select 3;\n")
+
+        lines = send_review.changed_lines(diff)
+
+        self.assertEqual((lines[("db/init.sql", "LEFT")], lines[("db/init.sql", "RIGHT")]), ({1, 2, 3}, {1, 2, 3}))
+
     def test_only_findings_marked_to_send_go_as_one_review_on_the_reviewed_commit(self):
         self.opened()
         sent = self.finding("Use a value object.", [at("src/Cancel.java", 2)])
@@ -136,16 +153,86 @@ class SendReviewTest(unittest.TestCase):
         self.assertIn("Exposes a mutable list.", general[0]["body"])
         self.assertEqual(self.findings()[found]["status"], "sent")
 
-    def test_a_finding_about_a_whole_file_goes_as_a_general_comment_naming_the_file(self):
+    def test_a_finding_about_a_whole_file_in_the_change_goes_on_that_file(self):
         self.opened()
         found = self.finding("Split this class.", [at("src/Cancel.java", None)])
 
         send_review.send(self.review, gh=self.gh)
 
+        self.assertEqual(self.posted("/pulls/123/comments"), [{"commit_id": "bbb", "path": "src/Cancel.java",
+                                                               "subject_type": "file", "body": "Split this class."}])
+        self.assertEqual((self.posted_reviews(), self.posted("/issues/123/comments")), ([], []))
+        self.assertEqual(self.findings()[found]["status"], "sent")
+        self.assertIn("#discussion_r", self.findings()[found]["sent"][0]["url"])
+
+    def test_a_further_place_on_a_whole_file_goes_on_that_file_too(self):
+        self.opened()
+        found = self.finding("Ids as strings.", [at("src/Cancel.java", 2), at("src/Cancel.java", None)])
+
+        send_review.send(self.review, gh=self.gh)
+
+        url = self.findings()[found]["sent"][0]["url"]
+        self.assertEqual(self.posted("/pulls/123/comments"), [{"commit_id": "bbb", "path": "src/Cancel.java",
+                                                               "subject_type": "file", "body": f"Same as {url}"}])
+        self.assertEqual([entry["location"] for entry in self.findings()[found]["sent"]], [0, 1])
+
+    def test_a_whole_file_github_cannot_comment_on_goes_as_a_general_comment_naming_the_file(self):
+        self.opened()
+        found = self.finding("Split this class.", [at("src/Cancel.java", None)])
+        os.environ["FAKE_GH_NO_FILE"] = "1"
+
+        result = send_review.send(self.review, gh=self.gh)
+
         general = self.posted("/issues/123/comments")
         self.assertEqual([g["body"] for g in general], ["**`src/Cancel.java`**\n\nSplit this class."])
-        self.assertEqual(self.posted_reviews(), [])
+        self.assertEqual((self.findings()[found]["status"], result["errors"]), ("sent", []))
+
+    def test_a_whole_file_outside_the_change_goes_as_a_general_comment_naming_the_file(self):
+        self.opened()
+        found = self.finding("Split this class.", [at("src/Desk.java", None)], kind="out-of-scope")
+
+        send_review.send(self.review, gh=self.gh)
+
+        general = self.posted("/issues/123/comments")
+        self.assertEqual([g["body"] for g in general], ["**`src/Desk.java`**\n\nSplit this class."])
+        self.assertEqual((self.posted_reviews(), self.posted("/pulls/123/comments")), ([], []))
         self.assertEqual(self.findings()[found]["status"], "sent")
+
+    def test_a_whole_file_comment_already_on_github_is_not_sent_again(self):
+        self.opened()
+        found = self.finding("Split this class.", [at("src/Cancel.java", None)])
+        earlier = {"comments": [{"id": 77, "path": "src/Cancel.java", "line": None, "subject_type": "file",
+                                 "body": "Split this class.",
+                                 "html_url": "https://github.com/org/booking/pull/123#discussion_r77"}]}
+        (self.root / "gh.json").write_text(json.dumps(earlier))
+
+        send_review.send(self.review, gh=self.gh)
+
+        self.assertEqual(self.posted("/pulls/123/comments"), [])
+        self.assertEqual(self.findings()[found]["sent"][0]["url"],
+                         "https://github.com/org/booking/pull/123#discussion_r77")
+
+    def test_a_line_of_a_removed_file_goes_on_that_line(self):
+        self.opened()
+        self.finding("Still used elsewhere.", [at("src/Old.java", 1, "LEFT")])
+
+        send_review.send(self.review, gh=self.gh)
+
+        self.assertEqual(self.posted_reviews()[0]["comments"], [{"path": "src/Old.java", "line": 1, "side": "LEFT",
+                                                                 "body": "Still used elsewhere."}])
+
+    def test_a_removed_line_is_judged_by_the_old_side_of_the_diff(self):
+        self.opened()
+        removed = self.finding("Keep the note.", [at("src/Cancel.java", 2, "LEFT")])
+        beyond = self.finding("No such old line.", [at("src/Cancel.java", 4, "LEFT")], kind="out-of-scope")
+
+        send_review.send(self.review, gh=self.gh)
+
+        self.assertEqual(self.posted_reviews()[0]["comments"], [{"path": "src/Cancel.java", "line": 2, "side": "LEFT",
+                                                                 "body": "Keep the note."}])
+        self.assertEqual(len(self.posted("/issues/123/comments")), 1)
+        self.assertIn("src/Cancel.java:4", self.posted("/issues/123/comments")[0]["body"])
+        self.assertEqual({self.findings()[f]["status"] for f in (removed, beyond)}, {"sent"})
 
     def test_a_comment_already_on_github_is_not_sent_again(self):
         self.opened()
