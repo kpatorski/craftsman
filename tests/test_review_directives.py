@@ -267,15 +267,15 @@ class CheckPlanTest(unittest.TestCase):
         return review_directives.plan(self.content, self.review, review_state.read(self.review))
 
     def reviewers(self):
-        return [(r["reach"], r["use-case"], [d["id"] for d in r["directives"]], r["files"])
+        return [(r["reach"], [u["id"] for u in r["use-cases"]], [d["id"] for d in r["directives"]], r["files"])
                 for r in self.plan()["reviewers"]]
 
     def test_file_directives_check_every_changed_file_of_their_kind_once_and_flow_ones_each_use_case(self):
         self.assertEqual(self.reviewers(), [
-            ("file", None, ["naming", "no-explanatory-comments"],
+            ("file", [], ["naming", "no-explanatory-comments"],
              ["src/main/Cancel.java", "src/main/CancelRequest.java", "src/main/Release.java", "docker-compose.yml"]),
-            ("file", None, ["no-explanatory-comments"], ["src/test/CancelTest.java"]),
-            ("flow", "u1", ["test-naming"], ["src/test/CancelTest.java"])])
+            ("file", [], ["no-explanatory-comments"], ["src/test/CancelTest.java"]),
+            ("flow", ["u1"], ["test-naming"], ["src/test/CancelTest.java"])])
 
     def test_a_reviewer_is_told_where_each_of_its_directives_is(self):
         directive = self.plan()["reviewers"][0]["directives"][0]
@@ -309,11 +309,29 @@ class CheckPlanTest(unittest.TestCase):
     def test_a_flow_directive_checks_a_file_with_the_first_use_case_that_has_it_and_untied_files_last(self):
         self.scope([("naming", "production", "flow")])
 
-        flow = [(r["use-case"], r["files"]) for r in self.plan()["reviewers"]
+        flow = [r["use-cases"] for r in self.plan()["reviewers"]
                 if r["reach"] == "flow" and "naming" in [d["id"] for d in r["directives"]]]
 
-        self.assertEqual(flow, [("u1", ["src/main/Cancel.java", "src/main/CancelRequest.java"]),
-                                ("u2", ["src/main/Release.java"]), ("untied", ["docker-compose.yml"])])
+        self.assertEqual(flow, [[{"id": "u1", "files": ["src/main/Cancel.java", "src/main/CancelRequest.java"]},
+                                 {"id": "u2", "files": ["src/main/Release.java"]},
+                                 {"id": "untied", "files": ["docker-compose.yml"]}]])
+
+    def test_a_flow_directive_with_no_file_of_its_kind_in_the_change_starts_no_reviewer(self):
+        self.open([entry for entry in self.FILES if "test" not in entry[0]])
+
+        self.assertEqual([r[2] for r in self.reviewers() if r[0] == "flow"], [])
+        self.assertEqual({c["use-case"] for c in self.plan()["not-applicable"] if c["directive"] == "test-naming"},
+                         {"u1", "u2", "untied"})
+
+    def test_one_reviewer_takes_several_use_cases_up_to_a_bounded_change_and_a_big_one_alone(self):
+        big = review_directives.BATCH_LINES // 2 + 1
+        self.open([("src/main/A.java", "added", big), ("src/main/B.java", "added", big),
+                   ("src/main/C.java", "added", 1), ("src/main/D.java", "added", 3 * big)],
+                  use_cases=[{"id": f"u{n}", "name": name, "says": ".", "entry": f"src/main/{name}.java:1",
+                              "files": [f"src/main/{name}.java"]} for n, name in enumerate("ABCD", 1)])
+        self.scope([("naming", "production", "flow")])
+
+        self.assertEqual([r[1] for r in self.reviewers() if r[2] == ["naming"]], [["u1"], ["u2", "u3"], ["u4"]])
 
     def test_a_directive_with_no_row_checks_every_file_with_each_use_case(self):
         (self.content / "bundles" / "code-review" / "directive-scope.md").unlink()
@@ -321,11 +339,9 @@ class CheckPlanTest(unittest.TestCase):
         reviewers = self.reviewers()
 
         self.assertEqual([r[:3] for r in reviewers], [
-            ("flow", "u1", ["naming", "no-explanatory-comments", "test-naming"]),
-            ("flow", "u2", ["naming", "no-explanatory-comments", "test-naming"]),
-            ("flow", "untied", ["naming", "no-explanatory-comments", "test-naming"])])
-        self.assertEqual(reviewers[0][3],
-                         ["src/main/Cancel.java", "src/main/CancelRequest.java", "src/test/CancelTest.java"])
+            ("flow", ["u1", "u2", "untied"], ["naming", "no-explanatory-comments", "test-naming"])])
+        self.assertEqual(reviewers[0][3], ["src/main/Cancel.java", "src/main/CancelRequest.java",
+                                           "src/test/CancelTest.java", "src/main/Release.java", "docker-compose.yml"])
 
     def test_a_reviewer_gets_at_most_six_directives(self):
         for n in range(8):

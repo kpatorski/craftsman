@@ -19,6 +19,9 @@ not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets s
 - The directives a review checks with no row in `directive-scope.md` are named: on the Rules tab, in the dashboard's
   Library, and by `pr-review` when the developer starts it (`review_directives.py --unscoped`, no review needed). The
   Rules tab says how each directive is checked: on which files, and once over the change or per use case.
+- One `flow` reviewer takes several small use cases, up to about 1500 changed lines, each as its own flow, and the
+  review starts every reviewer before the first use case. `visibility`, `interfaces`, `abstraction-timing`,
+  `error-handling` and `type-contracts` are `file` directives: their reviewer looks up the callers in the code.
 
 ## 0.18.0
 

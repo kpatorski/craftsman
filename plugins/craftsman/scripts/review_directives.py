@@ -92,10 +92,11 @@ def kind_of(path):
 def plan(content, review, state, defaults=None):
     """Which directive reviewers a review starts, worked out from the diff, the use cases and the scope table:
 
-    - `reviewers` — `{"reach", "use-case", "directives": [{"id", "path"}], "files"}`, one per reviewer, at most
-      `GROUP` directives each. A `file` directive is checked once over every changed file of its kind, the files in
-      batches of about `BATCH_LINES` changed lines, `use-case` null. A `flow` directive is checked per use case, on
-      the files of its kind that use case is the first to have, the untied files last as the use case `untied`.
+    - `reviewers` — `{"reach", "use-cases": [{"id", "files"}], "directives": [{"id", "path"}], "files"}`, one per
+      reviewer, at most `GROUP` directives each. A `file` directive is checked once over every changed file of its
+      kind, the files in batches of about `BATCH_LINES` changed lines, `use-cases` empty. A `flow` directive is checked
+      per use case, on the files of its kind that use case is the first to have, the untied files last as the use case
+      `untied`; one reviewer takes use cases in order up to about `BATCH_LINES` changed lines, a bigger one alone.
     - `not-applicable` — `{"use-case", "directive", "note"}`, the checks to record as they are: no file of the
       directive's kind in that use case for a reviewer to check.
     - `file-checks` — `{use case: [directive ids]}`, the `file` directives each use case records from its findings.
@@ -114,38 +115,44 @@ def plan(content, review, state, defaults=None):
     checked = to_check(content, state, defaults)
     reviewers, not_applicable, file_checks = [], [], {}
 
-    def fits(directive, path):
-        return directive["files"] in ("all", kind_of(path))
+    def fits(files_value, path):
+        return files_value in ("all", kind_of(path))
 
-    def start(reach, use_case, directives, files):
-        for first in range(0, len(directives), GROUP):
-            for batch in batches(files, size) if reach == "file" else [files]:
-                reviewers.append({"reach": reach, "use-case": use_case, "files": batch, "directives": [
-                    {"id": d["id"], "path": d["path"]} for d in directives[first:first + GROUP]]})
+    def groups(directives):
+        return [[{"id": d["id"], "path": d["path"]} for d in directives[first:first + GROUP]]
+                for first in range(0, len(directives), GROUP)]
 
     by_file = [d for d in checked if d["reach"] == "file"]
     for kind in ("production", "tests"):
         files = [path for path in size if kind_of(path) == kind]
         directives = [d for d in by_file if d["files"] in ("all", kind)]
-        if files and directives:
-            start("file", None, directives, files)
+        for group in groups(directives) if files else []:
+            for batch in batches(files, size.get):
+                reviewers.append({"reach": "file", "use-cases": [], "directives": group, "files": batch})
 
-    by_flow = [d for d in checked if d["reach"] == "flow"]
-    seen = set()
+    seen, own = set(), {}
     for use_case, files in use_cases:
-        own = [path for path in files if path not in seen]
-        seen |= set(own)
-        for files_value in ("production", "tests", "all"):
-            directives = [d for d in by_flow if d["files"] == files_value]
-            mine = [path for path in own if files_value in ("all", kind_of(path))]
-            if mine and directives:
-                start("flow", use_case, directives, mine)
-            for d in directives if not mine else []:
+        own[use_case] = [path for path in files if path not in seen]
+        seen |= set(own[use_case])
+    by_flow = [d for d in checked if d["reach"] == "flow"]
+    for files_value in ("production", "tests", "all"):
+        directives = [d for d in by_flow if d["files"] == files_value]
+        parts = [{"id": use_case, "files": [path for path in own[use_case] if fits(files_value, path)]}
+                 for use_case, _ in use_cases]
+        for group in groups(directives):
+            for pack in batches([part for part in parts if part["files"]],
+                                lambda part: sum(size[path] for path in part["files"])):
+                reviewers.append({"reach": "flow", "use-cases": pack, "directives": group,
+                                  "files": [path for part in pack for path in part["files"]]})
+        for (use_case, files), part in zip(use_cases, parts):
+            for d in directives if not part["files"] else []:
                 note = (f"its {KIND[d['files']]} files are checked with the use case that has them first"
-                        if any(fits(d, path) for path in files) else f"no {KIND[d['files']]} files in this use case")
+                        if any(fits(d["files"], path) for path in files)
+                        else f"no {KIND[d['files']]} files in this use case")
                 not_applicable.append({"use-case": use_case, "directive": d["id"], "note": note})
+    for use_case, files in use_cases:
         for d in by_file:
-            if any(fits(d, path) for path in files):
+            if any(fits(d["files"], path) for path in files):
                 file_checks.setdefault(use_case, []).append(d["id"])
             else:
                 not_applicable.append({"use-case": use_case, "directive": d["id"],
@@ -155,16 +162,17 @@ def plan(content, review, state, defaults=None):
     return {"reviewers": reviewers, "not-applicable": not_applicable, "file-checks": file_checks}
 
 
-def batches(files, size):
-    """The files in order, cut where the next one would take a batch over `BATCH_LINES` changed lines."""
-    out, lines = [[]], 0
-    for path in files:
-        if out[-1] and lines + size[path] > BATCH_LINES:
+def batches(items, lines):
+    """The items in order, cut where the next one would take a batch over `BATCH_LINES` changed lines; `lines` gives
+    an item's changed lines."""
+    out, total = [[]], 0
+    for item in items:
+        if out[-1] and total + lines(item) > BATCH_LINES:
             out.append([])
-            lines = 0
-        out[-1].append(path)
-        lines += size[path]
-    return out
+            total = 0
+        out[-1].append(item)
+        total += lines(item)
+    return [batch for batch in out if batch]
 
 
 def protocols(content):

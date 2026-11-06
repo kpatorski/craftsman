@@ -243,10 +243,12 @@ developer starts it, name them.
 `review_directives.py <review dir> --plan` prints the reviewers the review starts, worked out from the diff,
 `structure` and the table, so the agent never sorts them itself:
 
-- `reviewers` — `{"reach", "use-case", "directives": [{"id", "path"}], "files"}`, at most six directives each. The
-  `file` directives are checked once over every changed file of their kind, in batches of about 1500 changed lines,
-  with `use-case` null; the `flow` ones per use case, on the files of their kind it is the first to have, and on the
-  untied files last, as the use case `untied`. A deleted file is not checked.
+- `reviewers` — `{"reach", "use-cases": [{"id", "files"}], "directives": [{"id", "path"}], "files"}`, at most six
+  directives each. The `file` directives are checked once over every changed file of their kind, in batches of about
+  1500 changed lines, with `use-cases` empty; the `flow` ones per use case, on the files of their kind it is the first
+  to have, and on the untied files last, as the use case `untied`. One `flow` reviewer takes use cases in order up to
+  about 1500 changed lines, each as its own flow; a bigger use case has its own. A deleted file is not checked. The
+  review starts every reviewer before the first use case, and each use case takes its part of their reports.
 - `not-applicable` — `{"use-case", "directive", "note"}`: a use case with no file of the directive's kind, recorded
   as it is.
 - `file-checks` — `{<use case>: [<directive id>]}`: the `file` directives a use case records from its findings.
