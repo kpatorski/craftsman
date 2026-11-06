@@ -83,7 +83,8 @@ What the page shows above the findings. Every text field is GitHub markdown.
   - `before` and `after` — how the system behaves in this use case without the change and with it, one to three
     sentences each;
   - `entry` — the file and line where the use case starts;
-  - `files` — every changed file the use case reaches; a file reached by several use cases is in each of them;
+  - `files` — every changed file of the use case: reached by its calls, declaring a type its steps use, or else in a
+    package where only this use case has files (`map-change-structure`); a file of several use cases is in each;
   - `status` — `pending`, `reviewing` or `reviewed`;
   - `flow` — how the use case runs: `steps`, each `{"call", "path", "line", "change", "crosses", "from"}`, from the
     entry point down through the change, where `path` and `line` are where the called unit is defined, `change` is
