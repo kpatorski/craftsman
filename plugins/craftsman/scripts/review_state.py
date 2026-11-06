@@ -479,21 +479,22 @@ def clear_directive_switches(state, payload, by):
 
 
 def record_check(state, payload, by):
-    """What one directive found in one use case; a later check of the same pair replaces it."""
+    """What one directive found in one use case, or a list of such checks, all recorded or none; a later check of
+    the same pair replaces it."""
     if by != "agent":
         raise Refused("a check is recorded by the agent")
     use_cases = [u["id"] for u in (state.get("structure") or {}).get("use-cases", [])] + [UNTIED]
-    if payload.get("use-case") not in use_cases:
-        raise Refused(f"no use case {payload.get('use-case')!r}")
-    if not payload.get("directive"):
-        raise Refused("a check names its directive")
-    if payload.get("result") not in CHECK_RESULT:
-        raise Refused(f"result must be one of {', '.join(CHECK_RESULT)}")
-    pair = (payload["use-case"], payload["directive"])
-    checks = [c for c in state.get("checks", []) if (c["use-case"], c["directive"]) != pair]
-    checks.append({"use-case": pair[0], "directive": pair[1], "result": payload["result"],
-                   "note": payload.get("note"), "at": now()})
-    state["checks"] = checks
+    for check in payload if isinstance(payload, list) else [payload]:
+        if check.get("use-case") not in use_cases:
+            raise Refused(f"no use case {check.get('use-case')!r}")
+        if not check.get("directive"):
+            raise Refused("a check names its directive")
+        if check.get("result") not in CHECK_RESULT:
+            raise Refused(f"result must be one of {', '.join(CHECK_RESULT)}")
+        pair = (check["use-case"], check["directive"])
+        state["checks"] = [c for c in state.get("checks", []) if (c["use-case"], c["directive"]) != pair] + [
+            {"use-case": pair[0], "directive": pair[1], "result": check["result"], "note": check.get("note"),
+             "at": now()}]
     return state, None
 
 
@@ -590,7 +591,7 @@ def main(argv):
     if command == "show":
         print(json.dumps(read(review), indent=2, ensure_ascii=False))
         return 0
-    payload = rest.pop() if rest and rest[-1].lstrip().startswith("{") else None
+    payload = rest.pop() if rest and rest[-1].lstrip().startswith(("{", "[")) else None
     try:
         result = change(review, command, json.loads(payload) if payload else None, by, rest[0] if rest else None)
     except Refused as refusal:

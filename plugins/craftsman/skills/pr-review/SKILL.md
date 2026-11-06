@@ -26,7 +26,10 @@ repository's checkout, or agrees to a clone, on the review page.
    the dashboard server if needed, without adding this folder to the dashboard, and prints the review page's URL: a
    pull request already under review opens there and its session resumes; anything else opens the new-review wizard,
    with the source filled in when one was given.
-2. Print the URL on its own line, and say that everything else happens on that page: where the code is read from, the
+2. Run `scripts/review_directives.py --unscoped`. It prints the ids of the directives a review checks that have no row
+   in the `code-review` bundle's `directive-scope.md`, without reading them. When it prints any, say in one line which,
+   that a review checks each on every file in every use case, and that a row there makes it cheaper.
+3. Print the URL on its own line, and say that everything else happens on that page: where the code is read from, the
    questions, the findings, the console. Nothing more happens in this session.
 
 ## Started by the dashboard server (`--headless <source> --review <folder> --checkout <path>`)

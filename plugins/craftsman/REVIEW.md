@@ -236,7 +236,23 @@ directive; the directives themselves know nothing of the review:
 - `reach` — `file` when one file is enough to judge it, `flow` when it needs the use case.
 
 A directive with no row, or a row with values the script does not know, is checked on `all` files with `flow` reach.
-`review_directives.py <review dir> --unscoped` prints the ids of the directives checked without a row.
+`review_directives.py [<review dir>] --unscoped` prints the ids of the directives checked without a row; without a
+review, those the developer's default set checks. The Rules tab, the dashboard's Library and `pr-review`, when the
+developer starts it, name them.
+
+`review_directives.py <review dir> --plan` prints the reviewers the review starts, worked out from the diff,
+`structure` and the table, so the agent never sorts them itself:
+
+- `reviewers` — `{"reach", "use-case", "directives": [{"id", "path"}], "files"}`, at most six directives each. The
+  `file` directives are checked once over every changed file of their kind, in batches of about 1500 changed lines,
+  with `use-case` null; the `flow` ones per use case, on the files of their kind it is the first to have, and on the
+  untied files last, as the use case `untied`. A deleted file is not checked.
+- `not-applicable` — `{"use-case", "directive", "note"}`: a use case with no file of the directive's kind, recorded
+  as it is.
+- `file-checks` — `{<use case>: [<directive id>]}`: the `file` directives a use case records from its findings.
+
+A test file is one in a `test`, `tests` or `__tests__` folder, or named `*Test.*`, `*Tests.*`, `*Spec.*`, `*.test.*`,
+`*.spec.*` or `test_*.py`; every other changed file is production code.
 
 - `directive-switches` — `{<directive id>: true | false}`, what the developer switched on or off for this review on
   the Rules tab. A directive not named here follows the default set. Only the developer changes it. "Make this set the
@@ -246,7 +262,8 @@ A directive with no row, or a row with values the script does not know, is check
   `use-case` is a use case's id or `untied` (the changed files no use case reaches), and `result` is `findings`,
   `clean`, `not-applicable` (with the reviewer's reason in `note`) or `failed` (the reviewer did not answer for it). A
   later check of the same directive in the same use case replaces the earlier one. Only the agent records them:
-  `review_state.py <review dir> record-check '{"use-case", "directive", "result", "note"}'`.
+  `review_state.py <review dir> record-check '{"use-case", "directive", "result", "note"}'`, or a list of them in one
+  call, recorded all or none.
 
 The Rules tab lists every directive with its switch and a dot per use case for what it found there; a directive
 switched on with a reviewed use case it has not checked offers "Check now", which asks the agent to check it there.

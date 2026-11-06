@@ -111,9 +111,12 @@ def manage_info(content):
         for title, body in split_sections(index.read_text(errors="replace")):
             if title.lower() == "sources":
                 sources = render_markdown(body, lambda url: None)
+    import _settings  # reads the craftsman home
+    import review_directives  # it reads the library the way this module does
     return dict(plugin=json.loads(plugin_json.read_text()).get("version", "?") if plugin_json.exists() else "?",
                 content=marker.read_text().strip() if marker.exists() else "?", sources=sources,
-                content_root=str(content))
+                content_root=str(content),
+                unscoped=review_directives.unscoped(content, {}, _settings.review_directives()))
 
 
 def build(project, content, projects):

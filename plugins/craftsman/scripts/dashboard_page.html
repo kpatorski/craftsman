@@ -596,6 +596,12 @@ function viewLibrary() {
       `<div class="inner">${b.requires.length ? `<div class="muted" style="font-size:.75rem">requires ${b.requires.map(esc).join(", ")}</div>` : ""}` +
       `${members.map(m => m.html).join("")}</div></details></div>`;
   });
+  const loose = D.manage.unscoped || [];
+  if (loose.length) html += `<div data-unscoped style="padding:10px 14px;margin:14px 0;font-size:.8125rem;background:var(--panel);` +
+    `border:1px solid var(--amber);border-radius:var(--radius)">` +
+    `<b>${loose.length} directive${loose.length === 1 ? "" : "s"} a review checks with no row in the code-review bundle's ` +
+    `<code>directive-scope.md</code></b> · ${loose.map(id => `<code>${esc(id)}</code>`).join(", ")}. A review checks each ` +
+    `on every file, in every use case; a row makes it cheaper.</div>`;
   html += `<h2>Bundles</h2>` + body;
   for (const kind of ["protocol", "directive"]) {
     const list = D.library.filter(e => e.kind === kind && !e.bundle).map(entryHtml);

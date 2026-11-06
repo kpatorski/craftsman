@@ -1345,7 +1345,14 @@ function checkPlaces() {
   return list;
 }
 function checksOf(id) { return (S().checks || []).filter(c => c.directive === id); }
+// How the review checks a directive: the code-review bundle's directive-scope.md gives its files and its reach.
+const FILES_OF = { production: "production files", tests: "test files", all: "every file" };
+function howChecked(d) {
+  if (d.files === "none") return "not in reviews";
+  return `${FILES_OF[d.files] || "every file"}, ${d.reach === "file" ? "once over the change" : "per use case"}`;
+}
 function unchecked(d) {
+  if (d.files === "none") return [];
   const done = new Set(checksOf(d.id).filter(c => c.result !== "failed").map(c => c["use-case"]));
   return checkPlaces().filter(u => u.reviewed && !done.has(u.id));
 }
@@ -1357,7 +1364,7 @@ function viewRules() {
   const chip = (k, l) => `<button class="chip${ui.rfilter === k ? " on" : ""}" data-rfilter="${k}">${l} <b>${all.filter(groups[k]).length}</b></button>`;
   const cell = (d, u) => {
     const c = checksOf(d.id).find(x => x["use-case"] === u.id);
-    const what = !d.on ? "switched off" : c ? CHECK[c.result] + (c.note ? ` — ${c.note}` : "") : u.reviewed ? "not checked" : "not reviewed yet";
+    const what = !d.on ? "switched off" : d.files === "none" ? "not in reviews" : c ? CHECK[c.result] + (c.note ? ` — ${c.note}` : "") : u.reviewed ? "not checked" : "not reviewed yet";
     return `<i class="ck ${d.on && c ? c.result : u.reviewed && d.on ? "missing" : "none"}" title="${esc(u.name)}: ${esc(what)}"></i>`;
   };
   const row = d => {
@@ -1366,13 +1373,17 @@ function viewRules() {
       <span class="switch${d.on ? " on" : ""}" data-directive-switch="${esc(d.id)}" title="${d.on ? "Checked by this review — click to switch off" : "Not checked — click to switch on"}"><i></i></span>
       <div style="min-width:0"><div><b class="rid">${esc(d.id)}</b>${d.bundle ? ` <span class="tag">${esc(d.bundle)}</span>` : ""}${d.on !== d.default ? ` <span class="muted" style="font-size:.75rem">${d.on ? "on for this review only" : "off for this review only"}</span>`
           : d.default !== d.enabled ? ` <span class="muted" style="font-size:.75rem">${d.on ? "on in your review set" : "off in your review set"}</span>` : ""}</div>
-        <div class="muted" style="font-size:.8125rem">${esc(d.title)}</div></div>
+        <div class="muted" style="font-size:.8125rem">${esc(d.title)} · <span title="${d.scoped ? "From the code-review bundle's directive-scope.md" : "No row in the code-review bundle's directive-scope.md"}"${d.scoped ? "" : ' style="color:var(--should)"'}>${esc(howChecked(d))}${d.scoped ? "" : ", no row"}</span></div></div>
       <span class="cks">${places.map(u => cell(d, u)).join("")}</span>
       <span class="muted" style="font-size:.8125rem;white-space:nowrap">${n ? `<a data-tab="findings" style="color:var(--should)">${plural(n, "finding")}</a>` : ""}</span>
       <span>${missing.length ? `<button class="btn ghost sm" data-directive-check="${esc(d.id)}" title="Check ${esc(missing.map(u => u.name).join(", "))}">Check now</button>` : ""}</span></div>`;
   };
-  const steps = R.protocols || [];
-  return `<div class="filters">${chip("all", "All")}${chip("on", "Checked")}${chip("off", "Switched off")}${chip("findings", "With findings")}${chip("unchecked", "Not checked yet")}
+  const steps = R.protocols || [], loose = R.unscoped || [];
+  const warning = loose.length ? `<div class="banner" data-unscoped style="margin:0 0 14px;border-color:var(--should)">
+      <b>${plural(loose.length, "directive")} with no row in the code-review bundle's <code>directive-scope.md</code></b>
+      · ${loose.map(id => `<code>${esc(id)}</code>`).join(", ")}. Each is checked on every file, in every use case.
+      A row saying which files it is for, and whether one file is enough to judge it, makes the review cheaper.</div>` : "";
+  return `${warning}<div class="filters">${chip("all", "All")}${chip("on", "Checked")}${chip("off", "Switched off")}${chip("findings", "With findings")}${chip("unchecked", "Not checked yet")}
       ${all.some(d => d.on !== d.default) ? `<button class="btn ghost sm" data-directive-default title="New and open reviews check this set unless switched for one review">Make this set the default for every review</button>` : ""}
       <span class="muted ck-legend" style="font-size:.8125rem">Each dot is a use case: <span><i class="ck findings"></i>findings</span><span><i class="ck clean"></i>clean</span><span><i class="ck not-applicable"></i>not applicable</span><span><i class="ck missing"></i>not checked</span></span></div>
     <div class="card" style="padding:6px 20px">${shown.map(row).join("") || '<div class="muted" style="padding:14px 0">No directive matches.</div>'}</div>

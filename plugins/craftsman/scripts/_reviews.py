@@ -75,7 +75,8 @@ def read_review(review_id, content=None):
     """The state, plus what the server works out from the diff: every changed file with how it changed, which use
     cases it belongs to and whether the developer viewed it, and the files no use case reaches; the head whose diff
     is missing, or None; the conversation last read from the pull request, or None; and the directives the review
-    could check, with whether it does, and the protocols it runs, from the workshop in `content`."""
+    could check, with whether it does and how, the ids of those it checks with no row in the scope table, and the
+    protocols it runs, from the workshop in `content`."""
     review = review_dir(review_id)
     state = review_state.read(review)
     use_cases = (state.get("structure") or {}).get("use-cases", [])
@@ -83,10 +84,10 @@ def read_review(review_id, content=None):
     files = [{**changed, "use-cases": [u["id"] for u in use_cases if changed["path"] in u.get("files", [])],
               "viewed": changed["path"] in viewed} for changed in changed_files(diff_text(review_id))]
     conversation = github_conversation.read(review)
+    directives = review_directives.listed(content or review_directives.CONTENT, state, _settings.review_directives())
     return {"state": state, "pending": len(pending_messages(review)), "html": rendered(state, conversation),
-            "github": conversation,
-            "directives": review_directives.listed(content or review_directives.CONTENT, state,
-                                                   _settings.review_directives()),
+            "github": conversation, "directives": directives,
+            "unscoped": [d["id"] for d in directives if d["on"] and d["files"] != "none" and not d["scoped"]],
             "protocols": review_directives.protocols(content or review_directives.CONTENT),
             "missing-diff": None if (review / "diff" / f"{state['head']}.diff").is_file() else state["head"],
             "console": console_lines(review), "files": files,

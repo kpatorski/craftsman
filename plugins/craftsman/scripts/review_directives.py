@@ -15,6 +15,7 @@ workshop's indexes. The review's agent checks every use case against all of them
 import argparse
 import json
 import pathlib
+import re
 import sys
 
 import review_state
@@ -26,6 +27,11 @@ SCOPE = pathlib.Path("bundles") / REVIEW_BUNDLE / "directive-scope.md"
 FILES = ("production", "tests", "all", "none")
 REACH = ("file", "flow")
 UNSCOPED = {"files": "all", "reach": "flow", "scoped": False}
+GROUP = 6  # directives one reviewer checks
+BATCH_LINES = 1500  # changed lines one reviewer of `file` directives reads, unless one file alone has more
+TEST_FOLDERS = {"test", "tests", "__tests__"}
+KIND = {"production": "production", "tests": "test", "all": "changed"}  # how a note names the files of a `files`
+TEST_NAME = re.compile(r"(Tests?|Spec)\.\w+$|\.(test|spec)\.\w+$|^test_\w*\.py$")
 
 
 def scope(content):
@@ -73,6 +79,94 @@ def unscoped(content, state, defaults=None):
     return [d["id"] for d in to_check(content, state, defaults) if not d["scoped"]]
 
 
+def is_test(path):
+    """Whether a changed file is a test: it lies in a test folder, or its name says it is one."""
+    parts = pathlib.PurePosixPath(path).parts
+    return any(part in TEST_FOLDERS for part in parts[:-1]) or bool(TEST_NAME.search(parts[-1]))
+
+
+def kind_of(path):
+    return "tests" if is_test(path) else "production"
+
+
+def plan(content, review, state, defaults=None):
+    """Which directive reviewers a review starts, worked out from the diff, the use cases and the scope table:
+
+    - `reviewers` — `{"reach", "use-case", "directives": [{"id", "path"}], "files"}`, one per reviewer, at most
+      `GROUP` directives each. A `file` directive is checked once over every changed file of its kind, the files in
+      batches of about `BATCH_LINES` changed lines, `use-case` null. A `flow` directive is checked per use case, on
+      the files of its kind that use case is the first to have, the untied files last as the use case `untied`.
+    - `not-applicable` — `{"use-case", "directive", "note"}`, the checks to record as they are: no file of the
+      directive's kind in that use case for a reviewer to check.
+    - `file-checks` — `{use case: [directive ids]}`, the `file` directives each use case records from its findings.
+
+    A deleted file is not checked: there is no code of it left to judge."""
+    import _reviews  # it imports this module
+    kept = pathlib.Path(review) / "diff" / f"{state['head']}.diff"
+    changed = [f for f in _reviews.changed_files(kept.read_text() if kept.is_file() else "")
+               if f["change"] != "deleted"]
+    size = {f["path"]: f["added"] + f["removed"] for f in changed}
+    use_cases = [(u["id"], [path for path in size if path in u.get("files", [])])
+                 for u in (state.get("structure") or {}).get("use-cases", [])]
+    tied = {path for _, files in use_cases for path in files}
+    untied = [path for path in size if path not in tied]
+    use_cases += [(review_state.UNTIED, untied)] if untied else []
+    checked = to_check(content, state, defaults)
+    reviewers, not_applicable, file_checks = [], [], {}
+
+    def fits(directive, path):
+        return directive["files"] in ("all", kind_of(path))
+
+    def start(reach, use_case, directives, files):
+        for first in range(0, len(directives), GROUP):
+            for batch in batches(files, size) if reach == "file" else [files]:
+                reviewers.append({"reach": reach, "use-case": use_case, "files": batch, "directives": [
+                    {"id": d["id"], "path": d["path"]} for d in directives[first:first + GROUP]]})
+
+    by_file = [d for d in checked if d["reach"] == "file"]
+    for kind in ("production", "tests"):
+        files = [path for path in size if kind_of(path) == kind]
+        directives = [d for d in by_file if d["files"] in ("all", kind)]
+        if files and directives:
+            start("file", None, directives, files)
+
+    by_flow = [d for d in checked if d["reach"] == "flow"]
+    seen = set()
+    for use_case, files in use_cases:
+        own = [path for path in files if path not in seen]
+        seen |= set(own)
+        for files_value in ("production", "tests", "all"):
+            directives = [d for d in by_flow if d["files"] == files_value]
+            mine = [path for path in own if files_value in ("all", kind_of(path))]
+            if mine and directives:
+                start("flow", use_case, directives, mine)
+            for d in directives if not mine else []:
+                note = (f"its {KIND[d['files']]} files are checked with the use case that has them first"
+                        if any(fits(d, path) for path in files) else f"no {KIND[d['files']]} files in this use case")
+                not_applicable.append({"use-case": use_case, "directive": d["id"], "note": note})
+        for d in by_file:
+            if any(fits(d, path) for path in files):
+                file_checks.setdefault(use_case, []).append(d["id"])
+            else:
+                not_applicable.append({"use-case": use_case, "directive": d["id"],
+                                       "note": f"no {KIND[d['files']]} files in this use case"})
+    order = {d["id"]: n for n, d in enumerate(checked)}
+    not_applicable.sort(key=lambda c: ([u for u, _ in use_cases].index(c["use-case"]), order[c["directive"]]))
+    return {"reviewers": reviewers, "not-applicable": not_applicable, "file-checks": file_checks}
+
+
+def batches(files, size):
+    """The files in order, cut where the next one would take a batch over `BATCH_LINES` changed lines."""
+    out, lines = [[]], 0
+    for path in files:
+        if out[-1] and lines + size[path] > BATCH_LINES:
+            out.append([])
+            lines = 0
+        out[-1].append(path)
+        lines += size[path]
+    return out
+
+
 def protocols(content):
     """The protocols of the `code-review` bundle, in its order, each with whether it is enabled."""
     entries = collect_entries(pathlib.Path(content)) if pathlib.Path(content).exists() else []
@@ -82,13 +176,19 @@ def protocols(content):
 
 def main(argv):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("review")
+    parser.add_argument("review", nargs="?", help="the review's folder; without it, the developer's default set")
     parser.add_argument("--content", default=str(CONTENT))
     parser.add_argument("--unscoped", action="store_true", help="print the ids of the checked directives with no row")
+    parser.add_argument("--plan", action="store_true", help="print the reviewers the review starts")
     args = parser.parse_args(argv)
     import _settings  # reads the craftsman home, which _reviews names; _reviews imports this module
-    state = review_state.read(pathlib.Path(args.review))
+    if not args.review and not args.unscoped:
+        parser.error("the review's folder is needed, except with --unscoped")
+    state = review_state.read(pathlib.Path(args.review)) if args.review else {}
     content = pathlib.Path(args.content).expanduser()
+    if args.plan:
+        print(json.dumps(plan(content, args.review, state, _settings.review_directives()), indent=2))
+        return 0
     if args.unscoped:
         print(json.dumps(unscoped(content, state, _settings.review_directives())))
         return 0

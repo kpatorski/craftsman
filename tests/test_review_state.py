@@ -574,6 +574,18 @@ class ReviewStateTest(unittest.TestCase):
                 self.run_state("record-check", payload=payload, by=by, expect_ok=False)
         self.assertEqual(self.state()["checks"], [])
 
+    def test_the_agent_records_many_checks_at_once_and_none_when_one_is_wrong(self):
+        self.with_use_cases()
+
+        self.run_state("record-check", payload=[{"use-case": "u1", "directive": "naming", "result": "findings"},
+                                                {"use-case": "untied", "directive": "naming", "result": "clean"}])
+        self.run_state("record-check", payload=[{"use-case": "u1", "directive": "logging", "result": "clean"},
+                                                {"use-case": "u9", "directive": "naming", "result": "clean"}],
+                       expect_ok=False)
+
+        self.assertEqual([(c["use-case"], c["directive"], c["result"]) for c in self.state()["checks"]],
+                         [("u1", "naming", "findings"), ("untied", "naming", "clean")])
+
     def test_a_review_started_before_directives_were_switched_takes_the_new_fields(self):
         self.with_use_cases()
         state = self.state()

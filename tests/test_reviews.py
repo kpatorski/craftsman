@@ -454,6 +454,27 @@ class ReviewEndpointsTest(ReviewsTest):
         self.assertEqual(status, 200)
         self.assertIn("no-explanatory-comments", [d["id"] for d in body["directives"]])
 
+    def test_the_page_and_the_dashboard_name_the_directives_checked_with_no_row_in_the_scope_table(self):
+        workshop(self.tmp / "content")
+        (self.tmp / "content" / "bundles" / "code-review" / "directive-scope.md").write_text(
+            "| Directive | Files | Reach |\n|---|---|---|\n| `naming` | production | file |\n")
+
+        _, review = self.call(f"/api/review?id={ID}")
+        _, dashboard = self.call("/api/data")
+
+        self.assertEqual(review["unscoped"], ["no-explanatory-comments", "test-naming"])
+        self.assertEqual(dashboard["manage"]["unscoped"], ["no-explanatory-comments", "test-naming"])
+        for served in (self.page(f"/review?review={ID}"), self.page("/")):
+            with self.subTest(page=served[:60]):
+                self.assertIn("directive-scope.md", served)
+                self.assertIn("data-unscoped", served)
+
+    def test_the_rules_tab_says_how_each_directive_is_checked(self):
+        served = self.page(f"/review?review={ID}")
+        for hook in ("function howChecked", "once over the change", "per use case", "not in reviews"):
+            with self.subTest(hook=hook):
+                self.assertIn(hook, served)
+
     def test_the_page_switches_a_directive_of_the_review_it_shows(self):
         status, body = self.call("/api/review/change", {"id": ID, "action": "switch-directive",
                                                          "directive": "naming", "on": False})

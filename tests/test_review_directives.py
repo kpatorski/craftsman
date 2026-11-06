@@ -154,6 +154,19 @@ class ReviewDirectivesTest(unittest.TestCase):
         self.assertEqual([d["id"] for d in printed], ["naming", "no-explanatory-comments"])
         self.assertEqual(set(printed[0]), {"id", "title", "path", "files", "reach"})
 
+    def test_the_directives_with_no_row_are_named_before_any_review_is_open(self):
+        self.scope([("naming", "production", "file")])
+        home = self.root / "home"
+        home.mkdir()
+        (home / "settings.json").write_text(json.dumps({"review-directives": {"test-naming": False}}))
+
+        done = subprocess.run([sys.executable, str(SCRIPTS / "review_directives.py"), "--content", str(self.content),
+                               "--unscoped"], capture_output=True, text=True, timeout=30,
+                              env={**os.environ, "CRAFTSMAN_HOME": str(home)})
+
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(json.loads(done.stdout), ["no-explanatory-comments"])
+
     def scope(self, rows):
         (self.content / "bundles" / "code-review" / "directive-scope.md").write_text(
             "# How a review checks each directive\n\nText.\n\n| Directive | Files | Reach |\n|---|---|---|\n"
@@ -198,6 +211,163 @@ class ReviewDirectivesTest(unittest.TestCase):
 
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertEqual(json.loads(done.stdout), ["no-explanatory-comments", "test-naming"])
+
+
+def diff_of(files):
+    """A diff of `(path, change, lines)`: `change` is `added`, `modified` or `deleted`."""
+    out = ""
+    for path, change, lines in files:
+        out += f"diff --git a/{path} b/{path}\n"
+        if change == "added":
+            out += f"new file mode 100644\n--- /dev/null\n+++ b/{path}\n@@ -0,0 +1,{lines} @@\n" + "+x\n" * lines
+        elif change == "deleted":
+            out += f"deleted file mode 100644\n--- a/{path}\n+++ /dev/null\n@@ -1,{lines} +0,0 @@\n" + "-x\n" * lines
+        else:
+            out += f"--- a/{path}\n+++ b/{path}\n@@ -1,{lines} +1,{lines} @@\n" + "-x\n+y\n" * lines
+    return out
+
+
+class CheckPlanTest(unittest.TestCase):
+    """The plan of a review's directive checks: which reviewers start, each with its directives and files."""
+
+    FILES = [("src/main/Cancel.java", "modified", 3), ("src/main/CancelRequest.java", "added", 2),
+             ("src/test/CancelTest.java", "added", 4), ("src/main/Release.java", "modified", 1),
+             ("src/main/Old.java", "deleted", 5), ("docker-compose.yml", "modified", 1)]
+
+    def setUp(self):
+        self.root = pathlib.Path(tempfile.mkdtemp())
+        self.content = self.root / "content"
+        workshop(self.content)
+        self.review = self.root / "pr-123"
+        self.open(self.FILES)
+        self.scope([("naming", "production", "file"), ("no-explanatory-comments", "all", "file"),
+                    ("test-naming", "tests", "flow")])
+
+    def tearDown(self):
+        shutil.rmtree(self.root)
+
+    def open(self, files, use_cases=None):
+        diff = self.root / "change.diff"
+        diff.write_text(diff_of(files))
+        if self.review.exists():
+            shutil.rmtree(self.review)
+        review_state.change(self.review, "init", {"source": SOURCE, "base": "aaa", "head": "bbb", "diff": str(diff)})
+        review_state.change(self.review, "set", {"structure": {"use-cases": use_cases or [
+            {"id": "u1", "name": "Cancel", "says": "Cancels.", "entry": "src/main/Cancel.java:1",
+             "files": ["src/main/Cancel.java", "src/main/CancelRequest.java", "src/test/CancelTest.java"]},
+            {"id": "u2", "name": "Release", "says": "Releases.", "entry": "src/main/Release.java:1",
+             "files": ["src/main/Release.java", "src/main/Cancel.java"]}]}})
+
+    def scope(self, rows):
+        (self.content / "bundles" / "code-review" / "directive-scope.md").write_text(
+            "| Directive | Files | Reach |\n|---|---|---|\n"
+            + "".join(f"| `{entry_id}` | {files} | {reach} |\n" for entry_id, files, reach in rows))
+
+    def plan(self):
+        return review_directives.plan(self.content, self.review, review_state.read(self.review))
+
+    def reviewers(self):
+        return [(r["reach"], r["use-case"], [d["id"] for d in r["directives"]], r["files"])
+                for r in self.plan()["reviewers"]]
+
+    def test_file_directives_check_every_changed_file_of_their_kind_once_and_flow_ones_each_use_case(self):
+        self.assertEqual(self.reviewers(), [
+            ("file", None, ["naming", "no-explanatory-comments"],
+             ["src/main/Cancel.java", "src/main/CancelRequest.java", "src/main/Release.java", "docker-compose.yml"]),
+            ("file", None, ["no-explanatory-comments"], ["src/test/CancelTest.java"]),
+            ("flow", "u1", ["test-naming"], ["src/test/CancelTest.java"])])
+
+    def test_a_reviewer_is_told_where_each_of_its_directives_is(self):
+        directive = self.plan()["reviewers"][0]["directives"][0]
+
+        self.assertEqual(directive["id"], "naming")
+        self.assertTrue(pathlib.Path(directive["path"]).is_file())
+
+    def test_a_use_case_with_no_file_of_a_directives_kind_records_it_as_not_applicable(self):
+        self.assertEqual([(c["use-case"], c["directive"]) for c in self.plan()["not-applicable"]],
+                         [("u2", "test-naming"), ("untied", "test-naming")])
+        self.assertTrue(all(c["note"] for c in self.plan()["not-applicable"]))
+
+    def test_a_use_case_whose_files_an_earlier_one_has_says_where_they_are_checked(self):
+        use_cases = review_state.read(self.review)["structure"]["use-cases"]
+        self.open(self.FILES, use_cases=use_cases + [
+            {"id": "u3", "name": "Test", "says": "Tests.", "entry": "src/test/CancelTest.java:1",
+             "files": ["src/test/CancelTest.java"]}])
+
+        checks = {(c["use-case"], c["directive"]): c["note"] for c in self.plan()["not-applicable"]}
+
+        self.assertEqual(checks[("u3", "naming")], "no production files in this use case")
+        self.assertEqual(checks[("u3", "test-naming")],
+                         "its test files are checked with the use case that has them first")
+        self.assertEqual(self.plan()["file-checks"]["u3"], ["no-explanatory-comments"])
+
+    def test_each_use_case_is_told_which_file_directives_to_record_from_the_findings(self):
+        self.assertEqual(self.plan()["file-checks"], {
+            "u1": ["naming", "no-explanatory-comments"], "u2": ["naming", "no-explanatory-comments"],
+            "untied": ["naming", "no-explanatory-comments"]})
+
+    def test_a_flow_directive_checks_a_file_with_the_first_use_case_that_has_it_and_untied_files_last(self):
+        self.scope([("naming", "production", "flow")])
+
+        flow = [(r["use-case"], r["files"]) for r in self.plan()["reviewers"]
+                if r["reach"] == "flow" and "naming" in [d["id"] for d in r["directives"]]]
+
+        self.assertEqual(flow, [("u1", ["src/main/Cancel.java", "src/main/CancelRequest.java"]),
+                                ("u2", ["src/main/Release.java"]), ("untied", ["docker-compose.yml"])])
+
+    def test_a_directive_with_no_row_checks_every_file_with_each_use_case(self):
+        (self.content / "bundles" / "code-review" / "directive-scope.md").unlink()
+
+        reviewers = self.reviewers()
+
+        self.assertEqual([r[:3] for r in reviewers], [
+            ("flow", "u1", ["naming", "no-explanatory-comments", "test-naming"]),
+            ("flow", "u2", ["naming", "no-explanatory-comments", "test-naming"]),
+            ("flow", "untied", ["naming", "no-explanatory-comments", "test-naming"])])
+        self.assertEqual(reviewers[0][3],
+                         ["src/main/Cancel.java", "src/main/CancelRequest.java", "src/test/CancelTest.java"])
+
+    def test_a_reviewer_gets_at_most_six_directives(self):
+        for n in range(8):
+            directive(self.content / "directives", f"extra-{n}", f"Extra {n}")
+        index = self.content / "directives" / "index.md"
+        index.write_text(index.read_text().replace(
+            "| 2 | [no-explanatory-comments]", "".join(
+                f"| 9{n} | [extra-{n}](extra-{n}/directive.md) | Extra {n} |\n" for n in range(8))
+            + "| 2 | [no-explanatory-comments]"))
+        self.scope([(f"extra-{n}", "production", "file") for n in range(8)])
+
+        sizes = [len(r[2]) for r in self.reviewers() if r[0] == "file"]
+
+        self.assertEqual(sizes, [6, 2])
+
+    def test_the_files_of_one_reviewer_add_up_to_a_bounded_change(self):
+        big = review_directives.BATCH_LINES // 2 + 1
+        self.open([("src/main/A.java", "added", big), ("src/main/B.java", "added", big),
+                   ("src/main/C.java", "added", 1)],
+                  use_cases=[{"id": "u1", "name": "A", "says": "A.", "entry": "src/main/A.java:1",
+                              "files": ["src/main/A.java", "src/main/B.java", "src/main/C.java"]}])
+
+        files = [r[3] for r in self.reviewers() if r[0] == "file" and "naming" in r[2]]
+
+        self.assertEqual(files, [["src/main/A.java"], ["src/main/B.java", "src/main/C.java"]])
+
+    def test_a_test_file_is_told_by_its_folder_or_its_name(self):
+        for path in ("src/test/java/A.java", "app/tests/a.py", "web/__tests__/a.js", "src/main/ATest.java",
+                     "src/main/ATests.java", "src/ASpec.groovy", "web/a.test.ts", "web/a.spec.ts", "test_a.py"):
+            with self.subTest(path=path):
+                self.assertTrue(review_directives.is_test(path))
+        for path in ("src/main/Contest.java", "src/main/Testing.java", "latest/a.py", "docs/testing.md"):
+            with self.subTest(path=path):
+                self.assertFalse(review_directives.is_test(path))
+
+    def test_the_agent_reads_the_plan_from_the_command_line(self):
+        done = subprocess.run([sys.executable, str(SCRIPTS / "review_directives.py"), str(self.review),
+                               "--content", str(self.content), "--plan"], capture_output=True, text=True,
+                              timeout=30, env={**os.environ, "CRAFTSMAN_HOME": str(self.root / "home")})
+
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(json.loads(done.stdout), json.loads(json.dumps(self.plan())))
 
 
 if __name__ == "__main__":

@@ -12,6 +12,13 @@ not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets s
   needs the use case (`flow`). `review_directives.py` prints `files` and `reach`, leaves out `none`, and names the
   directives with no row with `--unscoped`; those are checked on every file, per use case. Re-run `install` on the
   workshop source to get the table: a bundle installs every file in its folder.
+- A review checks the directives by that table: `review_directives.py --plan` lists the reviewers to start. A `file`
+  directive is checked once over the whole change, not again in every use case; a `flow` one per use case, only on
+  the files of its kind; a use case with no such file records it as not applicable. The review's directive reviewers
+  run on Sonnet. `record-check` takes a list, so a use case records all its checks in one call.
+- The directives a review checks with no row in `directive-scope.md` are named: on the Rules tab, in the dashboard's
+  Library, and by `pr-review` when the developer starts it (`review_directives.py --unscoped`, no review needed). The
+  Rules tab says how each directive is checked: on which files, and once over the change or per use case.
 
 ## 0.18.0
 
