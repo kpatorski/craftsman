@@ -163,7 +163,8 @@ every duplicate check, and is caught only by this count. `scripts/validate_conte
 ## Installing a bundle
 
 A bundle installs as a unit: materialize `bundles/<id>/bundle.md` plus its `directives/` and `protocols/`
-subfolders, run duplicate detection and syntax validation on every file it contains (the bundle itself and each
+subfolders and every other file in its folder (the `code-review` bundle's `directive-scope.md`, read by its scripts),
+run duplicate detection and syntax validation on every file it contains (the bundle itself and each
 member), add one row to `bundles/index.md` (`scripts/toggle_table_row.py bundles/index.md add enabled "<cells>"`),
 one row per member to the bundle's own `bundle.md` tables (same script, `--after-heading "## Protocols"` or
 `"## Directives"`), and one `Sources` entry for the bundle as a whole rather than one per member file. If any

@@ -3,6 +3,16 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.19.0
+
+- `map-change-structure` gives a use case the changed files declaring the types its steps use, and a changed file in
+  no use case the use case whose package it shares, when only one does.
+- The `code-review` bundle's `directive-scope.md` says, per directive, which changed files a review checks it on
+  (`production`, `tests`, `all`, or `none`: not in a review) and whether one file is enough to judge it (`file`) or it
+  needs the use case (`flow`). `review_directives.py` prints `files` and `reach`, leaves out `none`, and names the
+  directives with no row with `--unscoped`; those are checked on every file, per use case. Re-run `install` on the
+  workshop source to get the table: a bundle installs every file in its folder.
+
 ## 0.18.0
 
 - The Code tab has a comment panel: "✎ Comment" over selected lines, or "✎ Comment on file" in a file's header, opens

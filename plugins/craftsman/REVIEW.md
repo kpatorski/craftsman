@@ -222,11 +222,21 @@ request, or a reply in a thread on GitHub. Only the developer writes them, on th
 
 ### Directives
 
-The review checks every use case against every directive it has switched on, never a choice the agent makes.
-`scripts/review_directives.py <review dir>` prints them, `[{"id", "title", "path"}]`: every directive of the workshop,
-top-level or in an enabled bundle, that is switched on: by the review's own switch, else by the developer's default set
-for every review (`review-directives` in the craftsman settings), else by the workshop. The directives of the
-`code-review` bundle are not among them: they say how a finding is kinded and written.
+The review checks the change against every directive it has switched on, never a choice the agent makes.
+`scripts/review_directives.py <review dir>` prints them, `[{"id", "title", "path", "files", "reach"}]`: every directive
+of the workshop, top-level or in an enabled bundle, that is switched on: by the review's own switch, else by the
+developer's default set for every review (`review-directives` in the craftsman settings), else by the workshop. The
+directives of the `code-review` bundle are not among them: they say how a finding is kinded and written.
+
+How each directive is checked comes from the `code-review` bundle's `directive-scope.md`, a table with a row per
+directive; the directives themselves know nothing of the review:
+
+- `files` — `production`, `tests` or `all`: the changed files it is checked on. A directive whose row says `none`
+  (writing specs or commits, or only gathering other directives) is not checked in a review and is not printed.
+- `reach` — `file` when one file is enough to judge it, `flow` when it needs the use case.
+
+A directive with no row, or a row with values the script does not know, is checked on `all` files with `flow` reach.
+`review_directives.py <review dir> --unscoped` prints the ids of the directives checked without a row.
 
 - `directive-switches` — `{<directive id>: true | false}`, what the developer switched on or off for this review on
   the Rules tab. A directive not named here follows the default set. Only the developer changes it. "Make this set the

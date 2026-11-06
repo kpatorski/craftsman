@@ -152,7 +152,52 @@ class ReviewDirectivesTest(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stderr)
         printed = json.loads(done.stdout)
         self.assertEqual([d["id"] for d in printed], ["naming", "no-explanatory-comments"])
-        self.assertEqual(set(printed[0]), {"id", "title", "path"})
+        self.assertEqual(set(printed[0]), {"id", "title", "path", "files", "reach"})
+
+    def scope(self, rows):
+        (self.content / "bundles" / "code-review" / "directive-scope.md").write_text(
+            "# How a review checks each directive\n\nText.\n\n| Directive | Files | Reach |\n|---|---|---|\n"
+            + "".join(f"| `{entry_id}` | {files} | {reach} |\n" for entry_id, files, reach in rows))
+
+    def test_each_directive_is_checked_on_the_files_and_with_the_reach_the_review_bundles_table_gives(self):
+        self.scope([("naming", "production", "file"), ("test-naming", "tests", "flow")])
+
+        listed = self.listed()
+
+        self.assertEqual({entry_id: (d["files"], d["reach"], d["scoped"]) for entry_id, d in listed.items()}, {
+            "naming": ("production", "file", True), "test-naming": ("tests", "flow", True),
+            "no-explanatory-comments": ("all", "flow", False), "prefer-lombok": ("all", "flow", False),
+            "characterize": ("all", "flow", False)})
+
+    def test_a_directive_the_table_keeps_out_of_reviews_is_not_checked(self):
+        self.scope([("naming", "none", "-")])
+
+        self.assertEqual([d["id"] for d in review_directives.to_check(self.content, review_state.read(self.review))],
+                         ["no-explanatory-comments", "test-naming"])
+
+    def test_a_row_the_review_cannot_read_counts_as_no_row(self):
+        self.scope([("naming", "everywhere", "file"), ("test-naming", "tests", "far")])
+
+        listed = self.listed()
+
+        self.assertEqual([(d["files"], d["reach"], d["scoped"]) for d in (listed["naming"], listed["test-naming"])],
+                         [("all", "flow", False), ("all", "flow", False)])
+
+    def test_the_directives_checked_without_a_row_are_named(self):
+        self.scope([("naming", "production", "file"), ("prefer-lombok", "production", "file")])
+
+        self.assertEqual(review_directives.unscoped(self.content, review_state.read(self.review)),
+                         ["no-explanatory-comments", "test-naming"])
+
+    def test_the_command_line_names_the_directives_checked_without_a_row(self):
+        self.scope([("naming", "production", "file")])
+
+        done = subprocess.run([sys.executable, str(SCRIPTS / "review_directives.py"), str(self.review),
+                               "--content", str(self.content), "--unscoped"], capture_output=True, text=True,
+                              timeout=30, env={**os.environ, "CRAFTSMAN_HOME": str(self.root / "home")})
+
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(json.loads(done.stdout), ["no-explanatory-comments", "test-naming"])
 
 
 if __name__ == "__main__":
