@@ -274,7 +274,6 @@
   .about-row .switch { font-size: .7812rem; white-space: nowrap; }
   .draft-preview.stale { opacity: .55; transition: opacity .2s; }
   .draft-title { margin: 0 0 4px; font-size: 1rem; font-weight: 500; color: var(--heading); }
-  .draft-why { font-size: .8125rem; margin-bottom: 8px; }
   .draft-preview .banner { margin: 0 0 10px; }
   .ai-busy { color: var(--neon); animation: p 1.6s infinite; margin-left: 6px; }
   .switch { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; color: var(--muted); }
@@ -942,7 +941,7 @@ function draftOut(path, d) {
   return `<div class="draft-h"><span>The finding · <span class="tag">${esc(a.category)}</span> ${busy}</span>${sevs}</div>
     <div class="draft-preview${a.for !== d.text ? " stale" : ""}">
       ${repeated ? `<div class="banner">Same problem as <a data-finding="${esc(repeated.id)}">${esc(repeated.id)} · ${inline(repeated.title)}</a>. Making it a finding adds this place to ${esc(repeated.id)}.</div>` : ""}
-      <h3 class="draft-title">${inline(a.title)}</h3>${a.description ? `<div class="muted draft-why">${inline(a.description)}</div>` : ""}
+      <h3 class="draft-title">${inline(a.title)}</h3>
       <div class="md">${a.html}</div></div>`;
 }
 function paintDraftOut(path) {

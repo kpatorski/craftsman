@@ -469,6 +469,9 @@ class ReviewEndpointsTest(ReviewsTest):
                 self.assertIn("directive-scope.md", served)
                 self.assertIn("data-unscoped", served)
 
+    def test_the_comment_panel_shows_the_finding_as_the_author_reads_it_without_the_reviewers_why(self):
+        self.assertNotIn("draft-why", self.page(f"/review?review={ID}"))
+
     def test_the_rules_tab_says_how_each_directive_is_checked(self):
         served = self.page(f"/review?review={ID}")
         for hook in ("function howChecked", "once over the change", "per use case", "not in reviews"):

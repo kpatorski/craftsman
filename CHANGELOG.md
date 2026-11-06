@@ -22,7 +22,10 @@ not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets s
 - One `flow` reviewer takes several small use cases, up to about 1500 changed lines, each as its own flow, and the
   review starts every reviewer before the first use case. `visibility`, `interfaces`, `abstraction-timing`,
   `error-handling` and `type-contracts` are `file` directives: their reviewer looks up the callers in the code.
-
+- `review-comment` asks for a comment the way a teammate would say it: as long as the point needs (a reminder stays a
+  sentence or two), what is wrong and what to do, why only when it is not obvious, no report language, and nothing
+  the comment already sits on. The comment panel's AI Agent writes to the same measure, keeping the size of the draft,
+  and the panel shows the finding's title and comment, as the author reads it.
 ## 0.18.0
 
 - The Code tab has a comment panel: "✎ Comment" over selected lines, or "✎ Comment on file" in a file's header, opens

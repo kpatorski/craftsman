@@ -106,6 +106,14 @@ class DraftPreviewTest(unittest.TestCase):
         self.assertNotIn("class Other", prompt)
         self.assertNotIn("Elsewhere", prompt)
 
+    def test_the_call_is_asked_for_a_teammates_comment_no_longer_than_the_draft_calls_for(self):
+        self.preview("tylko reminder")
+
+        prompt = self.calls()[0]["prompt"]
+        for part in ("a teammate", "as long as the draft", "one or two sentences", "the file, the line"):
+            with self.subTest(part=part):
+                self.assertIn(part, prompt)
+
     def test_only_the_code_around_the_lines_goes_with_a_draft_about_them(self):
         long = "diff --git a/src/Long.java b/src/Long.java\n--- a/src/Long.java\n+++ b/src/Long.java\n@@ -0,0 +1,80 @@\n"
         long += "".join(f"+line number {n}\n" for n in range(1, 81))

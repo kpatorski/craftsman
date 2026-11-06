@@ -117,10 +117,14 @@ Findings already in this file:
 Categories in this review so far: {categories}.
 
 Write the finding, in {language}, except the category:
-- comment: the comment for the author, in GitHub markdown. Keep the reviewer's point and add no other one: say what is
-  wrong, why it matters, and what to do. Add a short code suggestion only when it makes the fix clear.
-- title: a few words naming the problem.
-- description: one or two sentences on why it matters.
+- comment: the comment for the author, in GitHub markdown, the way a teammate would say it at their desk. Keep the
+  reviewer's point and add no other one. Make it as long as the draft calls for: a short thought or a reminder stays
+  one or two sentences; only a draft that explains something gets a paragraph or two. Say what is wrong and what to
+  do; why it matters only when the author would not see it. Plain spoken words — "we", "let's", "I'd" are fine — no
+  report language and no labels. Do not repeat what the comment sits on: the file, the line, the names right above
+  it. A code block only when the fix is not clear from a sentence.
+- title: a few words naming the problem, the way you would say it in a stand-up.
+- description: one short sentence on why it matters, not a repeat of the comment.
 - category: a short English kebab-case name; use one of the categories above when it fits.
 - severity: must-fix, should-fix or nit, as the directives weigh it.
 - repeats: the id of a finding above that is the same problem, or an empty string.
