@@ -111,7 +111,8 @@ class DraftPreviewTest(unittest.TestCase):
 
         prompt = self.calls()[0]["prompt"]
         for part in ("a teammate", "as long as the draft", "one or two sentences", "the file, the line",
-                     "every place in the change, the comment says so"):
+                     "every place in the change, the comment says so",
+                     "When the draft has a code block or asks for one, the comment has one"):
             with self.subTest(part=part):
                 self.assertIn(part, prompt)
 

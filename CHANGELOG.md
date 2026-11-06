@@ -3,6 +3,12 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.19.1
+
+- The comment panel's AI Agent writes the code the developer asks for: a code block in the draft, a placeholder like
+  "proposal here" included, comes back as the actual code, never dropped. `review-comment` asks for a snippet for a new
+  type or a changed signature, or whenever the developer wants one.
+
 ## 0.19.0
 
 - `map-change-structure` gives a use case the changed files declaring the types its steps use, and a changed file in
