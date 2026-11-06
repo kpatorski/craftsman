@@ -11,6 +11,12 @@ not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets s
   type, so moving between files moves between their drafts. Drafts are `drafts` in
   `review.json` (`review_state.py save-draft`, `discard-draft`, `draft-to-finding`, the developer's); see REVIEW.md,
   "Drafts". It replaces the "Add finding" panel.
+- The comment panel's "AI Agent assistant", on by default: write your thoughts in your own words, in any language,
+  and a moment after you stop AI Agent writes them up above the draft as the finding — title, category, severity, why,
+  and the comment, in the review's language, by the `code-review` bundle's directives — and says when a finding of
+  the file already is the same problem; "Make it a finding" then adds the place to it. A short Claude call of its own
+  writes it (`/api/review/draft-preview`, `_draft_preview.py`, model `haiku` or `CRAFTSMAN_PREVIEW_MODEL`), not the
+  review's session.
 - A finding can be about a whole file: its location's `line` is null, the Code tab shows it above the file's diff,
   and Send posts it to the pull request's conversation, naming the file.
 - The review page's side panel is a rounded card beside the content, level with it, instead of a strip along the

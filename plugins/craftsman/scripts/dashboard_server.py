@@ -39,6 +39,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import _checkout as checkouts  # noqa: E402
+import _draft_preview  # noqa: E402
 import _dashboard_data as data  # noqa: E402
 import _review_session  # noqa: E402
 import _reviews as reviews  # noqa: E402
@@ -335,6 +336,15 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, github_conversation.fetch(review))
             if path == "/api/review/markdown":
                 return self.send(200, dict(html=render_markdown(str(body.get("text", "")), lambda url: None)))
+            if path == "/api/review/draft-preview":
+                try:
+                    finding = _draft_preview.preview(review, str(body.get("path", "")), str(body.get("text", "")),
+                                                     body.get("lines"), content=self.hub.content)
+                except _draft_preview.PreviewFailed as failed:
+                    return self.send(502, dict(error=f"AI Agent could not write the finding: {failed}"))
+                if finding is None:
+                    return self.send(200, dict(stale=True))
+                return self.send(200, dict(finding, html=render_markdown(finding["comment"], lambda url: None)))
             if path == "/api/review/change":
                 reviews.developer_change(review_id, body.get("action"), body, self.hub.content)
                 if body.get("action") == "archive" and body.get("archived"):

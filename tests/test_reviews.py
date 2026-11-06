@@ -528,6 +528,26 @@ class ReviewEndpointsTest(ReviewsTest):
                          ("Too big", 6))
         self.assertEqual(state["drafts"], {})
 
+    def test_the_page_gets_the_assistants_finding_of_a_draft_with_its_comment_rendered(self):
+        status, body = self.call("/api/review/draft-preview", {"id": ID, "path": "B.java", "text": "zla nazwa",
+                                                                "lines": [4, 6]})
+
+        self.assertEqual(status, 200, body)
+        self.assertEqual((body["title"], body["category"], body["severity"]), ("Written up", "naming", "nit"))
+        self.assertIn("<strong>it</strong>", body["html"])
+        self.assertIn("zla nazwa", (self.tmp / "fake.log").read_text())
+
+    def test_the_page_makes_the_assistants_finding_of_a_draft(self):
+        self.call("/api/review/change", {"id": ID, "action": "save-draft", "path": "B.java", "text": "zla nazwa"})
+
+        status, body = self.call("/api/review/change", {
+            "id": ID, "action": "draft-to-finding", "path": "B.java", "title": "Written up", "severity": "nit",
+            "category": "naming", "description": "Why.", "comment": "Rename it."})
+
+        self.assertEqual(status, 200, body)
+        made = review_state.read(self.review)["findings"][-1]
+        self.assertEqual((made["category"], made["description"], made["comment"]), ("naming", "Why.", "Rename it."))
+
     def test_the_page_throws_a_draft_away(self):
         self.call("/api/review/change", {"id": ID, "action": "save-draft", "path": "B.java", "text": "Hm."})
 
@@ -547,6 +567,13 @@ class ReviewEndpointsTest(ReviewsTest):
         served = self.page(f"/review?review={ID}")
 
         self.assertIn('el.classList.toggle("card", !!body && !over)', served)
+
+    def test_the_comment_panel_has_the_ai_agent_assistant(self):
+        served = self.page(f"/review?review={ID}")
+        for hook in ("data-assistant-switch", "/api/review/draft-preview", "askAssistant", "AI Agent is writing",
+                     "repeats"):
+            with self.subTest(hook=hook):
+                self.assertIn(hook, served)
 
     def test_the_review_page_has_the_comment_panel(self):
         served = self.page(f"/review?review={ID}")

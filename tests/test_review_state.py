@@ -388,6 +388,59 @@ class ReviewStateTest(unittest.TestCase):
         self.assertLessEqual(len(title), 80)
         self.assertTrue(title.endswith("…"), title)
 
+    def test_a_draft_becomes_the_finding_the_assistant_wrote_of_it(self):
+        self.opened()
+        self.run_state("save-draft", by="developer", payload={"path": "A.java", "text": "klasa nie musi byc publiczna"})
+
+        self.run_state("draft-to-finding", by="developer", payload={
+            "path": "A.java", "title": "Class need not be public", "severity": "nit", "category": "encapsulation",
+            "description": "Nothing outside the package uses it.", "comment": "Make `A` package-private."})
+
+        found = self.state()["findings"][0]
+        self.assertEqual((found["by"], found["category"], found["description"], found["comment"]),
+                         ("developer", "encapsulation", "Nothing outside the package uses it.",
+                          "Make `A` package-private."))
+
+    def test_a_draft_that_repeats_a_finding_adds_its_place_to_it(self):
+        self.opened()
+        self.run_state("add-finding", payload=finding())
+        self.run_state("save-draft", by="developer", payload={"path": "B.java", "text": "same here",
+                                                             "lines": [7, 9], "side": "RIGHT"})
+
+        made = self.run_state("draft-to-finding", by="developer", payload={
+            "path": "B.java", "repeats": "f1", "title": "T", "severity": "nit"}).stdout.strip()
+
+        state = self.state()
+        self.assertEqual(made, "f1")
+        self.assertEqual(len(state["findings"]), 1)
+        self.assertEqual(state["findings"][0]["locations"][-1],
+                         {"path": "B.java", "line": 9, "side": "RIGHT", "commit": "bbb"})
+        self.assertEqual(state["drafts"], {})
+
+    def test_a_draft_about_a_place_the_finding_has_already_adds_nothing(self):
+        self.opened()
+        self.run_state("add-finding", payload=finding())
+        self.run_state("save-draft", by="developer", payload={"path": "A.java", "text": "same", "lines": [3, 3],
+                                                             "side": "RIGHT"})
+
+        self.run_state("draft-to-finding", by="developer", payload={"path": "A.java", "repeats": "f1",
+                                                                   "severity": "nit"})
+
+        self.assertEqual(len(self.state()["findings"][0]["locations"]), 1)
+        self.assertEqual(self.state()["drafts"], {})
+
+    def test_a_draft_does_not_add_a_place_to_a_finding_already_sent(self):
+        self.opened()
+        self.run_state("add-finding", payload=finding())
+        self.run_state("set-status", "f1", by="developer", payload={"status": "to-send"})
+        self.run_state("mark-sent", "f1", payload={"sent": [{"location": 0, "url": "https://x/1"}]})
+        self.run_state("save-draft", by="developer", payload={"path": "B.java", "text": "same here"})
+
+        self.run_state("draft-to-finding", by="developer", payload={"path": "B.java", "repeats": "f1",
+                                                                   "severity": "nit"}, expect_ok=False)
+
+        self.assertIn("B.java", self.state()["drafts"])
+
     def test_a_draft_about_the_whole_file_becomes_a_finding_with_no_line(self):
         self.opened()
         self.run_state("save-draft", by="developer", payload={"path": "A.java", "text": "Split this class."})

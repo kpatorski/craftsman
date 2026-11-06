@@ -247,7 +247,7 @@ def developer_change(review_id, action, body, content=None):
         _settings.update("review-directives", {d["id"]: d["on"] for d in chosen if d["on"] != d["enabled"]})
         return review_state.change(review, "clear-directive-switches", {}, "developer")
     if action in ("save-draft", "discard-draft", "draft-to-finding"):
-        fields = ("path", "text", "lines", "side", "title", "severity", "comment")
+        fields = ("path", "text", "lines", "side", "title", "severity", "comment", "category", "description", "repeats")
         return review_state.change(review, action, {key: body[key] for key in fields if key in body}, "developer")
     if action == "in-prompt":
         return review_state.change(review, "in-prompt", {"included": body.get("included")}, "developer",

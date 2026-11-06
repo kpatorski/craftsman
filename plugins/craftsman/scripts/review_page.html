@@ -270,6 +270,13 @@
   .draft-in textarea { flex: 1; resize: none; background: none; border: 0; outline: none; color: var(--text); font: inherit;
     font-weight: 300; line-height: 1.55; padding: 12px 14px; }
   .draft-actions { margin-top: 0; }
+  .about-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .about-row .switch { font-size: .7812rem; white-space: nowrap; }
+  .draft-preview.stale { opacity: .55; transition: opacity .2s; }
+  .draft-title { margin: 0 0 4px; font-size: 1rem; font-weight: 500; color: var(--heading); }
+  .draft-why { font-size: .8125rem; margin-bottom: 8px; }
+  .draft-preview .banner { margin: 0 0 10px; }
+  .ai-busy { color: var(--neon); animation: p 1.6s infinite; margin-left: 6px; }
   .switch { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; color: var(--muted); }
   .switch i { width: 28px; height: 16px; border-radius: 999px; background: var(--switch-off); position: relative; }
   .switch i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--knob); }
@@ -375,7 +382,7 @@
 const params = new URLSearchParams(location.search);
 let current = { id: params.get("review") };
 let reviewsList = [], R = null, deferred = false;
-const ui = { tab: params.get("tab") || "overview", panel: null, file: params.get("file"), uc: null, ucFile: null,
+const ui = { assistant: localStorage.getItem("craftsman-assistant") !== "off", tab: params.get("tab") || "overview", panel: null, file: params.get("file"), uc: null, ucFile: null,
   fsev: null, fby: null, fstatus: "open", fcat: "", fquestions: false, search: "", codeFilter: "all", editing: null,
   selection: null, sort: { key: "severity", dir: 1 }, inline: localStorage.getItem("craftsman-review-inline") === "1", open: new Set(),
   ghRead: new Set(), ghReading: false, replyTo: null, editComment: null, rfilter: "all" };
@@ -903,7 +910,7 @@ function draftOf(path) {
   if (!drafts[path]) {
     const kept = (S().drafts || {})[path] || {};
     drafts[path] = { text: kept.text || "", lines: kept.lines || null, side: kept.side || "RIGHT", severity: "should-fix", html: null };
-    if (drafts[path].text) previewDraft(path);
+    if (drafts[path].text) ui.assistant ? assistantLater(path) : previewDraft(path);
   }
   return drafts[path];
 }
@@ -915,15 +922,55 @@ function panelComment() {
   const path = ui.file; if (!path) return `<div class="muted">Open a file in Code to comment on it.</div>`;
   const d = draftOf(path);
   return `<div class="crumb"><span class="crumb-path">Comment · <span class="mono" title="${esc(path)}">${esc(path.split("/").pop())}</span></span><a data-close-panel>✕</a></div>
-    <div class="about-chip"><span>About <b class="mono">${draftPlace(path, d)}</b></span>${d.lines ? `<a data-draft-whole title="Make it about the whole file">×</a>` : ""}</div>
-    <section class="draft-out"><div class="draft-h"><span>The finding</span>
-        <span class="draft-sev">${SEVS.map(k => `<button class="chip${d.severity === k ? " on" : ""}" data-draft-sev="${k}">${SEV[k]}</button>`).join("")}</span></div>
-      <div class="md draft-preview" id="draft-preview">${d.html || EMPTY_PREVIEW}</div></section>
+    <div class="about-row"><div class="about-chip"><span>About <b class="mono">${draftPlace(path, d)}</b></span>${d.lines ? `<a data-draft-whole title="Make it about the whole file">×</a>` : ""}</div>
+      <span class="switch${ui.assistant ? " on" : ""}" data-assistant-switch title="AI Agent writes your draft up as a finding by the review's rules"><i></i>✦ AI Agent assistant</span></div>
+    <section class="draft-out" id="draft-out">${draftOut(path, d)}</section>
     <section class="draft-in"><div class="md-tools">${MD_TOOLS.map(([k, label, title]) => `<button data-md-tool="${k}" title="${title}">${label}</button>`).join("")}</div>
-      <textarea id="draft-box" placeholder="What would you change here, and why? Markdown works; Enter is a new line.">${esc(d.text)}</textarea></section>
+      <textarea id="draft-box" placeholder="${ui.assistant ? "Tell AI Agent what you would change here, and why, in your own words. Enter is a new line." : "What would you change here, and why? Markdown works; Enter is a new line."}">${esc(d.text)}</textarea></section>
     <div class="row-actions draft-actions"><button class="btn go sm" data-draft-make title="⌘ Enter">Make it a finding</button><button class="btn ghost sm" data-draft-discard>Discard</button></div>`;
 }
-let draftTimer, previewTimer;
+// The upper half: the finding as it will be. With the assistant on, the one AI Agent wrote of the draft; dimmed while
+// it no longer matches the draft below.
+function draftOut(path, d) {
+  const sevs = `<span class="draft-sev">${SEVS.map(k => `<button class="chip${d.severity === k ? " on" : ""}" data-draft-sev="${k}">${SEV[k]}</button>`).join("")}</span>`;
+  if (!ui.assistant) return `<div class="draft-h"><span>The finding</span>${sevs}</div>
+    <div class="md draft-preview" id="draft-preview">${d.html || EMPTY_PREVIEW}</div>`;
+  const a = d.ai, busy = d.aiBusy ? `<span class="ai-busy">✦ AI Agent is writing…</span>` : "";
+  const repeated = a && a.repeats && S().findings.find(f => f.id === a.repeats);
+  if (!a) return `<div class="draft-h"><span>The finding ${busy}</span>${sevs}</div>
+    <div class="draft-preview"><div class="muted">${d.aiBusy ? "" : "Write what you would change. A moment after you stop, AI Agent writes it up here as a finding, by the review's rules."}</div></div>`;
+  return `<div class="draft-h"><span>The finding · <span class="tag">${esc(a.category)}</span> ${busy}</span>${sevs}</div>
+    <div class="draft-preview${a.for !== d.text ? " stale" : ""}">
+      ${repeated ? `<div class="banner">Same problem as <a data-finding="${esc(repeated.id)}">${esc(repeated.id)} · ${inline(repeated.title)}</a>. Making it a finding adds this place to ${esc(repeated.id)}.</div>` : ""}
+      <h3 class="draft-title">${inline(a.title)}</h3>${a.description ? `<div class="muted draft-why">${inline(a.description)}</div>` : ""}
+      <div class="md">${a.html}</div></div>`;
+}
+function paintDraftOut(path) {
+  const el = document.getElementById("draft-out");
+  if (el && ui.file === path && drafts[path]) el.innerHTML = draftOut(path, drafts[path]);
+}
+let assistantTimer;
+// AI Agent writes the draft up a moment after the developer stops; a newer draft makes the older answer stale.
+async function askAssistant(path) {
+  clearTimeout(assistantTimer);
+  const d = drafts[path], text = d && d.text;
+  if (!d || !text.trim()) return null;
+  d.aiBusy = true; paintDraftOut(path);
+  const out = await api("/api/review/draft-preview", { ...K(), path, text, lines: d.lines });
+  if (drafts[path] !== d) return null;
+  d.aiBusy = false;
+  if (out && !out.stale) {
+    d.ai = { ...out, for: text };
+    if (!d.sevChosen) d.severity = out.severity;
+  }
+  paintDraftOut(path);
+  return out && !out.stale ? d.ai : null;
+}
+function assistantLater(path) {
+  clearTimeout(assistantTimer);
+  paintDraftOut(path);
+  assistantTimer = setTimeout(() => askAssistant(path), 2500);
+}let draftTimer, previewTimer;
 function saveDraft(path, now) {
   clearTimeout(draftTimer);
   const d = drafts[path], save = () => change("save-draft", { path, text: d.text, lines: d.lines, side: d.side });
@@ -952,13 +999,18 @@ async function makeFinding() {
   const path = ui.file, d = drafts[path]; if (!d) return;
   if (!d.text.trim()) return toast("Write the comment first");
   clearTimeout(draftTimer);
+  let fields = { severity: d.severity };
+  if (ui.assistant) {
+    const a = d.ai && d.ai.for === d.text ? d.ai : await askAssistant(path);
+    if (!a) return;
+    fields = { title: a.title, category: a.category, description: a.description, comment: a.comment, repeats: a.repeats, severity: d.severity };
+  }
   if (!(await change("save-draft", { path, text: d.text, lines: d.lines, side: d.side }))) return;
-  if (!(await change("draft-to-finding", { path, severity: d.severity }))) return;
+  if (!(await change("draft-to-finding", { path, ...fields }))) return;
   delete drafts[path]; ui.selection = null;
   await reload();
-  toast(`${S().findings[S().findings.length - 1].id} is a finding now`);
-}
-// A markdown mark around the selected words of the draft, or a placeholder to type over.
+  toast(fields.repeats ? `This place is in ${fields.repeats} now` : `${S().findings[S().findings.length - 1].id} is a finding now`);
+}// A markdown mark around the selected words of the draft, or a placeholder to type over.
 function mdTool(kind) {
   const box = document.getElementById("draft-box"); if (!box) return;
   const a = box.selectionStart, b = box.selectionEnd, picked = box.value.slice(a, b);
@@ -1520,7 +1572,7 @@ const stepIn = (list, at, by) => list[Math.min(list.length - 1, Math.max(0, list
 const CLICKABLE = ["tab", "sort", "restart", "inline", "gutter", "goto", "finding", "thread", "close-panel", "edit", "save", "status", "set-sev", "resolve", "compose", "view", "pick-file",
   "open-file", "step-file", "step-uc", "code-filter", "fsev", "fby", "fquestions", "fstatus", "answer", "live", "refresh", "send", "power",
   "close-review", "uccard", "close-uc", "ask-uc", "open-review", "archive", "new", "archived", "unarchive", "start", "pop", "new-finding", "nr-kind", "nr-how", "nr-browse",
-  "comment-file", "draft-whole", "draft-sev", "draft-make", "draft-discard", "md-tool", "answer-here", "agent-tools", "allow-tool", "tool-toggle", "nr-existing", "permit",
+  "comment-file", "draft-whole", "draft-sev", "draft-make", "draft-discard", "md-tool", "assistant-switch", "answer-here", "agent-tools", "allow-tool", "tool-toggle", "nr-existing", "permit",
   "gh-read", "gh-quote", "gh-reply-open", "gh-reply", "gh-thread", "comment-add", "cedit", "csave", "cdrop",
   "directive-switch", "directive-check", "directive-default", "rfilter", "context-save", "context-remove", "fix-prompts", "in-prompt"].map(name => `[data-${name}]`).join(",");
 document.addEventListener("click", async e => {
@@ -1737,7 +1789,13 @@ document.addEventListener("click", async e => {
   if (d.newFinding !== undefined) { const a = ui.panel.ask; return openComment(a.about.path, a.about.lines || null, "RIGHT"); }
   if (d.commentFile) { const dr = draftOf(d.commentFile); if (!dr.text.trim()) dr.lines = null; return openComment(d.commentFile); }
   if (d.draftWhole !== undefined) { draftOf(ui.file).lines = null; saveDraft(ui.file, true); return render(); }
-  if (d.draftSev) { draftOf(ui.file).severity = d.draftSev; return render(); }
+  if (d.draftSev) { Object.assign(draftOf(ui.file), { severity: d.draftSev, sevChosen: true }); return render(); }
+  if (d.assistantSwitch !== undefined) {
+    ui.assistant = !ui.assistant; localStorage.setItem("craftsman-assistant", ui.assistant ? "on" : "off");
+    const dr = ui.file && draftOf(ui.file);
+    if (dr && dr.text.trim()) ui.assistant ? askAssistant(ui.file) : previewDraft(ui.file);
+    return render();
+  }
   if (d.draftMake !== undefined) return makeFinding();
   if (d.draftDiscard !== undefined) {
     if (draftOf(ui.file).text.trim() && !(await ask("Discard this draft?", `<p>The draft about ${draftPlace(ui.file, drafts[ui.file])} is thrown away.</p>`, "Discard"))) return;
@@ -1749,7 +1807,7 @@ document.addEventListener("click", async e => {
 });
 document.addEventListener("change", e => { if (e.target.id === "fcat") { ui.fcat = e.target.value; render(); } });
 document.addEventListener("input", e => { if (e.target.id === "fsearch") { ui.search = e.target.value; render(); }
-  if (e.target.id === "draft-box" && ui.file) { draftOf(ui.file).text = e.target.value; saveDraft(ui.file); previewDraft(ui.file); }
+  if (e.target.id === "draft-box" && ui.file) { draftOf(ui.file).text = e.target.value; saveDraft(ui.file); ui.assistant ? assistantLater(ui.file) : previewDraft(ui.file); }
   if (e.target.id.startsWith("nr-")) {
   const field = { "nr-url": "url", "nr-target": "target", "nr-source": "source", "nr-path": "path", "nr-context": "context" }[e.target.id];
   if (field) { ui.nr[field] = e.target.value; if (field !== "context") nrCheck(); } } });

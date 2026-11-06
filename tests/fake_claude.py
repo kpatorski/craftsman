@@ -44,6 +44,14 @@ def ask(tool):
 
 
 log({"argv": sys.argv[1:], "cwd": os.getcwd()})
+if "--json-schema" in sys.argv:
+    # a draft's preview: one prompt in, one finding out
+    prompt = sys.stdin.read()
+    log({"preview": prompt})
+    emit([{"type": "result", "is_error": False, "structured_output": {
+        "title": "Written up", "category": "naming", "severity": "nit", "description": "Why.",
+        "comment": "Rename **it**.", "repeats": ""}}])
+    sys.exit(0)
 for line in sys.stdin:
     event = json.loads(line)
     if event.get("type") != "user":

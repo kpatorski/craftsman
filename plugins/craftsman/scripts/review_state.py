@@ -314,7 +314,17 @@ def draft_to_finding(state, payload, by):
     lines = draft.get("lines")
     location = {"path": payload["path"], "line": lines[1] if lines else None, "side": draft.get("side") or "RIGHT",
                 "commit": state["head"]}
-    fields = {key: payload[key] for key in ("title", "severity", "comment") if payload.get(key)}
+    if payload.get("repeats"):
+        # the same problem as a finding already there: this place joins it
+        found = by_id(state["findings"], payload["repeats"])
+        not_sent(found)
+        place = lambda l: (l["path"], l.get("line"), l.get("side", "RIGHT"))  # noqa: E731
+        if place(location) not in map(place, found["locations"]):
+            found["locations"].append(location)
+        del drafts[payload["path"]]
+        return state, found["id"]
+    fields = {key: payload[key] for key in ("title", "severity", "comment", "category", "description")
+              if payload.get(key)}
     fields.setdefault("title", title_of(fields.get("comment") or draft["text"])
                       or f"About {payload['path'].rsplit('/', 1)[-1]}")
     state, made = add_finding(state, {"comment": draft["text"].strip(), **fields, "locations": [location]}, by)

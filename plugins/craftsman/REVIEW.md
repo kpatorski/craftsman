@@ -180,9 +180,21 @@ Only the developer writes them, with `review_state.py <review dir> <command> '<p
 
 - `save-draft` `{"path", "text", "lines", "side"}` — writes the file's draft, replacing the one before;
 - `discard-draft` `{"path"}` — throws it away;
-- `draft-to-finding` `{"path", "severity", "title"}` — makes it the developer's own finding, on the last of its lines
-  or on the whole file, with the draft's text as the comment, and removes the draft. Without a `title`, the first
-  sentence of the comment's prose is the title, cut to 80 characters. An empty draft makes no finding.
+- `draft-to-finding` `{"path", "severity", "title", "comment", "category", "description", "repeats"}` — makes it the
+  developer's own finding, on the last of its lines or on the whole file, and removes the draft. A field not given
+  comes from the draft: its text is the comment, and the first sentence of the comment's prose is the title, cut to 80
+  characters. With `repeats`, the id of a finding not yet sent, no finding is made: the draft's place joins that one.
+  An empty draft makes no finding.
+
+With the panel's "AI Agent assistant" switch on, the default, the developer writes or dictates their thoughts in their
+own words, and AI Agent writes them up as the finding: a moment after the developer stops, the page asks the server's
+`/api/review/draft-preview`. The server runs a short Claude call of its own for it (`scripts/_draft_preview.py`), not
+the review's session, with a small model (`haiku`, or `CRAFTSMAN_PREVIEW_MODEL`) and no tools. Its prompt holds the
+draft, the code around the draft's lines from the diff, the `code-review` bundle's directives `review-comment`,
+`review-posture` and `engineer-prose`, the findings already in the file, the review's categories and its `language`.
+It answers the title, category, severity, description and comment, in the review's language whatever the draft's, and
+the finding of the file it repeats. A newer draft of the same file stops the call still running for the older one. The
+panel shows the answer above the draft, and "Make it a finding" sends it with `draft-to-finding`.
 
 ### Fix prompts
 
