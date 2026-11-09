@@ -3,6 +3,10 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.19.4
+
+- The Findings table's "To the author" column fits "maybe resolved".
+
 ## 0.19.3
 
 - Fix prompts name no severity, only list the worst first, and the developer's findings with no category go in one

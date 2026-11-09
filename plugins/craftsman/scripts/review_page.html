@@ -747,7 +747,7 @@ function findingTable(list, sortable) {
   const fileSort = sortable ? ` <a class="subsort${ui.sort.key === "file" ? " on" : ""}" data-sort="file">· by file${ui.sort.key === "file" ? (ui.sort.dir > 0 ? " ▲" : " ▼") : ""}</a>` : "";
   return `<table><thead><tr>${th("severity", "Severity", "width:110px")}${sortable
       ? `<th class="sortable${ui.sort.key === "title" ? " on" : ""}"><span data-sort="title">Finding${ui.sort.key === "title" ? (ui.sort.dir > 0 ? " ▲" : " ▼") : ""}</span>${fileSort}</th>` : "<th>Finding</th>"}
-    ${th("by", "By", "width:100px")}${th("category", "Category", "width:140px")}${th("thread", "Thread", "width:70px")}${th("status", "To the author", "width:110px")}</tr></thead><tbody>${list.map(f => {
+    ${th("by", "By", "width:100px")}${th("category", "Category", "width:140px")}${th("thread", "Thread", "width:70px")}${th("status", "To the author", "width:140px")}</tr></thead><tbody>${list.map(f => {
       const loc = (f.locations || [])[0] || {}, threads = threadsOf("finding", f.id);
       const st = { "to-send": '<span class="tag green">to send</span>', sent: '<span class="tag blue">sent</span>',
         "maybe-resolved": '<span class="tag amber">maybe resolved</span>', deleted: '<span class="tag">dropped</span>' }[f.status] || '<span class="tag">not yet</span>';
