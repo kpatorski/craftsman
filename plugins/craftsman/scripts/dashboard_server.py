@@ -308,7 +308,10 @@ class Handler(BaseHTTPRequestHandler):
                                            working=runner.working(), background=runner.background,
                                            quiet=runner.quiet(), restoring=runner.restoring,
                                            problem=runner.problem, tools=_review_session.agent_tools(review),
-                                           permissions=runner.permission_requests()))
+                                           permissions=runner.permission_requests(),
+                                           **{"comment-style": _settings.comment_style()}))
+            if path == "/api/review/comment-style":
+                return self.send(200, {"comment-style": _settings.set_comment_style(body.get("style"))})
             if path == "/api/review/permission":
                 runner.answer(str(body.get("request", "")), str(body.get("answer", "")), rule=body.get("rule"),
                               reason=body.get("reason"))
@@ -338,8 +341,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, dict(html=render_markdown(str(body.get("text", "")), lambda url: None)))
             if path == "/api/review/draft-preview":
                 try:
+                    style = _draft_preview.shape(body.get("style"), _settings.comment_style())
                     finding = _draft_preview.preview(review, str(body.get("path", "")), str(body.get("text", "")),
-                                                     body.get("lines"), content=self.hub.content)
+                                                     body.get("lines"), content=self.hub.content, style=style,
+                                                     severity=body.get("severity"))
                 except _draft_preview.PreviewFailed as failed:
                     return self.send(502, dict(error=f"AI Agent could not write the finding: {failed}"))
                 if finding is None:

@@ -276,6 +276,17 @@
   .draft-title { margin: 0 0 4px; font-size: 1rem; font-weight: 500; color: var(--heading); }
   .draft-preview .banner { margin: 0 0 10px; }
   .ai-busy { color: var(--neon); animation: p 1.6s infinite; margin-left: 6px; }
+  .draft-h a { cursor: pointer; color: var(--text); margin-left: 8px; }
+  .ai-edit { display: flex; flex-direction: column; gap: 8px; height: 100%; }
+  .ai-edit textarea { flex: 1; min-height: 120px; resize: none; }
+  .style-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto auto; gap: 14px; align-items: end;
+    font-size: .75rem; color: var(--muted); }
+  .style-row label { display: flex; flex-direction: column; gap: 4px; }
+  .style-row label b { font-weight: 400; color: var(--text); } .style-row label.own b { color: var(--neon); }
+  .style-row input[type=range] { width: 100%; accent-color: var(--neon-strong); }
+  .style-row .code { flex-direction: row; align-items: center; gap: 6px; white-space: nowrap; padding-bottom: 3px; }
+  .style-row a { cursor: pointer; color: var(--text); padding-bottom: 3px; }
+  .draft-preview .banner a { cursor: pointer; color: var(--neon); }
   .switch { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; color: var(--muted); }
   .switch i { width: 28px; height: 16px; border-radius: 999px; background: var(--switch-off); position: relative; }
   .switch i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--knob); }
@@ -904,11 +915,14 @@ function panelThread(id) {
 // ================================================================ the comment panel
 // One draft of a finding per file, kept on the server; the panel shows the draft of the file open in Code, so moving
 // between files moves between their drafts.
-const drafts = {};  // path -> { text, lines, side, severity, html }
+// `style` is the shape of the comment asked for this draft, where it differs from the default one; `ai` is AI Agent's
+// finding of it, `pinned` once the developer corrected it by hand, so a newer draft never writes over the correction.
+const drafts = {};  // path -> { text, lines, side, severity, sevChosen, style, html, ai, aiBusy, aiFailed, aiEdit }
 function draftOf(path) {
   if (!drafts[path]) {
     const kept = (S().drafts || {})[path] || {};
-    drafts[path] = { text: kept.text || "", lines: kept.lines || null, side: kept.side || "RIGHT", severity: "should-fix", html: null };
+    drafts[path] = { text: kept.text || "", lines: kept.lines || null, side: kept.side || "RIGHT", severity: "should-fix",
+      style: { ...(kept.style || {}) }, html: null };
     if (drafts[path].text) ui.assistant ? assistantLater(path) : previewDraft(path);
   }
   return drafts[path];
@@ -924,9 +938,10 @@ function panelComment() {
     <div class="about-row"><div class="about-chip"><span>About <b class="mono">${draftPlace(path, d)}</b></span>${d.lines ? `<a data-draft-whole title="Make it about the whole file">×</a>` : ""}</div>
       <span class="switch${ui.assistant ? " on" : ""}" data-assistant-switch title="AI Agent writes your draft up as a finding by the review's rules"><i></i>✦ AI Agent assistant</span></div>
     <section class="draft-out" id="draft-out">${draftOut(path, d)}</section>
+    ${ui.assistant ? `<div class="style-row" id="style-row">${styleControls(shapeOf(d), "data-style", d.style)}${Object.keys(d.style).length ? `<a data-style-reset title="Back to the default shape, set in AI Agent tools">default</a>` : ""}</div>` : ""}
     <section class="draft-in"><div class="md-tools">${MD_TOOLS.map(([k, label, title]) => `<button data-md-tool="${k}" title="${title}">${label}</button>`).join("")}</div>
       <textarea id="draft-box" placeholder="${ui.assistant ? "Tell AI Agent what you would change here, and why, in your own words. Enter is a new line." : "What would you change here, and why? Markdown works; Enter is a new line."}">${esc(d.text)}</textarea></section>
-    <div class="row-actions draft-actions"><button class="btn go sm" data-draft-make title="⌘ Enter">Make it a finding</button><button class="btn ghost sm" data-draft-discard>Discard</button></div>`;
+    <div class="row-actions draft-actions"><button class="btn go sm" data-draft-make title="${esc(makeBlocked(d) || "⌘ Enter")}" ${makeBlocked(d) ? "disabled" : ""}>Make it a finding</button><button class="btn ghost sm" data-draft-discard>Discard</button></div>`;
 }
 // The upper half: the finding as it will be. With the assistant on, the one AI Agent wrote of the draft; dimmed while
 // it no longer matches the draft below.
@@ -938,15 +953,45 @@ function draftOut(path, d) {
   const repeated = a && a.repeats && S().findings.find(f => f.id === a.repeats);
   if (!a) return `<div class="draft-h"><span>The finding ${busy}</span>${sevs}</div>
     <div class="draft-preview"><div class="muted">${d.aiBusy ? "" : "Write what you would change. A moment after you stop, AI Agent writes it up here as a finding, by the review's rules."}</div></div>`;
-  return `<div class="draft-h"><span>The finding · <span class="tag">${esc(a.category)}</span> ${busy}</span>${sevs}</div>
-    <div class="draft-preview${a.for !== d.text ? " stale" : ""}">
-      ${repeated ? `<div class="banner">Same problem as <a data-finding="${esc(repeated.id)}">${esc(repeated.id)} · ${inline(repeated.title)}</a>. Making it a finding adds this place to ${esc(repeated.id)}.</div>` : ""}
+  if (d.aiEdit) return `<div class="draft-h"><span>The finding · your correction</span>${sevs}</div>
+    <div class="draft-preview ai-edit"><input class="field" id="ai-title" value="${esc(d.aiEdit.title)}">
+      <textarea class="field" id="ai-comment">${esc(d.aiEdit.comment)}</textarea>
+      <div class="row-actions" style="margin-top:0"><button class="btn go sm" data-ai-save>Keep my correction</button><button class="btn ghost sm" data-ai-cancel>Cancel</button></div></div>`;
+  const behind = a.pinned && a.for !== d.text;
+  const again = d.aiFailed ? `<div class="banner">AI Agent could not write it. <a data-ai-again>Try again</a></div>`
+    : behind ? `<div class="banner">Your draft changed since you edited this. <a data-ai-again>Write it again from the draft</a> — your correction is replaced.</div>` : "";
+  return `<div class="draft-h"><span>The finding · <span class="tag">${esc(a.category)}</span> ${busy}${a.pinned ? '<span class="tag green" title="Your correction; a newer draft does not write over it">pinned</span>' : ""}${d.aiBusy ? "" : `<a data-ai-edit title="Correct AI Agent's comment by hand">Edit</a>`}</span>${sevs}</div>
+    <div class="draft-preview${!a.pinned && a.for !== d.text ? " stale" : ""}">
+      ${again}${repeated ? `<div class="banner">Same problem as <a data-finding="${esc(repeated.id)}">${esc(repeated.id)} · ${inline(repeated.title)}</a>. Making it a finding adds this place to ${esc(repeated.id)}.</div>` : ""}
       <h3 class="draft-title">${inline(a.title)}</h3>
       <div class="md">${a.html}</div></div>`;
 }
+// Why "Make it a finding" waits, or "" when it does not: with the assistant on, the finding is AI Agent's comment, so it
+// waits until that comment is written for the draft as it is now, or corrected by hand.
+function makeBlocked(d) {
+  if (!ui.assistant) return "";
+  if (!d.text.trim()) return "Write the comment first";
+  if (d.aiEdit) return "Keep or cancel your correction first";
+  if (d.aiBusy) return "AI Agent is writing the comment";
+  if (!d.ai || (!d.ai.pinned && d.ai.for !== d.text)) return d.aiFailed ? "AI Agent could not write it; try again" : "AI Agent writes the comment a moment after you stop";
+  return "";
+}
+// The shape of a comment: three sliders and a box, for the panel (one draft) and for the default (AI Agent tools).
+const SHAPE = [["fidelity", "Your words", ["close", "balanced", "free"]], ["tone", "Tone", ["casual", "teammate", "formal"]],
+  ["detail", "Detail", ["brief", "normal", "detailed"]]];
+const shapeOf = d => ({ ...((R && R["comment-style"]) || {}), ...d.style });
+function styleControls(shape, attr, own) {
+  return SHAPE.map(([key, label, steps]) => `<label class="${own && key in own ? "own" : ""}"><span>${label} · <b>${steps[Math.max(0, steps.indexOf(shape[key]))]}</b></span>
+      <input type="range" min="0" max="2" step="1" value="${Math.max(0, steps.indexOf(shape[key]))}" ${attr}="${key}"></label>`).join("") +
+    `<label class="code${own && "code" in own ? " own" : ""}"><input type="checkbox" ${attr}="code" ${shape.code ? "checked" : ""}> code sample</label>`;
+}
+const styleValue = el => el.type === "checkbox" ? el.checked : SHAPE.find(([key]) => key === (el.dataset.style || el.dataset.styleDefault))[2][+el.value];
 function paintDraftOut(path) {
   const el = document.getElementById("draft-out");
-  if (el && ui.file === path && drafts[path]) el.innerHTML = draftOut(path, drafts[path]);
+  if (!el || ui.file !== path || !drafts[path]) return;
+  el.innerHTML = draftOut(path, drafts[path]);
+  const make = document.querySelector("[data-draft-make]"), why = makeBlocked(drafts[path]);
+  if (make) { make.disabled = !!why; make.title = why || "⌘ Enter"; }
 }
 let assistantTimer;
 // AI Agent writes the draft up a moment after the developer stops; a newer draft makes the older answer stale.
@@ -954,25 +999,37 @@ async function askAssistant(path) {
   clearTimeout(assistantTimer);
   const d = drafts[path], text = d && d.text;
   if (!d || !text.trim()) return null;
-  d.aiBusy = true; paintDraftOut(path);
-  const out = await api("/api/review/draft-preview", { ...K(), path, text, lines: d.lines });
+  d.aiBusy = true; d.aiFailed = false; paintDraftOut(path);
+  const out = await api("/api/review/draft-preview", { ...K(), path, text, lines: d.lines, style: d.style,
+    severity: d.sevChosen ? d.severity : undefined });
   if (drafts[path] !== d) return null;
   d.aiBusy = false;
+  if (d.ai && d.ai.pinned) { paintDraftOut(path); return d.ai; }
   if (out && !out.stale) {
     d.ai = { ...out, for: text };
     if (!d.sevChosen) d.severity = out.severity;
-  }
+  } else if (!out) d.aiFailed = true;
   paintDraftOut(path);
   return out && !out.stale ? d.ai : null;
 }
 function assistantLater(path) {
   clearTimeout(assistantTimer);
   paintDraftOut(path);
+  if (drafts[path].ai && drafts[path].ai.pinned) return;
   assistantTimer = setTimeout(() => askAssistant(path), 2500);
+}
+// The developer asked for the comment again -- another shape, another severity, or from the draft as it is now. A
+// correction made by hand is replaced only once they say so.
+async function rewrite(path, sure) {
+  const d = drafts[path];
+  if (!d || !d.text.trim()) return paintDraftOut(path);
+  if (d.ai && d.ai.pinned && !sure && !(await ask("Write it again?", "<p>Your correction of AI Agent's comment is replaced.</p>", "Write it again"))) return render();
+  if (d.ai) d.ai.pinned = false;
+  return askAssistant(path);
 }let draftTimer, previewTimer;
 function saveDraft(path, now) {
   clearTimeout(draftTimer);
-  const d = drafts[path], save = () => change("save-draft", { path, text: d.text, lines: d.lines, side: d.side });
+  const d = drafts[path], save = () => change("save-draft", { path, text: d.text, lines: d.lines, side: d.side, style: d.style });
   if (now) return save();
   draftTimer = setTimeout(save, 700);
 }
@@ -998,13 +1055,13 @@ async function makeFinding() {
   const path = ui.file, d = drafts[path]; if (!d) return;
   if (!d.text.trim()) return toast("Write the comment first");
   clearTimeout(draftTimer);
+  const why = makeBlocked(d); if (why) return toast(why);
   let fields = { severity: d.severity };
   if (ui.assistant) {
-    const a = d.ai && d.ai.for === d.text ? d.ai : await askAssistant(path);
-    if (!a) return;
+    const a = d.ai;
     fields = { title: a.title, category: a.category, description: a.description, comment: a.comment, repeats: a.repeats, severity: d.severity };
   }
-  if (!(await change("save-draft", { path, text: d.text, lines: d.lines, side: d.side }))) return;
+  if (!(await change("save-draft", { path, text: d.text, lines: d.lines, side: d.side, style: d.style }))) return;
   if (!(await change("draft-to-finding", { path, ...fields }))) return;
   delete drafts[path]; ui.selection = null;
   await reload();
@@ -1513,7 +1570,16 @@ function viewTools() {
       every review, or deny it. Allow the MCP server Jira is read through and the AI Agent reads the PR's tickets; allowing a server
       allows every tool it has, writing ones too. What is allowed here applies to every review; it is kept as <code>review-tools</code>
       in <code>~/.craftsman/settings.json</code>.</div>
-    ${tools.map(row).join("") || `<span class="muted">${R ? "This review's session has connected to no MCP server. The servers are the ones <code>claude mcp list</code> shows, in the review's checkout." : "Open a review: the servers are the ones its session connected to."}</span>`}</div>`;
+    ${tools.map(row).join("") || `<span class="muted">${R ? "This review's session has connected to no MCP server. The servers are the ones <code>claude mcp list</code> shows, in the review's checkout." : "Open a review: the servers are the ones its session connected to."}</span>`}</div>` + commentStyleCard();
+}
+// The default shape of the comment AI Agent writes of a draft, for every review; each draft may ask for another.
+function commentStyleCard() {
+  if (!R || !R["comment-style"]) return "";
+  return `<div class="card" style="max-width:820px;margin-top:16px"><h3><span>Comment style</span></h3>
+    <div class="muted" style="margin-bottom:12px">How AI Agent's assistant writes your draft up as a comment: how close to your words,
+      in what tone, how long, and whether with a code sample of the fix. Your severity sets how firmly it says it. The comment panel
+      changes it for one draft; this is the default for every review, kept as <code>comment-style</code> in <code>~/.craftsman/settings.json</code>.</div>
+    <div class="style-row">${styleControls(R["comment-style"], "data-style-default")}</div></div>`;
 }
 
 // ================================================================ render
@@ -1588,7 +1654,8 @@ const CLICKABLE = ["tab", "sort", "restart", "inline", "gutter", "goto", "findin
   "close-review", "uccard", "close-uc", "ask-uc", "open-review", "archive", "new", "archived", "unarchive", "start", "pop", "new-finding", "nr-kind", "nr-how", "nr-browse",
   "comment-file", "draft-whole", "draft-sev", "draft-make", "draft-discard", "md-tool", "assistant-switch", "answer-here", "agent-tools", "allow-tool", "tool-toggle", "nr-existing", "permit",
   "gh-read", "gh-quote", "gh-reply-open", "gh-reply", "gh-thread", "comment-add", "cedit", "csave", "cdrop",
-  "directive-switch", "directive-check", "directive-default", "rfilter", "context-save", "context-remove", "fix-prompts", "in-prompt"].map(name => `[data-${name}]`).join(",");
+  "directive-switch", "directive-check", "directive-default", "rfilter", "context-save", "context-remove", "fix-prompts", "in-prompt",
+  "ai-edit", "ai-save", "ai-cancel", "ai-again", "style-reset"].map(name => `[data-${name}]`).join(",");
 document.addEventListener("click", async e => {
   if (!e.target.closest("#pop")) { hidePop(); dropSelection(); }
   const t = e.target.closest(CLICKABLE); if (!t) return;
@@ -1803,7 +1870,21 @@ document.addEventListener("click", async e => {
   if (d.newFinding !== undefined) { const a = ui.panel.ask; return openComment(a.about.path, a.about.lines || null, "RIGHT"); }
   if (d.commentFile) { const dr = draftOf(d.commentFile); if (!dr.text.trim()) dr.lines = null; return openComment(d.commentFile); }
   if (d.draftWhole !== undefined) { draftOf(ui.file).lines = null; saveDraft(ui.file, true); return render(); }
-  if (d.draftSev) { Object.assign(draftOf(ui.file), { severity: d.draftSev, sevChosen: true }); return render(); }
+  if (d.draftSev) {
+    const dr = draftOf(ui.file), changed = dr.severity !== d.draftSev || !dr.sevChosen;
+    Object.assign(dr, { severity: d.draftSev, sevChosen: true }); render();
+    return changed && ui.assistant ? rewrite(ui.file) : undefined;
+  }
+  if (d.aiEdit !== undefined) { const dr = draftOf(ui.file); dr.aiEdit = { title: dr.ai.title, comment: dr.ai.comment }; return render(); }
+  if (d.aiCancel !== undefined) { delete draftOf(ui.file).aiEdit; return render(); }
+  if (d.aiSave !== undefined) {
+    const dr = draftOf(ui.file), out = await api("/api/review/markdown", { ...K(), text: dr.aiEdit.comment });
+    if (!out) return;
+    Object.assign(dr.ai, { title: dr.aiEdit.title.trim() || dr.ai.title, comment: dr.aiEdit.comment, html: out.html, pinned: true });
+    delete dr.aiEdit; return render();
+  }
+  if (d.aiAgain !== undefined) return rewrite(ui.file, true);
+  if (d.styleReset !== undefined) { const dr = draftOf(ui.file); dr.style = {}; saveDraft(ui.file, true); render(); return rewrite(ui.file); }
   if (d.assistantSwitch !== undefined) {
     ui.assistant = !ui.assistant; localStorage.setItem("craftsman-assistant", ui.assistant ? "on" : "off");
     const dr = ui.file && draftOf(ui.file);
@@ -1819,8 +1900,19 @@ document.addEventListener("click", async e => {
   }
   if (d.mdTool) return mdTool(d.mdTool);
 });
-document.addEventListener("change", e => { if (e.target.id === "fcat") { ui.fcat = e.target.value; render(); } });
+document.addEventListener("change", e => { if (e.target.id === "fcat") { ui.fcat = e.target.value; render(); }
+  if (e.target.dataset.style && ui.file) {
+    // a part of the shape equal to the default one is not kept: the draft follows the default when it changes
+    const dr = draftOf(ui.file), key = e.target.dataset.style, value = styleValue(e.target);
+    if (value === ((R && R["comment-style"]) || {})[key]) delete dr.style[key]; else dr.style[key] = value;
+    saveDraft(ui.file, true); render(); rewrite(ui.file);
+  }
+  if (e.target.dataset.styleDefault)
+    api("/api/review/comment-style", { ...K(), style: { [e.target.dataset.styleDefault]: styleValue(e.target) } }).then(() => reload());
+});
 document.addEventListener("input", e => { if (e.target.id === "fsearch") { ui.search = e.target.value; render(); }
+  if ((e.target.id === "ai-title" || e.target.id === "ai-comment") && ui.file && drafts[ui.file]?.aiEdit)
+    drafts[ui.file].aiEdit[e.target.id === "ai-title" ? "title" : "comment"] = e.target.value;
   if (e.target.id === "draft-box" && ui.file) { draftOf(ui.file).text = e.target.value; saveDraft(ui.file); ui.assistant ? assistantLater(ui.file) : previewDraft(ui.file); }
   if (e.target.id.startsWith("nr-")) {
   const field = { "nr-url": "url", "nr-target": "target", "nr-source": "source", "nr-path": "path", "nr-context": "context" }[e.target.id];

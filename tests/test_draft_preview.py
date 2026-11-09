@@ -106,15 +106,54 @@ class DraftPreviewTest(unittest.TestCase):
         self.assertNotIn("class Other", prompt)
         self.assertNotIn("Elsewhere", prompt)
 
-    def test_the_call_is_asked_for_a_teammates_comment_no_longer_than_the_draft_calls_for(self):
-        self.preview("tylko reminder")
+    def prompt_for(self, **asked):
+        _draft_preview.preview(self.review, "src/Cancel.java", "tylko reminder", [2, 3], content=self.content,
+                               command=self.command, **asked)
+        return self.calls()[-1]["prompt"]
 
-        prompt = self.calls()[0]["prompt"]
-        for part in ("a teammate", "as long as the draft", "one or two sentences", "the file, the line",
-                     "every place in the change, the comment says so",
-                     "When the draft has a code block or asks for one, the comment has one"):
+    def test_by_default_the_comment_keeps_the_reviewers_words_in_a_teammates_voice_as_long_as_the_draft(self):
+        prompt = self.prompt_for()
+
+        for part in ("Stay close to the reviewer's words", "no softening", "a teammate", "as long as the draft",
+                     "the file, the line", "every place in the change, the comment says so",
+                     "When the draft has a code block or asks for one, the comment has one",
+                     "the style below wins"):
             with self.subTest(part=part):
                 self.assertIn(part, prompt)
+
+    def test_every_shape_of_the_comment_is_asked_for_in_words_of_its_own(self):
+        for key, value, part in (("fidelity", "close", "Stay close to the reviewer's words"),
+                                 ("fidelity", "balanced", "in your own words"),
+                                 ("fidelity", "free", "Write it your way"),
+                                 ("tone", "casual", "Casual"),
+                                 ("tone", "teammate", "a teammate"),
+                                 ("tone", "formal", "Formal and neutral"),
+                                 ("detail", "brief", "One or two sentences"),
+                                 ("detail", "normal", "as long as the draft"),
+                                 ("detail", "detailed", "A paragraph or two"),
+                                 ("code", True, "End with a short code block"),
+                                 ("code", False, "No code block unless the draft has one")):
+            with self.subTest(key=key, value=value):
+                self.assertIn(part, self.prompt_for(style={key: value}))
+
+    def test_a_shape_it_does_not_know_is_the_default_one(self):
+        self.assertEqual(_draft_preview.shape({"tone": "rude", "detail": "detailed", "code": "yes"}),
+                         dict(_draft_preview.review_state.COMMENT_STYLE_DEFAULT, detail="detailed"))
+
+    def test_the_severity_the_reviewer_picked_sets_how_firmly_the_comment_says_it(self):
+        for severity, part in (("must-fix", "has to change before the merge"), ("should-fix", "a clear recommendation"),
+                               ("nit", "minor")):
+            with self.subTest(severity=severity):
+                prompt = self.prompt_for(severity=severity)
+                self.assertIn(f"The reviewer weighs it {severity}", prompt)
+                self.assertIn(part, prompt)
+
+    def test_without_a_severity_picked_the_call_weighs_it_and_writes_it_that_firmly(self):
+        for severity in (None, "blocker"):
+            with self.subTest(severity=severity):
+                prompt = self.prompt_for(severity=severity)
+                self.assertNotIn("The reviewer weighs it", prompt)
+                self.assertIn("with the strength of the severity you choose", prompt)
 
     def test_only_the_code_around_the_lines_goes_with_a_draft_about_them(self):
         long = "diff --git a/src/Long.java b/src/Long.java\n--- a/src/Long.java\n+++ b/src/Long.java\n@@ -0,0 +1,80 @@\n"

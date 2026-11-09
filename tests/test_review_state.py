@@ -352,6 +352,23 @@ class ReviewStateTest(unittest.TestCase):
 
         self.assertEqual(self.state()["drafts"], {})
 
+    def test_a_draft_keeps_the_shape_the_developer_asked_for_its_comment(self):
+        self.opened()
+
+        self.run_state("save-draft", by="developer", payload={"path": "A.java", "text": "x",
+                                                             "style": {"tone": "formal", "code": True}})
+
+        self.assertEqual(self.state()["drafts"]["A.java"]["style"], {"tone": "formal", "code": True})
+
+    def test_a_draft_refuses_a_shape_of_a_comment_it_does_not_know(self):
+        self.opened()
+
+        for style in ({"tone": "rude"}, {"loudness": "high"}, {"code": "yes"}, {"code": 1}, ["formal"]):
+            with self.subTest(style=style):
+                refused = self.run_state("save-draft", by="developer", payload={"path": "A.java", "text": "x",
+                                                                               "style": style}, expect_ok=False)
+                self.assertIn("a comment's shape is", refused.stderr)
+
     def test_a_draft_becomes_the_developers_finding_on_its_last_selected_line(self):
         self.opened()
         self.run_state("save-draft", by="developer", payload={"path": "A.java", "text": "Rename `process`.",

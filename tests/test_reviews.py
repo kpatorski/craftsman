@@ -574,6 +574,41 @@ class ReviewEndpointsTest(ReviewsTest):
         self.assertIn("<strong>it</strong>", body["html"])
         self.assertIn("zla nazwa", (self.tmp / "fake.log").read_text())
 
+    def test_the_page_reads_the_default_shape_of_a_comment(self):
+        status, body = self.call(f"/api/review?id={ID}")
+
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body["comment-style"], review_state.COMMENT_STYLE_DEFAULT)
+
+    def test_a_default_shape_written_by_hand_keeps_what_it_knows(self):
+        (self.home / "settings.json").write_text(json.dumps({"comment-style": {"tone": "rude", "detail": "brief"}}))
+
+        status, body = self.call(f"/api/review?id={ID}")
+
+        self.assertEqual(body["comment-style"], dict(review_state.COMMENT_STYLE_DEFAULT, detail="brief"))
+
+    def test_the_page_sets_the_default_shape_of_a_comment_for_every_review(self):
+        status, body = self.call("/api/review/comment-style", {"id": ID, "style": {"tone": "formal", "code": True}})
+
+        self.assertEqual(status, 200, body)
+        expected = dict(review_state.COMMENT_STYLE_DEFAULT, tone="formal", code=True)
+        self.assertEqual(body["comment-style"], expected)
+        self.assertEqual(json.loads((self.home / "settings.json").read_text())["comment-style"], expected)
+        self.assertNotEqual(self.call("/api/review/comment-style", {"id": ID, "style": {"tone": "rude"}})[0], 200)
+
+    def test_the_assistant_writes_a_draft_in_the_default_shape_with_what_the_draft_asks_on_top(self):
+        self.call("/api/review/comment-style", {"id": ID, "style": {"tone": "formal", "detail": "detailed"}})
+
+        status, body = self.call("/api/review/draft-preview", {"id": ID, "path": "B.java", "text": "zla nazwa",
+                                                                "style": {"detail": "brief"}, "severity": "must-fix"})
+
+        self.assertEqual(status, 200, body)
+        prompt = (self.tmp / "fake.log").read_text()
+        for part in ("Formal and neutral", "One or two sentences", "The reviewer weighs it must-fix"):
+            with self.subTest(part=part):
+                self.assertIn(part, prompt)
+        self.assertNotIn("A paragraph or two", prompt)
+
     def test_the_page_makes_the_assistants_finding_of_a_draft(self):
         self.call("/api/review/change", {"id": ID, "action": "save-draft", "path": "B.java", "text": "zla nazwa"})
 
@@ -611,6 +646,18 @@ class ReviewEndpointsTest(ReviewsTest):
                      "repeats"):
             with self.subTest(hook=hook):
                 self.assertIn(hook, served)
+
+    def test_the_comment_panel_lets_the_developer_shape_and_correct_the_assistants_comment(self):
+        served = self.page(f"/review?review={ID}")
+        for hook in ("data-ai-edit", "data-ai-save", "pinned", "Your draft changed since you edited this",
+                     "data-ai-again", "makeBlocked", "data-style", "data-style-reset", "/api/review/comment-style",
+                     "Comment style", "severity: d.sevChosen ? d.severity : undefined"):
+            with self.subTest(hook=hook):
+                self.assertIn(hook, served)
+        clickable = served[served.index("const CLICKABLE"):served.index(".map(name => `[data-${name}]`)")]
+        for name in ("ai-edit", "ai-save", "ai-cancel", "ai-again", "style-reset"):
+            with self.subTest(clickable=name):
+                self.assertIn(f'"{name}"', clickable)
 
     def test_the_review_page_has_the_comment_panel(self):
         served = self.page(f"/review?review={ID}")

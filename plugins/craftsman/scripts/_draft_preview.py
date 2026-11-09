@@ -35,6 +35,44 @@ SCHEMA = {
     "required": list(FIELDS),
 }
 
+# the words that ask for each shape of the comment -- see review_state.COMMENT_STYLE
+SHAPES = {
+    "fidelity": {
+        "close": "Stay close to the reviewer's words: every point of the draft, in its order, as firmly and as "
+                 "surely as the draft says it — no softening (\"I'd like\", \"maybe\", \"could we\") of what it "
+                 "says plainly, and nothing added: no argument, reason or example the draft does not give. "
+                 "Translate, fix grammar and typos, drop filler and repeated words, format it as markdown; nothing "
+                 "more.",
+        "balanced": "Keep every point of the draft, as firmly as the draft says it, in your own words; add no "
+                    "argument the draft does not give.",
+        "free": "Write it your way from the draft's point: what is wrong, what to do, and why it matters when the "
+                "author would not see it.",
+    },
+    "tone": {
+        "casual": "Casual, the way you'd say it to a teammate over coffee: short words, contractions, no ceremony.",
+        "teammate": "The way a teammate would say it at their desk: plain spoken words — \"we\", \"let's\", "
+                    "\"I'd\" are fine — no report language and no labels.",
+        "formal": "Formal and neutral, as in a written code review: complete sentences, no slang, no \"I'd\".",
+    },
+    "detail": {
+        "brief": "One or two sentences: what to change. Nothing else.",
+        "normal": "Make it as long as the draft calls for: a short thought or a reminder stays one or two "
+                  "sentences; only a draft that explains something gets a paragraph or two.",
+        "detailed": "A paragraph or two: what is wrong, why it matters, and how to fix it.",
+    },
+    "code": {
+        True: "End with a short code block showing the fix, written from the code above: only the lines that "
+              "matter.",
+        False: "No code block unless the draft has one or asks for one.",
+    },
+}
+FIRMNESS = {
+    "must-fix": "it has to change before the merge — say so plainly (\"we need to\", \"this has to\"), never as "
+                "a wish or a question",
+    "should-fix": "a clear recommendation the author is expected to follow",
+    "nit": "minor and optional: mark it as minor, the author may leave it",
+}
+
 _running = {}  # (review, path) -> the call writing that draft's preview now
 _lock = threading.Lock()
 
@@ -86,7 +124,26 @@ def directives(content):
     return "\n\n".join(texts) or "(none installed)"
 
 
-def prompt(review, state, path, text, lines, content):
+def shape(style, default=None):
+    """The shape asked for, part by part; a part not given, or not known, is the default one."""
+    style = style if isinstance(style, dict) else {}
+    return {key: style[key] if review_state.known_style(key, style.get(key)) else fallback
+            for key, fallback in (default or review_state.COMMENT_STYLE_DEFAULT).items()}
+
+
+def how_to_write(style, severity):
+    asked = shape(style)
+    lines = [f"- {SHAPES[key][asked[key]]}" for key in ("fidelity", "tone", "detail", "code")]
+    if severity in FIRMNESS:
+        lines.append(f"- The reviewer weighs it {severity}: {FIRMNESS[severity]}. Answer severity {severity}.")
+    else:
+        strengths = "; ".join(f"{name}: {how}" for name, how in FIRMNESS.items())
+        lines.append("- Weigh it must-fix, should-fix or nit as the directives weigh it, and write the comment with "
+                     f"the strength of the severity you choose: {strengths}.")
+    return "\n".join(lines)
+
+
+def prompt(review, state, path, text, lines, content, style=None, severity=None):
     place = f"{path}, lines {lines[0]}–{lines[1]}" if lines else f"{path}, the whole file"
     here = [f for f in state.get("findings", []) if f.get("status") not in ("deleted", "merged")
             and any(location["path"] == path for location in f.get("locations", []))]
@@ -116,13 +173,12 @@ Findings already in this file:
 
 Categories in this review so far: {categories}.
 
+How the reviewer wants the comment written; where the style below and the directives differ, the style below wins:
+{how_to_write(style, severity)}
+
 Write the finding, in {language}, except the category:
-- comment: the comment for the author, in GitHub markdown, the way a teammate would say it at their desk. Keep the
-  reviewer's point and add no other one. Make it as long as the draft calls for: a short thought or a reminder stays
-  one or two sentences; only a draft that explains something gets a paragraph or two. Say what is wrong and what to
-  do; why it matters only when the author would not see it. Plain spoken words — "we", "let's", "I'd" are fine — no
-  report language and no labels. Do not repeat what the comment sits on: the file, the line, the names right above
-  it. A code block only when the fix is not clear from a sentence, or when the reviewer wants one.
+- comment: the comment for the author, in GitHub markdown, in the style above. Keep the reviewer's point. Do not
+  repeat what the comment sits on: the file, the line, the names right above it.
   When the draft has a code block or asks for one, the comment has one too: the actual code the reviewer means, written
   from the code above, in place of any placeholder ("proposal here", "TODO", "..."), never dropped.
   When the draft says the point holds for every place in the change, the comment says so in one plain sentence
@@ -130,7 +186,7 @@ Write the finding, in {language}, except the category:
 - title: a few words naming the problem, the way you would say it in a stand-up.
 - description: one short sentence on why it matters, not a repeat of the comment.
 - category: a short English kebab-case name; use one of the categories above when it fits.
-- severity: must-fix, should-fix or nit, as the directives weigh it.
+- severity: must-fix, should-fix or nit, as said above.
 - repeats: the id of a finding above that is the same problem, or an empty string.
 """
 
@@ -144,8 +200,10 @@ def answer_of(output):
     return {field: result["structured_output"].get(field, "") for field in FIELDS}
 
 
-def preview(review, path, text, lines=None, side="RIGHT", content=None, command=None, timeout=120):
-    """The draft written as a finding, or None when a newer draft of the same file came in meanwhile."""
+def preview(review, path, text, lines=None, side="RIGHT", content=None, command=None, timeout=120, style=None,
+            severity=None):
+    """The draft written as a finding, in the shape asked for, or None when a newer draft of the same file came in
+    meanwhile. `severity` is the one the reviewer picked, if they did."""
     state = review_state.read(review)
     argv = (command or claude_command()) + [
         "-p", "--model", MODEL, "--tools", "", "--no-session-persistence", "--strict-mcp-config",
@@ -159,7 +217,8 @@ def preview(review, path, text, lines=None, side="RIGHT", content=None, command=
     if older and older.poll() is None:
         older.kill()
     try:
-        out, err = call.communicate(prompt(review, state, path, text, lines, content), timeout=timeout)
+        out, err = call.communicate(prompt(review, state, path, text, lines, content, style, severity),
+                                    timeout=timeout)
     except subprocess.TimeoutExpired:
         call.kill()
         raise PreviewFailed(f"no answer in {timeout} s")

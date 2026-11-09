@@ -4,10 +4,13 @@
 - `review-tools`: tools a review's headless session may use besides its fixed list, as permission rules -- for
   example `mcp__jira` for every tool of the MCP server `jira` (see REVIEW.md, "The review's session");
 - `review-directives`: the developer's default set of directives for every review, `{<directive id>: true | false}`,
-  where it differs from the workshop (see REVIEW.md, "Directives")."""
+  where it differs from the workshop (see REVIEW.md, "Directives");
+- `comment-style`: the default shape of a comment the AI Agent writes of a draft, some of `review_state.COMMENT_STYLE`
+  (see REVIEW.md, "Drafts")."""
 import json
 
 import _reviews
+import review_state
 
 
 def settings_file():
@@ -48,3 +51,18 @@ def review_directives():
     if not isinstance(chosen, dict):
         return {}
     return {str(key): value for key, value in chosen.items() if isinstance(value, bool)}
+
+
+def comment_style():
+    """The default shape of a comment the AI Agent writes of a draft: the developer's, part by part, else the
+    plugin's."""
+    kept = read().get("comment-style")
+    kept = kept if isinstance(kept, dict) else {}
+    return {key: kept[key] if review_state.known_style(key, kept.get(key)) else default
+            for key, default in review_state.COMMENT_STYLE_DEFAULT.items()}
+
+
+def set_comment_style(style):
+    """Change some parts of the default shape; a part not known is refused, and nothing changes."""
+    update("comment-style", dict(comment_style(), **review_state.check_comment_style(style)))
+    return comment_style()

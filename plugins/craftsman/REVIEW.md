@@ -176,11 +176,14 @@ Code tab. Each one:
 - `text` — the comment so far, in markdown.
 - `lines` — `[first, last]`, the lines it is about, or null for the whole file.
 - `side` — `RIGHT` or `LEFT`, the side of the diff the lines are on.
+- `style` — the shape asked for this draft's comment where it differs from the default one (see below); missing when
+  it does not.
 - `at` — when it was last saved.
 
 Only the developer writes them, with `review_state.py <review dir> <command> '<payload>' --by developer`:
 
-- `save-draft` `{"path", "text", "lines", "side"}` — writes the file's draft, replacing the one before;
+- `save-draft` `{"path", "text", "lines", "side", "style"}` — writes the file's draft, replacing the one before; a
+  `style` with a key or value not listed below is refused;
 - `discard-draft` `{"path"}` — throws it away;
 - `draft-to-finding` `{"path", "severity", "title", "comment", "category", "description", "repeats"}` — makes it the
   developer's own finding, on the last of its lines or on the whole file, and removes the draft. A field not given
@@ -193,10 +196,30 @@ own words, and AI Agent writes them up as the finding: a moment after the develo
 `/api/review/draft-preview`. The server runs a short Claude call of its own for it (`scripts/_draft_preview.py`), not
 the review's session, with a small model (`haiku`, or `CRAFTSMAN_PREVIEW_MODEL`) and no tools. Its prompt holds the
 draft, the code around the draft's lines from the diff, the `code-review` bundle's directives `review-comment`,
-`review-posture` and `engineer-prose`, the findings already in the file, the review's categories and its `language`.
-It answers the title, category, severity, description and comment, in the review's language whatever the draft's, and
-the finding of the file it repeats. A newer draft of the same file stops the call still running for the older one. The
-panel shows the answer above the draft, and "Make it a finding" sends it with `draft-to-finding`.
+`review-posture` and `engineer-prose`, the findings already in the file, the review's categories and its `language`,
+the shape of the comment asked for, and the severity when the developer picked one. It answers the title, category,
+severity, description and comment, in the review's language whatever the draft's, and the finding of the file it
+repeats. A newer draft of the same file stops the call still running for the older one. The panel shows the answer
+above the draft, and "Make it a finding" sends it with `draft-to-finding`. "Make it a finding" waits while AI Agent
+writes, and while its comment is older than the draft.
+
+The shape of the comment asked for wins where it differs from the directives:
+
+| Key        | Values                         | Default    | Asks for                                                                                              |
+|------------|--------------------------------|------------|-------------------------------------------------------------------------------------------------------|
+| `fidelity` | `close`, `balanced`, `free`    | `close`    | the draft's words and strength, nothing added; its points in other words; a comment of AI Agent's own |
+| `tone`     | `casual`, `teammate`, `formal` | `teammate` | how it sounds                                                                                         |
+| `detail`   | `brief`, `normal`, `detailed`  | `normal`   | one or two sentences; as long as the draft calls for; a paragraph or two                              |
+| `code`     | `false`, `true`                | `false`    | a code sample of the fix at the end; a code block in the draft is kept either way                     |
+
+The default shape is `comment-style` in `~/.craftsman/settings.json`, set on the page's AI Agent tools tab; the panel's
+sliders and box ask for another shape for one draft, kept in its `style`. The severity sets how firmly the comment says
+it: `must-fix` as a change required before the merge, `should-fix` as a clear recommendation, `nit` as minor and
+optional. A severity the developer picks goes to the call; without one, the call picks it and writes the comment that
+firmly. Picking a severity, or moving a slider, writes the comment again.
+
+The developer corrects AI Agent's comment and title by hand with "Edit". The correction is pinned: a newer draft does
+not write over it, and the panel offers to write it again from the draft instead.
 
 ### Fix prompts
 

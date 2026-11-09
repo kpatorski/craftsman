@@ -3,6 +3,17 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.20.0
+
+- The comment panel's AI Agent keeps to the developer's words by default: their points and how firmly they say them,
+  nothing added. Sliders shape the comment — how close to the draft's words, the tone, how long — and a box asks for a
+  code sample of the fix. The default shape is set on the AI Agent tools tab, kept as `comment-style` in
+  `~/.craftsman/settings.json`; each draft may ask for another.
+- The severity picked in the panel sets how firmly the comment says it: must-fix as required before the merge, nit as
+  minor.
+- "Edit" corrects AI Agent's comment by hand; the correction is pinned, and a newer draft does not write over it.
+- "Make it a finding" waits while AI Agent writes the comment, so a half-written one is never made a finding.
+
 ## 0.19.4
 
 - The Findings table's "To the author" column fits "maybe resolved".

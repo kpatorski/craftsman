@@ -47,6 +47,11 @@ CHANGES = ("added", "modified", "deleted", "unchanged")
 ABOUT = ("review", "finding", "file", "use-case")
 COMMENT_STATUS = ("to-send", "deleted")
 NO_CATEGORY = "yours"  # the category of a developer's finding that names none
+# the shape of a comment the AI Agent writes of a draft: how close to the draft's words, in what tone, how long, and
+# whether with a code sample of the fix
+COMMENT_STYLE = {"fidelity": ("close", "balanced", "free"), "tone": ("casual", "teammate", "formal"),
+                 "detail": ("brief", "normal", "detailed"), "code": (False, True)}
+COMMENT_STYLE_DEFAULT = {"fidelity": "close", "tone": "teammate", "detail": "normal", "code": False}
 
 
 class Refused(Exception):
@@ -277,13 +282,27 @@ def drafts_of(state, payload, by):
     return state.setdefault("drafts", {})
 
 
+def known_style(key, value):
+    """One part of a comment's shape is known when COMMENT_STYLE lists it, as a value of the same type."""
+    return any(type(value) is type(allowed) and value == allowed for allowed in COMMENT_STYLE.get(key, ()))
+
+
+def check_comment_style(style):
+    """A shape of a comment, or part of one: only the keys and values of COMMENT_STYLE."""
+    if not isinstance(style, dict) or not all(known_style(key, value) for key, value in style.items()):
+        raise Refused(f"a comment's shape is some of {COMMENT_STYLE}; got {style!r}")
+    return style
+
+
 def save_draft(state, payload, by):
     drafts = drafts_of(state, payload, by)
     lines = payload.get("lines")
     if lines is not None and not (isinstance(lines, list) and len(lines) == 2 and all(isinstance(n, int) for n in lines)):
         raise Refused("a draft's lines are [first, last]")
-    drafts[payload["path"]] = {"text": payload.get("text") or "", "lines": lines,
-                               "side": payload.get("side") or "RIGHT", "at": now()}
+    draft = {"text": payload.get("text") or "", "lines": lines, "side": payload.get("side") or "RIGHT", "at": now()}
+    if payload.get("style"):
+        draft["style"] = check_comment_style(payload["style"])
+    drafts[payload["path"]] = draft
     return state, None
 
 
