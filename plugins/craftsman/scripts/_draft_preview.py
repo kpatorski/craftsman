@@ -38,6 +38,9 @@ SCHEMA = {
 # the words that ask for each shape of the comment -- see review_state.COMMENT_STYLE
 SHAPES = {
     "fidelity": {
+        "verbatim": "Keep the reviewer's own sentences: translate them if needed and fix typos and grammar; change "
+                    "nothing else — the same order, the same words as far as a translation allows, no word added, "
+                    "none dropped.",
         "close": "Stay close to the reviewer's words: every point of the draft, in its order, as firmly and as "
                  "surely as the draft says it — no softening (\"I'd like\", \"maybe\", \"could we\") of what it "
                  "says plainly, and nothing added: no argument, reason or example the draft does not give. "
@@ -45,6 +48,8 @@ SHAPES = {
                  "more.",
         "balanced": "Keep every point of the draft, as firmly as the draft says it, in your own words; add no "
                     "argument the draft does not give.",
+        "loose": "Keep the draft's points and how firmly it says them, but put them in the order that reads best and "
+                 "say them your way; add no argument the draft does not give.",
         "free": "Write it your way from the draft's point: what is wrong, what to do, and why it matters when the "
                 "author would not see it.",
     },
@@ -55,7 +60,7 @@ SHAPES = {
         "formal": "Formal and neutral, as in a written code review: complete sentences, no slang, no \"I'd\".",
     },
     "detail": {
-        "brief": "One or two sentences: what to change. Nothing else.",
+        "brief": "Exactly one or two sentences, never more: what to change. Nothing else.",
         "normal": "Make it as long as the draft calls for: a short thought or a reminder stays one or two "
                   "sentences; only a draft that explains something gets a paragraph or two.",
         "detailed": "A paragraph or two: what is wrong, why it matters, and how to fix it.",
@@ -66,6 +71,8 @@ SHAPES = {
         False: "No code block unless the draft has one or asks for one.",
     },
 }
+# with these, the comment keeps the draft's words, so its tone and length are the draft's
+FOLLOWS_THE_DRAFT = ("verbatim", "close")
 FIRMNESS = {
     "must-fix": "it has to change before the merge — say so plainly (\"we need to\", \"this has to\"), never as "
                 "a wish or a question",
@@ -133,7 +140,8 @@ def shape(style, default=None):
 
 def how_to_write(style, severity):
     asked = shape(style)
-    lines = [f"- {SHAPES[key][asked[key]]}" for key in ("fidelity", "tone", "detail", "code")]
+    keys = ("fidelity", "code") if asked["fidelity"] in FOLLOWS_THE_DRAFT else ("fidelity", "tone", "detail", "code")
+    lines = [f"- {SHAPES[key][asked[key]]}" for key in keys]
     if severity in FIRMNESS:
         lines.append(f"- The reviewer weighs it {severity}: {FIRMNESS[severity]}. Answer severity {severity}.")
     else:

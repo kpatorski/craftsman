@@ -111,30 +111,40 @@ class DraftPreviewTest(unittest.TestCase):
                                command=self.command, **asked)
         return self.calls()[-1]["prompt"]
 
-    def test_by_default_the_comment_keeps_the_reviewers_words_in_a_teammates_voice_as_long_as_the_draft(self):
+    def test_by_default_the_comment_keeps_the_reviewers_words(self):
         prompt = self.prompt_for()
 
-        for part in ("Stay close to the reviewer's words", "no softening", "a teammate", "as long as the draft",
-                     "the file, the line", "every place in the change, the comment says so",
+        for part in ("Stay close to the reviewer's words", "no softening", "the file, the line",
+                     "every place in the change, the comment says so",
                      "When the draft has a code block or asks for one, the comment has one",
                      "the style below wins"):
             with self.subTest(part=part):
                 self.assertIn(part, prompt)
 
     def test_every_shape_of_the_comment_is_asked_for_in_words_of_its_own(self):
-        for key, value, part in (("fidelity", "close", "Stay close to the reviewer's words"),
-                                 ("fidelity", "balanced", "in your own words"),
-                                 ("fidelity", "free", "Write it your way"),
-                                 ("tone", "casual", "Casual"),
-                                 ("tone", "teammate", "a teammate"),
-                                 ("tone", "formal", "Formal and neutral"),
-                                 ("detail", "brief", "One or two sentences"),
-                                 ("detail", "normal", "as long as the draft"),
-                                 ("detail", "detailed", "A paragraph or two"),
-                                 ("code", True, "End with a short code block"),
-                                 ("code", False, "No code block unless the draft has one")):
-            with self.subTest(key=key, value=value):
-                self.assertIn(part, self.prompt_for(style={key: value}))
+        for style, part in (({"fidelity": "verbatim"}, "Keep the reviewer's own sentences"),
+                            ({"fidelity": "close"}, "Stay close to the reviewer's words"),
+                            ({"fidelity": "balanced"}, "in your own words"),
+                            ({"fidelity": "loose"}, "in the order that reads best"),
+                            ({"fidelity": "free"}, "Write it your way"),
+                            ({"fidelity": "balanced", "tone": "casual"}, "Casual"),
+                            ({"fidelity": "balanced", "tone": "teammate"}, "a teammate"),
+                            ({"fidelity": "balanced", "tone": "formal"}, "Formal and neutral"),
+                            ({"fidelity": "balanced", "detail": "brief"}, "Exactly one or two sentences"),
+                            ({"fidelity": "balanced", "detail": "normal"}, "as long as the draft"),
+                            ({"fidelity": "balanced", "detail": "detailed"}, "A paragraph or two"),
+                            ({"code": True}, "End with a short code block"),
+                            ({"code": False}, "No code block unless the draft has one")):
+            with self.subTest(style=style):
+                self.assertIn(part, self.prompt_for(style=style))
+
+    def test_what_keeps_to_the_reviewers_words_follows_the_draft_in_tone_and_length(self):
+        for fidelity, followed in (("verbatim", True), ("close", True), ("balanced", False), ("loose", False),
+                                   ("free", False)):
+            with self.subTest(fidelity=fidelity):
+                prompt = self.prompt_for(style={"fidelity": fidelity, "tone": "formal", "detail": "detailed"})
+                self.assertEqual(("Formal and neutral" not in prompt, "A paragraph or two" not in prompt),
+                                 (followed, followed))
 
     def test_a_shape_it_does_not_know_is_the_default_one(self):
         self.assertEqual(_draft_preview.shape({"tone": "rude", "detail": "detailed", "code": "yes"}),

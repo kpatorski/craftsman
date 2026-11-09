@@ -3,6 +3,13 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.20.1
+
+- "Your words" has five steps: verbatim (the draft's sentences, translated and corrected), close, balanced, loose and
+  free. With verbatim or close, the tone and the length follow the draft and their sliders are greyed.
+- "Brief" asks for exactly one or two sentences.
+- "Discard" empties the comment panel; the thrown-away draft no longer comes back into it.
+
 ## 0.20.0
 
 - The comment panel's AI Agent keeps to the developer's words by default: their points and how firmly they say them,

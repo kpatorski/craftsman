@@ -49,8 +49,9 @@ COMMENT_STATUS = ("to-send", "deleted")
 NO_CATEGORY = "yours"  # the category of a developer's finding that names none
 # the shape of a comment the AI Agent writes of a draft: how close to the draft's words, in what tone, how long, and
 # whether with a code sample of the fix
-COMMENT_STYLE = {"fidelity": ("close", "balanced", "free"), "tone": ("casual", "teammate", "formal"),
-                 "detail": ("brief", "normal", "detailed"), "code": (False, True)}
+COMMENT_STYLE = {"fidelity": ("verbatim", "close", "balanced", "loose", "free"),
+                 "tone": ("casual", "teammate", "formal"), "detail": ("brief", "normal", "detailed"),
+                 "code": (False, True)}
 COMMENT_STYLE_DEFAULT = {"fidelity": "close", "tone": "teammate", "detail": "normal", "code": False}
 
 

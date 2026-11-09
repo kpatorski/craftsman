@@ -355,10 +355,10 @@ class ReviewStateTest(unittest.TestCase):
     def test_a_draft_keeps_the_shape_the_developer_asked_for_its_comment(self):
         self.opened()
 
-        self.run_state("save-draft", by="developer", payload={"path": "A.java", "text": "x",
-                                                             "style": {"tone": "formal", "code": True}})
+        style = {"fidelity": "verbatim", "tone": "formal", "code": True}
+        self.run_state("save-draft", by="developer", payload={"path": "A.java", "text": "x", "style": style})
 
-        self.assertEqual(self.state()["drafts"]["A.java"]["style"], {"tone": "formal", "code": True})
+        self.assertEqual(self.state()["drafts"]["A.java"]["style"], style)
 
     def test_a_draft_refuses_a_shape_of_a_comment_it_does_not_know(self):
         self.opened()

@@ -597,14 +597,15 @@ class ReviewEndpointsTest(ReviewsTest):
         self.assertNotEqual(self.call("/api/review/comment-style", {"id": ID, "style": {"tone": "rude"}})[0], 200)
 
     def test_the_assistant_writes_a_draft_in_the_default_shape_with_what_the_draft_asks_on_top(self):
-        self.call("/api/review/comment-style", {"id": ID, "style": {"tone": "formal", "detail": "detailed"}})
+        self.call("/api/review/comment-style", {"id": ID, "style": {"fidelity": "balanced", "tone": "formal",
+                                                                    "detail": "detailed"}})
 
         status, body = self.call("/api/review/draft-preview", {"id": ID, "path": "B.java", "text": "zla nazwa",
                                                                 "style": {"detail": "brief"}, "severity": "must-fix"})
 
         self.assertEqual(status, 200, body)
         prompt = (self.tmp / "fake.log").read_text()
-        for part in ("Formal and neutral", "One or two sentences", "The reviewer weighs it must-fix"):
+        for part in ("Formal and neutral", "Exactly one or two sentences", "The reviewer weighs it must-fix"):
             with self.subTest(part=part):
                 self.assertIn(part, prompt)
         self.assertNotIn("A paragraph or two", prompt)
@@ -651,13 +652,21 @@ class ReviewEndpointsTest(ReviewsTest):
         served = self.page(f"/review?review={ID}")
         for hook in ("data-ai-edit", "data-ai-save", "pinned", "Your draft changed since you edited this",
                      "data-ai-again", "makeBlocked", "data-style", "data-style-reset", "/api/review/comment-style",
-                     "Comment style", "severity: d.sevChosen ? d.severity : undefined"):
+                     "Comment style", "severity: d.sevChosen ? d.severity : undefined", "FOLLOWS_THE_DRAFT",
+                     "the tone and the length follow the draft"):
             with self.subTest(hook=hook):
                 self.assertIn(hook, served)
         clickable = served[served.index("const CLICKABLE"):served.index(".map(name => `[data-${name}]`)")]
         for name in ("ai-edit", "ai-save", "ai-cancel", "ai-again", "style-reset"):
             with self.subTest(clickable=name):
                 self.assertIn(f'"{name}"', clickable)
+
+    def test_a_discarded_draft_leaves_the_comment_panel_empty(self):
+        served = self.page(f"/review?review={ID}")
+        discard = served[served.index("if (d.draftDiscard !== undefined)"):served.index("if (d.mdTool)")]
+
+        # the panel draws the draft again from the review's state, so the state is read again first
+        self.assertIn("await reload()", discard)
 
     def test_the_review_page_has_the_comment_panel(self):
         served = self.page(f"/review?review={ID}")

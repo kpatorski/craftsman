@@ -283,6 +283,7 @@
     font-size: .75rem; color: var(--muted); }
   .style-row label { display: flex; flex-direction: column; gap: 4px; }
   .style-row label b { font-weight: 400; color: var(--text); } .style-row label.own b { color: var(--neon); }
+  .style-row label.off { opacity: .45; }
   .style-row input[type=range] { width: 100%; accent-color: var(--neon-strong); }
   .style-row .code { flex-direction: row; align-items: center; gap: 6px; white-space: nowrap; padding-bottom: 3px; }
   .style-row a { cursor: pointer; color: var(--text); padding-bottom: 3px; }
@@ -977,12 +978,18 @@ function makeBlocked(d) {
   return "";
 }
 // The shape of a comment: three sliders and a box, for the panel (one draft) and for the default (AI Agent tools).
-const SHAPE = [["fidelity", "Your words", ["close", "balanced", "free"]], ["tone", "Tone", ["casual", "teammate", "formal"]],
+const SHAPE = [["fidelity", "Your words", ["verbatim", "close", "balanced", "loose", "free"]], ["tone", "Tone", ["casual", "teammate", "formal"]],
   ["detail", "Detail", ["brief", "normal", "detailed"]]];
+// with these, AI Agent keeps the draft's words, so the tone and the length follow the draft
+const FOLLOWS_THE_DRAFT = ["verbatim", "close"];
 const shapeOf = d => ({ ...((R && R["comment-style"]) || {}), ...d.style });
 function styleControls(shape, attr, own) {
-  return SHAPE.map(([key, label, steps]) => `<label class="${own && key in own ? "own" : ""}"><span>${label} · <b>${steps[Math.max(0, steps.indexOf(shape[key]))]}</b></span>
-      <input type="range" min="0" max="2" step="1" value="${Math.max(0, steps.indexOf(shape[key]))}" ${attr}="${key}"></label>`).join("") +
+  const follows = FOLLOWS_THE_DRAFT.includes(shape.fidelity), hint = "With your words kept, the tone and the length follow the draft";
+  return SHAPE.map(([key, label, steps]) => {
+    const off = follows && key !== "fidelity", at = Math.max(0, steps.indexOf(shape[key]));
+    return `<label class="${own && key in own ? "own" : ""}${off ? " off" : ""}" ${off ? `title="${hint}"` : ""}><span>${label} · <b>${off ? "as the draft" : steps[at]}</b></span>
+      <input type="range" min="0" max="${steps.length - 1}" step="1" value="${at}" ${attr}="${key}" ${off && attr === "data-style" ? "disabled" : ""}></label>`;
+  }).join("") +
     `<label class="code${own && "code" in own ? " own" : ""}"><input type="checkbox" ${attr}="code" ${shape.code ? "checked" : ""}> code sample</label>`;
 }
 const styleValue = el => el.type === "checkbox" ? el.checked : SHAPE.find(([key]) => key === (el.dataset.style || el.dataset.styleDefault))[2][+el.value];
@@ -1578,7 +1585,8 @@ function commentStyleCard() {
   return `<div class="card" style="max-width:820px;margin-top:16px"><h3><span>Comment style</span></h3>
     <div class="muted" style="margin-bottom:12px">How AI Agent's assistant writes your draft up as a comment: how close to your words,
       in what tone, how long, and whether with a code sample of the fix. Your severity sets how firmly it says it. The comment panel
-      changes it for one draft; this is the default for every review, kept as <code>comment-style</code> in <code>~/.craftsman/settings.json</code>.</div>
+      changes it for one draft; this is the default for every review, kept as <code>comment-style</code> in <code>~/.craftsman/settings.json</code>.
+      With your words kept — verbatim or close — the tone and the length follow the draft.</div>
     <div class="style-row">${styleControls(R["comment-style"], "data-style-default")}</div></div>`;
 }
 
@@ -1896,7 +1904,7 @@ document.addEventListener("click", async e => {
     if (draftOf(ui.file).text.trim() && !(await ask("Discard this draft?", `<p>The draft about ${draftPlace(ui.file, drafts[ui.file])} is thrown away.</p>`, "Discard"))) return;
     clearTimeout(draftTimer);
     if (!(await change("discard-draft", { path: ui.file }))) return;
-    delete drafts[ui.file]; return render();
+    delete drafts[ui.file]; await reload(); return render();
   }
   if (d.mdTool) return mdTool(d.mdTool);
 });
