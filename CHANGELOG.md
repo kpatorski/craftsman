@@ -3,6 +3,13 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.20.2
+
+- The Code tab's file list scrolls on its own beside the diff and keeps its place: marking a file viewed or opening
+  another one no longer takes you back to the top of the list.
+- Files are grouped by their whole folder: two folders that differ only in the middle of their path are two groups, each
+  named with as much of its path as tells it apart.
+
 ## 0.20.1
 
 - "Your words" has five steps: verbatim (the draft's sentences, translated and corrected), close, balanced, loose and

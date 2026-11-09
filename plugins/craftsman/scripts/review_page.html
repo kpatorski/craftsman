@@ -24,6 +24,9 @@
   /* with the side panel open, the content under the tabs makes room for it; the header and the tabs keep the width */
   .app.with-panel .view { margin-right: calc(var(--panel-w, clamp(560px, 42vw, 980px)) - 12px); }
   main { overflow-y: auto; padding: 24px 32px 48px; min-width: 0; }
+  /* the Code tab's file list stays beside a long diff and scrolls on its own */
+  .code-files { position: sticky; top: 0; display: flex; flex-direction: column; min-height: 0; }
+  #code-file-list { overflow-y: auto; min-height: 0; position: relative; padding-right: 4px; }
 
   /* ---- rail: one tile per review ---- */
   .rail { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px 0; border-right: 1px solid var(--line); }
@@ -1234,17 +1237,29 @@ function sevCounts(list) {
   const n = k => list.filter(f => f.severity === k).length;
   return list.length ? `<span class="sevn" title="Findings in this file">${SEVS.filter(n).map(k => `<i class="gd-${k}" style="background:var(--${k.split("-")[0] === "nit" ? "nit-dot" : k.split("-")[0]})"></i>${n(k)}`).join("")}</span>` : "";
 }
-// Files under their folders, the folders shortened: the common root once, a long folder as its first and last two parts.
+// A name for each folder ("a/b/c/"): a long one as its first part and its last two, or as many last parts as it takes to
+// tell it from every other folder named the same way.
+function folderLabels(folders) {
+  const parts = Object.fromEntries(folders.map(d => [d, d.split("/").filter(Boolean)]));
+  const named = (d, last) => parts[d].length > last + 1 ? [parts[d][0], "…", ...parts[d].slice(-last)].join("/") + "/" : d;
+  const labels = {};
+  folders.forEach(d => {
+    let last = 2;
+    while (folders.some(o => o !== d && named(o, last) === named(d, last))) last++;
+    labels[d] = named(d, last);
+  });
+  return labels;
+}
+// Files under their folders, by the whole folder, each named short: the common root once, then folderLabels.
 function fileList(paths, selected, opts = {}) {
   const root = commonRoot();
-  const folder = p => {
-    const rel = p.startsWith(root) ? p.slice(root.length) : p, parts = rel.split("/").slice(0, -1);
-    return parts.length ? (parts.length > 3 ? [parts[0], "…", ...parts.slice(-2)] : parts).join("/") + "/" : root ? "./" : "project root";
-  };
+  const dirOf = p => (p.startsWith(root) ? p.slice(root.length) : p).split("/").slice(0, -1).join("/");
   const groups = new Map();
-  paths.forEach(p => { const d = folder(p); groups.has(d) || groups.set(d, []); groups.get(d).push(p); });
+  paths.forEach(p => { const d = dirOf(p); groups.has(d) || groups.set(d, []); groups.get(d).push(p); });
+  const labels = folderLabels([...groups.keys()].filter(Boolean).map(d => d + "/"));
+  const folder = d => d ? labels[d + "/"] : root ? "./" : "project root";
   return (root ? `<div class="dim" style="font-size:.7188rem;margin:0 0 2px 6px" title="${esc(root)}">in …/${esc(root.split("/").filter(Boolean).pop() || "")}/</div>` : "") +
-    [...groups].map(([d, ps]) => `<div class="pdir" title="${esc([...new Set(ps.map(p => p.split("/").slice(0, -1).join("/") + "/"))].join("\n"))}">${esc(d)}</div>` + ps.map(p => {
+    [...groups].map(([d, ps]) => `<div class="pdir" title="${esc(root + d + "/")}">${esc(folder(d))}</div>` + ps.map(p => {
       const f = fileInfo(p), shared = f["use-cases"].length > 1;
       return `<div class="pf${p === selected ? " on" : ""}${f.change === "deleted" ? " del" : ""}" data-pick-file="${esc(p)}" title="${esc(p)}">` +
         `<span class="vbox${f.viewed ? " on" : ""}" data-view="${esc(p)}">${f.viewed ? "✓" : ""}</span><span class="kd ${f.change}">${KIND[f.change] || "~"}</span>` +
@@ -1265,10 +1280,10 @@ function viewCode() {
   const viewed = files.filter(f => f.viewed).length, at = shown.findIndex(f => f.path === ui.file);
   const chip = (k, l, n) => `<button class="chip${ui.codeFilter === k ? " on" : ""}" data-code-filter="${k}">${l} <b>${n}</b></button>`;
   return `<div style="display:grid;grid-template-columns:290px minmax(0,1fr);gap:20px;align-items:start">
-    <div><div class="muted" style="font-size:.7812rem">You viewed <b>${viewed} of ${files.length}</b> files</div>
+    <div class="code-files"><div class="muted" style="font-size:.7812rem">You viewed <b>${viewed} of ${files.length}</b> files</div>
       <div class="progress" style="margin:6px 0 10px"><i style="width:${files.length ? 100 * viewed / files.length : 0}%"></i></div>
       <div class="filters">${chip("all", "All", files.length)}${chip("unviewed", "Not viewed", files.length - viewed)}${chip("findings", "With findings", files.filter(f => findingsAt(f.path).length).length)}</div>
-      ${fileList(shown.map(f => f.path), ui.file)}</div>
+      <div id="code-file-list">${fileList(shown.map(f => f.path), ui.file)}</div></div>
     <div>${ui.file ? diffView(ui.file, `file ${at + 1} of ${shown.length} &nbsp;<a data-step-file="-1">← prev</a> · <a data-step-file="1" style="color:var(--neon)">next →</a>`) : '<div class="muted">No changed files.</div>'}</div></div>`;
 }
 
@@ -1598,6 +1613,19 @@ function busy() {
 }
 // the file the Code tab showed last: opening another one starts at its top, while a refresh keeps the place
 let shownFile = null;
+document.getElementById("main").addEventListener("scroll", fitFileList, { passive: true });
+addEventListener("resize", fitFileList);
+// The file list ends at the bottom of the window, wherever the page is scrolled to.
+function fitFileList() {
+  const list = document.getElementById("code-file-list"); if (!list) return;
+  list.style.maxHeight = Math.max(160, innerHeight - list.getBoundingClientRect().top - 16) + "px";
+}
+// The file opened is shown in the file list, which scrolls for it on its own, never the page.
+function keepFileInView(list) {
+  const on = list.querySelector(".pf.on"); if (!on) return;
+  if (on.offsetTop < list.scrollTop) list.scrollTop = on.offsetTop - 8;
+  else if (on.offsetTop + on.offsetHeight > list.scrollTop + list.clientHeight) list.scrollTop = on.offsetTop + on.offsetHeight - list.clientHeight + 8;
+}
 function render() {
   // a refresh never takes away a selection or a popover the developer is using; it waits until they are done
   if (busy()) { deferred = true; return; }
@@ -1606,6 +1634,7 @@ function render() {
   document.querySelectorAll("input[id], textarea[id]").forEach(el => typed[el.id] = [el.value, el.selectionStart, el.selectionEnd]);
   const main = document.getElementById("main"), panel = document.getElementById("panel"), side = document.getElementById("ucpanel");
   const y = main.scrollTop, py = panel.scrollTop, sy = side.scrollTop;
+  const fly = document.getElementById("code-file-list")?.scrollTop;
   renderRail();
   if (ui.tab !== "structure") ui.uc = null;
   if (ui.tab === "new" || (!current.id && !R && !["archived", "tools"].includes(ui.tab))) main.innerHTML = viewNew();
@@ -1618,6 +1647,9 @@ function render() {
   const opened = ui.tab === "code" && R && shownFile !== null && ui.file !== shownFile;
   if (ui.tab === "code" && R) shownFile = ui.file;
   main.scrollTop = opened ? 0 : y;
+  const list = document.getElementById("code-file-list");
+  // the list keeps its place; it moves only to show a file just opened, or the one shown when the list first appears
+  if (list) { fitFileList(); list.scrollTop = fly || 0; if (opened || fly === undefined) keepFileInView(list); }
   document.title = (R && (waiting() || asking()) ? "● " : "") + "craftsman review";
   renderPanel(); layoutCards(false); ucPanel();
   panel.scrollTop = py; side.scrollTop = sy;

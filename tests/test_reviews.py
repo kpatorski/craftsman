@@ -668,6 +668,13 @@ class ReviewEndpointsTest(ReviewsTest):
         # the panel draws the draft again from the review's state, so the state is read again first
         self.assertIn("await reload()", discard)
 
+    def test_the_code_tabs_file_list_scrolls_on_its_own_and_keeps_its_place(self):
+        served = self.page(f"/review?review={ID}")
+        for hook in ('id="code-file-list"', ".code-files { position: sticky", "keepFileInView",
+                     'const fly = document.getElementById("code-file-list")?.scrollTop'):
+            with self.subTest(hook=hook):
+                self.assertIn(hook, served)
+
     def test_the_review_page_has_the_comment_panel(self):
         served = self.page(f"/review?review={ID}")
         for hook in ("data-comment-file", 'data-pop="comment"', 'change("save-draft"', 'change("discard-draft"',
