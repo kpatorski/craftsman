@@ -24,9 +24,38 @@
   /* with the side panel open, the content under the tabs makes room for it; the header and the tabs keep the width */
   .app.with-panel .view { margin-right: calc(var(--panel-w, clamp(560px, 42vw, 980px)) - 12px); }
   main { overflow-y: auto; padding: 24px 32px 48px; min-width: 0; }
-  /* the Code tab's file list stays beside a long diff and scrolls on its own */
-  .code-files { position: sticky; top: 0; display: flex; flex-direction: column; min-height: 0; }
-  #code-file-list { overflow-y: auto; min-height: 0; position: relative; padding-right: 4px; }
+  /* the Code tab's file tree stays beside a long diff and scrolls on its own */
+  .codegrid { display: grid; grid-template-columns: var(--tree-w, clamp(340px, 26vw, 520px)) 8px minmax(0, 1fr); gap: 12px; align-items: start; }
+  .treebox { position: sticky; top: 0; display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--line);
+    border-radius: 14px; background: var(--card); overflow: hidden; }
+  .treetop { padding: 12px 14px 2px; border-bottom: 1px solid var(--line); }
+  .treehead { display: flex; align-items: center; gap: 6px; font-size: .7812rem; color: var(--muted); margin-bottom: 6px; }
+  .treehead .grow { flex: 1; }
+  .treetop .progress { height: 4px; margin-bottom: 10px; } .treetop .filters { gap: 6px; margin-bottom: 10px; }
+  #tree { overflow: auto; flex: 1; min-height: 0; padding: 6px 0; background: var(--panel); outline: none; position: relative; }
+  .trow { display: flex; align-items: center; gap: 5px; height: 26px; padding-right: 10px; font-size: .8125rem; cursor: pointer;
+    white-space: nowrap; user-select: none; }
+  .trow:hover { background: var(--hover); }
+  .trow.cursor { box-shadow: inset 0 0 0 1px var(--line2); }
+  #tree:focus .trow.cursor { box-shadow: inset 0 0 0 1px var(--select); }
+  .trow.open { background: var(--select-bg); } .trow.open .nm { color: var(--heading); }
+  .trow.same .nm { color: var(--dim); }
+  .trow.removed .nm { text-decoration: line-through; color: var(--muted); }
+  .trow .nm { overflow: hidden; text-overflow: ellipsis; }
+  .chev { width: 14px; flex: none; color: var(--muted); font-size: .6rem; text-align: center; transition: transform .1s; }
+  .chev.closed { transform: rotate(-90deg); }
+  .trow .right { margin-left: auto; display: flex; align-items: center; gap: 6px; padding-left: 8px; }
+  .ico { width: 16px; height: 16px; flex: none; display: block; }
+  .vis { width: 10px; flex: none; display: grid; place-items: center; } .vis .ico { width: 10px; height: 10px; }
+  .fcount { font: 500 .6875rem/1 var(--mono); padding: 2px 5px; border-radius: 6px; }
+  .fcount.must { background: var(--must-bg); color: var(--must); } .fcount.should { background: var(--should-bg); color: var(--should); }
+  .fcount.nit { background: var(--nit-bg); color: var(--nit); }
+  .seen { width: 14px; height: 14px; flex: none; display: grid; place-items: center; cursor: pointer; } .seen .ico { width: 14px; height: 14px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .7188rem; color: var(--muted); padding: 8px 14px; border-top: 1px solid var(--line); }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; } .legend .ico { width: 14px; height: 14px; }
+  #tree-grip { cursor: col-resize; border-radius: 3px; align-self: stretch; } #tree-grip:hover, #tree-grip.drag { background: var(--line); }
+  kbd { font: .6875rem var(--mono); padding: 1px 5px; border: 1px solid var(--line2); border-radius: 4px; color: var(--text); }
+  .diffbody:focus { outline: none; } .diffcard:focus-within { border-color: var(--line2); }
 
   /* ---- rail: one tile per review ---- */
   .rail { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px 0; border-right: 1px solid var(--line); }
@@ -399,7 +428,7 @@ let reviewsList = [], R = null, deferred = false;
 const ui = { assistant: localStorage.getItem("craftsman-assistant") !== "off", tab: params.get("tab") || "overview", panel: null, file: params.get("file"), uc: null, ucFile: null,
   fsev: null, fby: null, fstatus: "open", fcat: "", fquestions: false, search: "", codeFilter: "all", editing: null,
   selection: null, sort: { key: "severity", dir: 1 }, inline: localStorage.getItem("craftsman-review-inline") === "1", open: new Set(),
-  ghRead: new Set(), ghReading: false, replyTo: null, editComment: null, rfilter: "all" };
+  ghRead: new Set(), ghReading: false, replyTo: null, editComment: null, rfilter: "all", unchanged: false, cursor: null };
 ui.nr = newReview();
 if (params.has("new")) {
   // opened by /craftsman:pr-review <source>: the wizard, with the source filled in
@@ -462,11 +491,17 @@ async function readGithub() {
   await api("/api/review/github", { id }).finally(() => { ui.ghReading = false; });
   if (id === current.id) return reload();
 }
+// A changed file's diff; a file the PR leaves as it is, as one hunk of unchanged lines.
 function fileDiff(path) {
   if (diffs[path] !== undefined) return;
   diffs[path] = null;
-  fetch(`/api/review/diff?${q()}&path=${encodeURIComponent(path)}`).then(r => r.ok ? r.text() : "")
-    .then(text => { diffs[path] = parseDiff(text, path); render(); });
+  const same = !changed(path);
+  fetch(`/api/review/${same ? "file" : "diff"}?${q()}&path=${encodeURIComponent(path)}`).then(r => r.ok ? r.text() : "")
+    .then(text => {
+      const lines = text.replace(/\n$/, "").split("\n");
+      diffs[path] = parseDiff(same ? `@@ -1,${lines.length} +1,${lines.length} @@\n` + lines.map(l => " " + l).join("\n") : text, path);
+      render();
+    });
 }
 function references(path) {
   if (refs[path] !== undefined) return;
@@ -486,8 +521,8 @@ function go(target) {
   const other = target.id !== undefined && target.id !== current.id;
   if (target.id !== undefined) current = { id: target.id };
   Object.assign(ui, target.ui || {});
-  if (other) { R = null; Object.keys(diffs).forEach(k => delete diffs[k]); Object.keys(refs).forEach(k => delete refs[k]);
-    Object.assign(ui, { panel: null, uc: null, file: null, selection: null }); }
+  if (other) { R = null; Object.keys(diffs).forEach(k => delete diffs[k]); Object.keys(refs).forEach(k => delete refs[k]); unchangedFiles = null;
+    Object.assign(ui, { panel: null, uc: null, file: null, selection: null, cursor: null }); }
   const p = new URLSearchParams();
   if (current.id) p.set("review", current.id);
   if (ui.tab !== "overview") p.set("tab", ui.tab);
@@ -1172,17 +1207,19 @@ function snippetAt(path, line, side) {
 // One file's diff, with its findings and threads under their lines. A new or a deleted file is shown without colour:
 // every line of it changed alike, so the colour would say nothing.
 function diffView(path, position) {
-  const info = fileInfo(path), hunks = diffs[path];
+  const same = !changed(path), info = same ? { ...fileInfo(path), change: "unchanged" } : fileInfo(path), hunks = diffs[path];
   const counts = [info.added ? "+" + info.added : "", info.removed ? "−" + info.removed : ""].filter(Boolean).join(" ");
+  const back = ui.tab === "code" ? `<span class="muted">back to the tree <kbd>Esc</kbd></span>` : "";
   const head = `<div class="diffhead"><span>${position ? `<span class="muted" style="font-size:.7812rem">${position}</span><br>` : ""}<b class="mono">${esc(path)}</b>
-      <span class="tag ${{ added: "green", deleted: "red" }[info.change] || "blue"}" style="margin-left:6px">${info.change}${counts ? " · " + counts : ""}</span></span>
-    <span style="display:flex;gap:14px;align-items:center;font-size:.7812rem"><span class="muted">select lines to ask AI Agent or comment on them</span><button class="btn ghost sm" data-comment-file="${esc(path)}">✎ Comment on file</button>${sevCounts(findingsAt(path))}
+      <span class="tag ${{ added: "green", deleted: "red", unchanged: "" }[info.change] ?? "blue"}" style="margin-left:6px">${info.change}${counts ? " · " + counts : ""}</span></span>
+    <span style="display:flex;gap:14px;align-items:center;font-size:.7812rem">${same ? `<span class="muted">select lines to ask AI Agent about them</span>${back}` : `<span class="muted">select lines to ask AI Agent or comment on them</span>${back}<button class="btn ghost sm" data-comment-file="${esc(path)}">✎ Comment on file</button>${sevCounts(findingsAt(path))}
       <span class="switch${ui.inline ? " on" : ""}" data-inline title="Every finding under its line, or dots beside the line number"><i></i>Show all inline</span>
-      <span style="display:inline-flex;gap:6px;align-items:center;cursor:pointer" data-view="${esc(path)}"><span class="vbox${info.viewed ? " on" : ""}">${info.viewed ? "✓" : ""}</span>Viewed</span></span></div>`;
+      <span style="display:inline-flex;gap:6px;align-items:center;cursor:pointer" data-view="${esc(path)}"><span class="vbox${info.viewed ? " on" : ""}">${info.viewed ? "✓" : ""}</span>Viewed</span>`}</span></div>`;
   if (!hunks) { fileDiff(path); return `<div class="diffcard">${head}<div class="banner">Loading…</div></div>`; }
   let banner = "";
   if (info.change === "added") banner = `<div class="banner"><span class="kd added">+</span> <b>New file</b> · all ${info.added} lines are added, so they carry no colour.</div>`;
   if (info.change === "renamed") banner = `<div class="banner">Renamed from <code>${esc(info.from)}</code>.</div>`;
+  if (same) banner = `<div class="banner">Unchanged by this PR · the file as the PR's branch has it.</div>`;
   if (info.change === "deleted") {
     references(path);
     const found = refs[path], name = path.split("/").pop().replace(/\.[^.]+$/, "");
@@ -1195,7 +1232,7 @@ function diffView(path, position) {
   const sel = ui.selection && ui.selection.path === path ? ui.selection.lines
     : ui.panel && ui.panel.comment && ui.file === path && drafts[path] ? drafts[path].lines : null;
   const opened = ui.panel && ui.panel.finding ? S().findings.find(f => f.id === ui.panel.finding) : null;
-  const body = hunks.map(h => `<div class="hunk">${esc(h.header)}</div>` + h.lines.map(l => {
+  const body = hunks.map(h => (same ? "" : `<div class="hunk">${esc(h.header)}</div>`) + h.lines.map(l => {
     const n = l.now ?? l.old, side = l.now === null ? "LEFT" : "RIGHT";
     const here = anchored.filter(f => f.locations.some(x => x.path === path && x.line === n && (x.side || "RIGHT") === side));
     const talk = notes.filter(t => t.about.lines && t.about.lines[1] === n && (side === "RIGHT" || info.change === "deleted"));
@@ -1210,7 +1247,7 @@ function diffView(path, position) {
   }).join("")).join("");
   const onFile = anchored.filter(f => f.locations.some(x => x.path === path && x.line == null));
   banner += onFile.map(f => `<div class="ann" data-finding="${esc(f.id)}">${sev(f.severity)}<span>${who(f.by)} · ${esc(f.id)} · whole file · ${inline(f.title)}</span></div>`).join("");
-  return `<div class="diffcard">${head}${banner}<div class="diffbody" data-diff="${esc(path)}">${body || '<div class="banner">No lines changed.</div>'}</div></div>`;
+  return `<div class="diffcard">${head}${banner}<div class="diffbody" data-diff="${esc(path)}"${same ? " data-same" : ""} tabindex="0">${body || '<div class="banner">No lines changed.</div>'}</div></div>`;
 }
 // An in-page confirmation: resolves true on the confirm button, false on Cancel, Escape, or a click outside the box.
 function ask(title, body, yes) {
@@ -1269,22 +1306,211 @@ function fileList(paths, selected, opts = {}) {
     `<div class="klegend"><span class="kd added">+</span> added <span class="kd modified">~</span> modified <span class="kd deleted">−</span> deleted${opts.shared ? ' <span class="dim">⇄</span> in more than one use case' : ""}</div>`;
 }
 
+// ================================================================ the file tree
+// The tree's rows, as IntelliJ's project tree shows them: folders before files, each sorted by name; a folder holding
+// one folder and no files shares its row with it (packages joined by ".", other folders by "/"), but never across a
+// source root; nothing under a folder in `closed`. A row: { type: "dir" | "file", path, name, depth, root }, where
+// `root` is "src", "test" or "res" for a source, test or resources root.
+function treeRows(paths, closed) {
+  const rootOf = path => /(^|\/)src\/main\/(java|groovy|kotlin)$/.test(path) ? "src" : /(^|\/)src\/test\/(java|groovy|kotlin)$/.test(path) ? "test"
+    : /(^|\/)src\/(main|test)\/resources$/.test(path) ? "res" : "";
+  const inPackages = path => /(^|\/)src\/(main|test)\/(java|groovy|kotlin)\//.test(path);
+  const top = { path: "", dirs: new Map(), files: [] };
+  paths.forEach(p => {
+    const parts = p.split("/");
+    let node = top;
+    parts.slice(0, -1).forEach((part, i) => {
+      if (!node.dirs.has(part)) node.dirs.set(part, { name: part, path: parts.slice(0, i + 1).join("/"), dirs: new Map(), files: [] });
+      node = node.dirs.get(part);
+    });
+    node.files.push(p);
+  });
+  const shut = new Set(closed), out = [];
+  const walk = (dir, depth) => {
+    [...dir.dirs.values()].sort((a, b) => a.name.localeCompare(b.name)).forEach(sub => {
+      let d = sub, name = sub.name;
+      while (!d.files.length && d.dirs.size === 1 && !rootOf(d.path)) {
+        const only = [...d.dirs.values()][0];
+        if (rootOf(only.path)) break;
+        name += (inPackages(only.path) ? "." : "/") + only.name;
+        d = only;
+      }
+      out.push({ type: "dir", path: d.path, name, depth, root: rootOf(d.path) });
+      if (!shut.has(d.path)) walk(d, depth + 1);
+    });
+    const base = p => p.split("/").pop();
+    [...dir.files].sort((a, b) => base(a).localeCompare(base(b))).forEach(p => out.push({ type: "file", path: p, name: base(p), depth }));
+  };
+  walk(top, 0);
+  return out;
+}
+// What a file's icon shows: the kind of its top-level type, or else what the file is.
+function iconOf(path, declaration) {
+  if (declaration) return declaration.kind;
+  const name = path.split("/").pop();
+  const named = [[/^Dockerfile|^docker-compose/, "docker"], [/^pom\.xml$/, "maven"], [/^build\.gradle/, "gradle"], [/^package\.json$/, "npm"],
+    [/\.tsx$/, "tsx"], [/\.ts$/, "ts"], [/\.[cm]?jsx?$/, "js"], [/\.ya?ml$/, "yaml"], [/\.json$/, "json"], [/\.sql$/, "sql"], [/\.xml$/, "xml"],
+    [/\.md$/, "markdown"], [/\.(sh|bash|zsh)$/, "shell"]];
+  return (named.find(([pattern]) => pattern.test(name)) || [null, "file"])[1];
+}
+// A test file, as the review tells one from production code (review_directives.is_test).
+function testFile(path) {
+  const parts = path.split("/");
+  return parts.slice(0, -1).some(part => ["test", "tests", "__tests__"].includes(part)) ||
+    /(Tests?|Spec)\.\w+$|\.(test|spec)\.\w+$|^test_\w*\.py$/.test(parts[parts.length - 1]);
+}
+
+// ================================================================ the file tree: icons, as IntelliJ draws them
+const svgIcon = (body, title) => `<svg class="ico" viewBox="0 0 16 16" aria-hidden="true">${title ? `<title>${esc(title)}</title>` : ""}${body}</svg>`;
+const mark = (text, size = 8) => `<text x="8" y="${size >= 8 ? 10.9 : 10.6}" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="${size}" font-weight="700" style="fill:var(--bg)">${text}</text>`;
+const KINDS = { class: ["C", "--change"], interface: ["I", "--green"], record: ["R", "--change"], enum: ["E", "--amber"], annotation: ["@", "--green"] };
+const BADGES = { maven: ["m", "--red", 8], gradle: ["G", "--green", 7], npm: ["npm", "--red", 5], ts: ["TS", "--blue", 6], tsx: ["TSX", "--blue", 5],
+  js: ["JS", "--should", 6], yaml: ["YML", "--pink", 5], json: ["{ }", "--should", 6], xml: ["&lt;/&gt;", "--amber", 5], markdown: ["M↓", "--muted", 6], shell: ["$_", "--muted", 6] };
+function fileIcon(path, declaration) {
+  const icon = iconOf(path, declaration), test = testFile(path);
+  if (KINDS[icon]) {
+    const [letter, colour] = KINDS[icon];
+    return svgIcon(`<circle cx="8" cy="8" r="6.5" style="fill:var(${colour})"/>${icon === "record" ? '<circle cx="8" cy="8" r="5.6" fill="none" style="stroke:var(--bg)"/>' : ""}${mark(letter)}` +
+      (test ? '<path d="M11 10.5l4.5 2.75L11 16z" style="fill:var(--neon);stroke:var(--bg)" stroke-width=".8"/>' : ""), (test ? "test " : "") + icon);
+  }
+  if (icon === "docker") return svgIcon(`<path d="M1.5 9h11.2c.9-1.6 1.8-2 2.8-2-.1 1-.7 1.8-1.6 2.1C13 12.6 10.6 14 7 14 3.6 14 1.5 12 1.5 9z" style="fill:var(--change)"/>` +
+    [[3, 6.4], [5.2, 6.4], [7.4, 6.4], [5.2, 4.2]].map(([x, y]) => `<rect x="${x}" y="${y}" width="2" height="2" style="fill:var(--change)"/>`).join(""), "Docker");
+  if (icon === "sql") return svgIcon(`<ellipse cx="8" cy="4" rx="5" ry="2" style="fill:var(--amber)"/><path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4c0 1.1-2.2 2-5 2S3 5.1 3 4z" style="fill:var(--amber)" opacity=".75"/>`, "SQL");
+  if (BADGES[icon]) { const [text, colour, size] = BADGES[icon]; return svgIcon(`<rect x="1" y="2.5" width="14" height="11" rx="2.5" style="fill:var(${colour})"/>${mark(text, size)}`, icon); }
+  return svgIcon(`<path d="M4 1.5h5.5L13 5v9.5H4z" fill="none" style="stroke:var(--muted)"/><path d="M9.5 1.5V5H13" fill="none" style="stroke:var(--muted)"/>`);
+}
+const VISIBILITY = {
+  public: svgIcon(`<rect x="3" y="8" width="10" height="7" rx="1.2" style="fill:var(--green)"/><path d="M5.5 8V5a2.5 2.5 0 0 1 5 0" fill="none" style="stroke:var(--green)" stroke-width="1.8"/>`, "public"),
+  package: svgIcon(`<circle cx="8" cy="9" r="4" fill="none" style="stroke:var(--muted)" stroke-width="1.8"/>`, "package-private"),
+  private: svgIcon(`<rect x="3" y="8" width="10" height="7" rx="1.2" style="fill:var(--red)"/><path d="M5.2 8V5a2.8 2.8 0 0 1 5.6 0V8" fill="none" style="stroke:var(--red)" stroke-width="1.8"/>`, "private") };
+const CHANGE_MARK = { added: ["--neon", "added", '<path d="M8 5v6M5 8h6" style="stroke:var(--neon)" stroke-width="1.6"/>'],
+  modified: ["--should", "modified", '<circle cx="8" cy="8" r="2" style="fill:var(--should)"/>'],
+  deleted: ["--must", "removed", '<path d="M5 8h6" style="stroke:var(--must)" stroke-width="1.6"/>'],
+  renamed: ["--muted", "moved", '<path d="M5 8h5.5M8.5 5.5L11 8l-2.5 2.5" style="stroke:var(--muted)" stroke-width="1.5" fill="none"/>'] };
+function changeIcon(change, from) {
+  const [colour, name, sign] = CHANGE_MARK[change] || CHANGE_MARK.modified;
+  return svgIcon(`<rect x="1.5" y="1.5" width="13" height="13" rx="3" fill="none" style="stroke:var(${colour})" stroke-width="1.3"/>${sign}`, name + (from ? " from " + from : ""));
+}
+const seenIcon = on => on ? svgIcon('<path d="M3.5 8.5l3 3 6-7" fill="none" style="stroke:var(--neon)" stroke-width="1.8"/>', "viewed · click to unmark")
+  : svgIcon('<circle cx="8" cy="8" r="4.5" fill="none" style="stroke:var(--dim)" stroke-width="1.3"/>', "not viewed · click to mark");
+function folderIcon(root) {
+  const colour = { src: "var(--change)", test: "var(--green)", res: "var(--amber)" }[root] || "var(--muted)";
+  return svgIcon(`<path d="M1.5 3.5h4.5l1.5 1.5h7v8.5h-13z" style="fill:${root ? colour : "none"};fill-opacity:.2;stroke:${colour}" stroke-width="1.1"/>` +
+    (root === "res" ? `<path d="M4.5 9h7M4.5 11h5" style="stroke:${colour}"/>` : ""));
+}
+
+// ================================================================ the file tree
+// What is open is kept per review across reloads, as the set of closed folders; every folder is open at first.
+const closedKey = () => "craftsman.review.tree-closed." + current.id;
+const closedFolders = () => new Set(JSON.parse(localStorage.getItem(closedKey()) || "[]"));
+const keepClosed = set => localStorage.setItem(closedKey(), JSON.stringify([...set]));
+// the files the PR leaves as they are, each { path, declaration }: read once per review, when "Unchanged files" is first
+// switched on
+let unchangedFiles = null;
+function readUnchanged() {
+  if (unchangedFiles !== null) return;
+  unchangedFiles = [];
+  fetch(`/api/review/files?${q()}`).then(r => r.ok ? r.json() : { unchanged: [] }).then(out => { unchangedFiles = out.unchanged; render(); });
+}
+const changed = path => (R.files || []).some(f => f.path === path);
+const openFindings = path => findingsAt(path).filter(f => f.status !== "sent");
+const findingsUnder = dir => S().findings.filter(f => !["merged", "deleted", "sent"].includes(f.status) && (f.locations || []).some(l => (l.path || "").startsWith(dir + "/")));
+const worstOf = list => SEVS.find(k => list.some(f => f.severity === k)).split("-")[0];
+const fcount = (list, title) => list.length ? `<span class="fcount ${worstOf(list)}" title="${esc(title)}">${list.length}</span>` : "";
+// The files the tree shows: the changed files the filter lets through, and with "Unchanged files" on, the rest.
+function treePaths() {
+  const files = (R.files || []).filter(f => ui.codeFilter === "all" || (ui.codeFilter === "unviewed" ? !f.viewed : openFindings(f.path).length));
+  return files.map(f => f.path).concat(ui.unchanged && ui.codeFilter === "all" ? (unchangedFiles || []).map(f => f.path) : []);
+}
+const treeFiles = () => treeRows(treePaths(), []).filter(r => r.type === "file").map(r => r.path);
+function treeHtml() {
+  const rows = treeRows(treePaths(), [...closedFolders()]);
+  // a cursor inside a closed folder moves to the closed folder, or to the first row
+  if (!rows.some(r => r.path === ui.cursor)) ui.cursor = rows.some(r => r.path === ui.file) ? ui.file
+    : (rows.filter(r => r.type === "dir" && (ui.file || "").startsWith(r.path + "/")).pop() || rows[0] || {}).path;
+  if (!rows.length) return `<div class="muted" style="padding:8px 14px">No file matches the filter.</div>`;
+  return rows.map(r => {
+    const pad = `style="padding-left:${6 + r.depth * 14}px"`, base = ["trow", r.path === ui.cursor ? "cursor" : ""];
+    if (r.type === "dir") {
+      const closed = closedFolders().has(r.path);
+      return `<div class="${base.join(" ")}" ${pad} data-row="${esc(r.path)}" data-type="dir" role="treeitem" aria-level="${r.depth + 1}" aria-expanded="${!closed}" title="${esc(r.path)}">` +
+        `<span class="chev${closed ? " closed" : ""}" data-chev="${esc(r.path)}">▼</span>${folderIcon(r.root)}<span class="nm">${esc(r.name)}</span>` +
+        `<span class="right">${closed ? fcount(findingsUnder(r.path), "findings inside") : ""}</span></div>`;
+    }
+    const f = (R.files || []).find(x => x.path === r.path), declaration = (f || (unchangedFiles || []).find(x => x.path === r.path) || {}).declaration;
+    const cls = [...base, r.path === ui.file ? "open" : "", f ? (f.change === "deleted" ? "removed" : "") : "same"].join(" ");
+    return `<div class="${cls}" ${pad} data-row="${esc(r.path)}" data-type="file" role="treeitem" aria-level="${r.depth + 1}" aria-selected="${r.path === ui.file}" title="${esc(r.path)}">` +
+      `<span class="chev"></span>${fileIcon(r.path, declaration)}<span class="vis">${declaration && declaration.visibility ? VISIBILITY[declaration.visibility] : ""}</span>` +
+      `<span class="nm">${esc(r.name)}</span><span class="right">${fcount(openFindings(r.path), "findings in this file")}` +
+      (f ? changeIcon(f.change, f.from) + `<span class="seen" data-view="${esc(r.path)}">${seenIcon(f.viewed)}</span>` : "") + `</span></div>`;
+  }).join("");
+}
+
+function toggleFolder(path) {
+  const closed = closedFolders();
+  closed.has(path) ? closed.delete(path) : closed.add(path);
+  keepClosed(closed);
+}
+function focusTree() {
+  const tree = document.getElementById("tree"); if (!tree) return;
+  tree.focus({ preventScroll: true }); keepCursorInView(tree);
+}
+// The tree's keys, as IntelliJ's: moving opens the file the cursor lands on and the focus stays in the tree; Enter goes
+// into the file's diff, or opens or closes a folder; → and ← open and close a folder, or step to its first file and back
+// to its folder; Space marks the file viewed.
+function treeKey(e) {
+  const rows = [...document.querySelectorAll("#tree .trow")], i = rows.findIndex(r => r.dataset.row === ui.cursor), row = rows[i];
+  const dir = row && row.dataset.type === "dir", open = dir && !closedFolders().has(ui.cursor);
+  const to = j => {
+    if (!rows[j]) return;
+    ui.cursor = rows[j].dataset.row;
+    if (rows[j].dataset.type === "file") ui.file = ui.cursor;
+    go({}); focusTree();
+  };
+  const fold = () => { toggleFolder(ui.cursor); render(); focusTree(); };
+  switch (e.key) {
+    case "ArrowDown": return to(i + 1), true;
+    case "ArrowUp": return to(Math.max(i - 1, 0)), true;
+    case "ArrowRight": return dir && !open ? fold() : to(i + 1), true;
+    case "ArrowLeft": {
+      if (dir && open) return fold(), true;
+      const level = +(row?.getAttribute("aria-level") || 1);
+      for (let j = i - 1; j >= 0; j--) if (+rows[j].getAttribute("aria-level") < level) return to(j), true;
+      return true;
+    }
+    case "Enter":
+      if (dir) return fold(), true;
+      document.querySelector(`.diffbody[data-diff="${CSS.escape(ui.file)}"]`)?.focus();
+      return true;
+    case " ":
+      if (row && !dir && changed(ui.cursor)) row.querySelector("[data-view]")?.click();
+      return true;
+  }
+  return false;
+}
+
 // ================================================================ code
-const codeFiles = () => (R.files || []).filter(f => ui.codeFilter === "all" || (ui.codeFilter === "unviewed" ? !f.viewed : findingsAt(f.path).length));
 function viewCode() {
   if (R["missing-diff"]) return `<div class="card"><b>The diff of ${esc(R["missing-diff"].slice(0, 7))} is missing.</b>
     <div class="muted">The review moved to this commit without it. Refresh the PR and the AI Agent stores it again.</div>
     <div style="margin-top:10px"><button class="btn ghost" data-refresh>⟳ Refresh PR</button></div></div>`;
-  const files = R.files || [], shown = codeFiles();
-  if (!ui.file || !files.some(f => f.path === ui.file)) ui.file = (files.find(f => !f.viewed) || files[0] || {}).path;
-  const viewed = files.filter(f => f.viewed).length, at = shown.findIndex(f => f.path === ui.file);
+  if (ui.unchanged) readUnchanged();
+  const files = R.files || [], order = treeFiles();
+  if (!ui.file || !(changed(ui.file) || (ui.unchanged && (unchangedFiles || []).some(f => f.path === ui.file))))
+    ui.file = order.find(p => files.some(f => f.path === p && !f.viewed)) || order[0];
+  const viewed = files.filter(f => f.viewed).length, at = order.indexOf(ui.file);
   const chip = (k, l, n) => `<button class="chip${ui.codeFilter === k ? " on" : ""}" data-code-filter="${k}">${l} <b>${n}</b></button>`;
-  return `<div style="display:grid;grid-template-columns:290px minmax(0,1fr);gap:20px;align-items:start">
-    <div class="code-files"><div class="muted" style="font-size:.7812rem">You viewed <b>${viewed} of ${files.length}</b> files</div>
-      <div class="progress" style="margin:6px 0 10px"><i style="width:${files.length ? 100 * viewed / files.length : 0}%"></i></div>
-      <div class="filters">${chip("all", "All", files.length)}${chip("unviewed", "Not viewed", files.length - viewed)}${chip("findings", "With findings", files.filter(f => findingsAt(f.path).length).length)}</div>
-      <div id="code-file-list">${fileList(shown.map(f => f.path), ui.file)}</div></div>
-    <div>${ui.file ? diffView(ui.file, `file ${at + 1} of ${shown.length} &nbsp;<a data-step-file="-1">← prev</a> · <a data-step-file="1" style="color:var(--neon)">next →</a>`) : '<div class="muted">No changed files.</div>'}</div></div>`;
+  return `<div class="codegrid">
+    <div class="treebox"><div class="treetop">
+      <div class="treehead"><span>Viewed <b>${viewed}</b> of ${files.length}</span><span class="grow"></span>
+        <button class="btn ghost sm" data-tree-all="open" title="Expand all">⊞</button><button class="btn ghost sm" data-tree-all="close" title="Collapse all">⊟</button></div>
+      <div class="progress"><i style="width:${files.length ? 100 * viewed / files.length : 0}%"></i></div>
+      <div class="filters">${chip("all", "All", files.length)}${chip("unviewed", "Not viewed", files.length - viewed)}${chip("findings", "With findings", files.filter(f => openFindings(f.path).length).length)}
+        <span class="switch${ui.unchanged ? " on" : ""}" data-unchanged title="Also the files the PR leaves as they are"><i></i>Unchanged files</span></div></div>
+      <div id="tree" tabindex="0" role="tree" aria-label="Files">${treeHtml()}</div>
+      <div class="legend"><span>${changeIcon("added")}added</span><span>${changeIcon("modified")}modified</span><span>${changeIcon("deleted")}removed</span><span>${changeIcon("renamed")}moved</span><span>${seenIcon(true)}viewed</span></div></div>
+    <div id="tree-grip" title="Drag to resize the tree"></div>
+    <div>${ui.file ? diffView(ui.file, at < 0 ? "" : `file ${at + 1} of ${order.length} &nbsp;<a data-step-file="-1">← prev</a> · <a data-step-file="1" style="color:var(--neon)">next →</a>`) : '<div class="muted">No changed files.</div>'}</div></div>`;
 }
 
 // ================================================================ structure
@@ -1613,18 +1839,18 @@ function busy() {
 }
 // the file the Code tab showed last: opening another one starts at its top, while a refresh keeps the place
 let shownFile = null;
-document.getElementById("main").addEventListener("scroll", fitFileList, { passive: true });
-addEventListener("resize", fitFileList);
-// The file list ends at the bottom of the window, wherever the page is scrolled to.
-function fitFileList() {
-  const list = document.getElementById("code-file-list"); if (!list) return;
-  list.style.maxHeight = Math.max(160, innerHeight - list.getBoundingClientRect().top - 16) + "px";
+document.getElementById("main").addEventListener("scroll", fitTree, { passive: true });
+addEventListener("resize", fitTree);
+// The tree's box ends at the bottom of the window, wherever the page is scrolled to; the tree scrolls inside it.
+function fitTree() {
+  const box = document.querySelector(".treebox"); if (!box) return;
+  box.style.maxHeight = Math.max(240, innerHeight - Math.max(box.getBoundingClientRect().top, 0) - 16) + "px";
 }
-// The file opened is shown in the file list, which scrolls for it on its own, never the page.
-function keepFileInView(list) {
-  const on = list.querySelector(".pf.on"); if (!on) return;
-  if (on.offsetTop < list.scrollTop) list.scrollTop = on.offsetTop - 8;
-  else if (on.offsetTop + on.offsetHeight > list.scrollTop + list.clientHeight) list.scrollTop = on.offsetTop + on.offsetHeight - list.clientHeight + 8;
+// The cursor's row is shown in the tree, which scrolls for it on its own, never the page.
+function keepCursorInView(tree) {
+  const on = tree.querySelector(".trow.cursor"); if (!on) return;
+  if (on.offsetTop < tree.scrollTop) tree.scrollTop = on.offsetTop - 8;
+  else if (on.offsetTop + on.offsetHeight > tree.scrollTop + tree.clientHeight) tree.scrollTop = on.offsetTop + on.offsetHeight - tree.clientHeight + 8;
 }
 function render() {
   // a refresh never takes away a selection or a popover the developer is using; it waits until they are done
@@ -1634,7 +1860,7 @@ function render() {
   document.querySelectorAll("input[id], textarea[id]").forEach(el => typed[el.id] = [el.value, el.selectionStart, el.selectionEnd]);
   const main = document.getElementById("main"), panel = document.getElementById("panel"), side = document.getElementById("ucpanel");
   const y = main.scrollTop, py = panel.scrollTop, sy = side.scrollTop;
-  const fly = document.getElementById("code-file-list")?.scrollTop;
+  const treeY = document.getElementById("tree")?.scrollTop, inTree = focused === "tree", inDiff = document.activeElement?.dataset?.diff;
   renderRail();
   if (ui.tab !== "structure") ui.uc = null;
   if (ui.tab === "new" || (!current.id && !R && !["archived", "tools"].includes(ui.tab))) main.innerHTML = viewNew();
@@ -1647,9 +1873,12 @@ function render() {
   const opened = ui.tab === "code" && R && shownFile !== null && ui.file !== shownFile;
   if (ui.tab === "code" && R) shownFile = ui.file;
   main.scrollTop = opened ? 0 : y;
-  const list = document.getElementById("code-file-list");
-  // the list keeps its place; it moves only to show a file just opened, or the one shown when the list first appears
-  if (list) { fitFileList(); list.scrollTop = fly || 0; if (opened || fly === undefined) keepFileInView(list); }
+  const tree = document.getElementById("tree");
+  // the tree keeps its place; it moves only to show its cursor, after a file was opened or when the tree first appears
+  if (tree) { fitTree(); tree.scrollTop = treeY || 0; if (opened || treeY === undefined) keepCursorInView(tree); }
+  // a redraw keeps the focus where the keys were working: on the tree, or in the diff of the same file
+  if (inTree && tree) tree.focus({ preventScroll: true });
+  else if (inDiff) document.querySelector(`.diffbody[data-diff="${CSS.escape(inDiff)}"]`)?.focus({ preventScroll: true });
   document.title = (R && (waiting() || asking()) ? "● " : "") + "craftsman review";
   renderPanel(); layoutCards(false); ucPanel();
   panel.scrollTop = py; side.scrollTop = sy;
@@ -1695,12 +1924,19 @@ const CLICKABLE = ["tab", "sort", "restart", "inline", "gutter", "goto", "findin
   "comment-file", "draft-whole", "draft-sev", "draft-make", "draft-discard", "md-tool", "assistant-switch", "answer-here", "agent-tools", "allow-tool", "tool-toggle", "nr-existing", "permit",
   "gh-read", "gh-quote", "gh-reply-open", "gh-reply", "gh-thread", "comment-add", "cedit", "csave", "cdrop",
   "directive-switch", "directive-check", "directive-default", "rfilter", "context-save", "context-remove", "fix-prompts", "in-prompt",
-  "ai-edit", "ai-save", "ai-cancel", "ai-again", "style-reset"].map(name => `[data-${name}]`).join(",");
+  "ai-edit", "ai-save", "ai-cancel", "ai-again", "style-reset", "row", "chev", "tree-all", "unchanged"].map(name => `[data-${name}]`).join(",");
 document.addEventListener("click", async e => {
   if (!e.target.closest("#pop")) { hidePop(); dropSelection(); }
   const t = e.target.closest(CLICKABLE); if (!t) return;
   const d = t.dataset;
   if (d.view !== undefined) { e.stopPropagation(); return change(fileInfo(d.view).viewed ? "unview" : "view", { path: d.view }).then(o => o && reload()); }
+  if (d.chev !== undefined) { toggleFolder(d.chev); ui.cursor = d.chev; render(); return focusTree(); }
+  if (d.row) { ui.cursor = d.row; if (d.type === "file") ui.file = d.row; go({}); return focusTree(); }
+  if (d.treeAll) {
+    keepClosed(new Set(d.treeAll === "close" ? treeRows(treePaths(), []).filter(r => r.type === "dir").map(r => r.path) : []));
+    render(); return focusTree();
+  }
+  if (d.unchanged !== undefined) { ui.unchanged = !ui.unchanged; return render(); }
   if (d.tab) {
     const extra = { tab: d.tab };
     if (d.fsev !== undefined) Object.assign(extra, { fsev: d.fsev || null, fby: null, fcat: "", fquestions: false, fstatus: "open" });
@@ -1708,7 +1944,8 @@ document.addEventListener("click", async e => {
     if (d.fstatus) Object.assign(extra, { fstatus: d.fstatus, fsev: null });
     if (d.uc) Object.assign(extra, { uc: d.uc, ucFile: null });
     if (!(ui.panel && ui.panel.log)) ui.panel = null;
-    return go({ ui: extra });
+    // the Code tab opens with the focus on the tree, where its keys work
+    return Promise.resolve(go({ ui: extra })).then(() => d.tab === "code" && focusTree());
   }
   if (d.fsev !== undefined) { ui.fsev = d.fsev || null; return render(); }
   if (d.fby) { ui.fby = ui.fby === d.fby ? null : d.fby; return render(); }
@@ -1763,7 +2000,7 @@ document.addEventListener("click", async e => {
     return go({ ui: { tab: "code", file: d.pickFile } });
   }
   if (d.openFile) { ui.uc = null; return go({ ui: { tab: "code", file: d.openFile, codeFilter: "all" } }); }
-  if (d.stepFile) return go({ ui: { file: stepIn(codeFiles().map(f => f.path), ui.file, +d.stepFile) } });
+  if (d.stepFile) { const file = stepIn(treeFiles(), ui.file, +d.stepFile); return go({ ui: { file, cursor: file } }); }
   if (d.stepUc) { const u = cards().find(x => x.id === ui.uc); ui.ucFile = stepIn(u.files, ui.ucFile, +d.stepUc); return ucPanel(); }
   if (d.codeFilter) { ui.codeFilter = d.codeFilter; return render(); }
   if (d.answerHere !== undefined) { ui.panel = { checkpoint: true }; return render(); }
@@ -1961,6 +2198,7 @@ document.addEventListener("keydown", e => {
   if (e.target.id === "compose" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); document.querySelector("[data-compose]")?.click(); }
   if (e.target.id === "context" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); document.querySelector("[data-context-save]")?.click(); }
   if (e.target.id === "draft-box" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); makeFinding(); }
+  if (e.target.id === "tree" && !e.metaKey && !e.ctrlKey && !e.altKey && treeKey(e)) e.preventDefault();
   if (e.key === "Escape") onEscape(e);
 });
 function closePanel() {
@@ -1975,6 +2213,10 @@ function onEscape(e) {
   if (box) return box.blur();
   if (document.getElementById("pop").style.display === "flex") return hidePop();
   if (ui.panel) return closePanel();
+  // in the Code tab's diff: the selected lines go first, then the focus goes back to the tree, on the open file
+  const diff = ui.tab === "code" && e.target.closest && e.target.closest(".diffbody");
+  if (diff && ui.selection) { ui.selection = null; diff.querySelectorAll(".ln.sel").forEach(l => l.classList.remove("sel")); return; }
+  if (diff) { ui.cursor = ui.file; render(); return focusTree(); }
   if (ui.uc) openUseCase(ui.uc);
 }
 document.addEventListener("selectionchange", () => { if (deferred && !busy()) render(); });
@@ -2009,7 +2251,7 @@ document.addEventListener("mouseup", e => {
       const first = Math.min(...rows.map(r => +r.dataset.line)), last = Math.max(...rows.map(r => +r.dataset.line));
       ui.selection = { path: diff.dataset.diff, lines: [first, last], side, quote: text, about: { kind: "file", path: diff.dataset.diff, lines: [first, last] } };
       diff.querySelectorAll(".ln").forEach(l => l.classList.toggle("sel", l.dataset.side === side && +l.dataset.line >= first && +l.dataset.line <= last));
-      pop.innerHTML = `<button class="btn go sm" data-pop="ask">✦ Ask AI Agent</button><button class="btn ghost sm" data-pop="comment">✎ Comment</button>`;
+      pop.innerHTML = `<button class="btn go sm" data-pop="ask">✦ Ask AI Agent</button>` + (diff.dataset.same !== undefined ? "" : `<button class="btn ghost sm" data-pop="comment">✎ Comment</button>`);
       popAt(pop, e, diff);
     } else if (about) {
       const [kind, id] = about.dataset.quoteAbout.split(":");
@@ -2068,6 +2310,18 @@ document.addEventListener("mousedown", e => {
   const grip = e.target; grip.classList.add("drag");
   const move = ev => { const w = Math.min(Math.max(innerWidth - ev.clientX, 380), innerWidth * .7) + "px";
     document.getElementById("app").style.setProperty("--panel-w", w); localStorage.setItem(WIDTH_KEY, w); };
+  const up = () => { grip.classList.remove("drag"); removeEventListener("mousemove", move); removeEventListener("mouseup", up); };
+  addEventListener("mousemove", move); addEventListener("mouseup", up);
+});
+// The tree's right edge resizes it; the width survives a reload.
+const TREE_WIDTH_KEY = "craftsman.review.tree-width";
+if (localStorage.getItem(TREE_WIDTH_KEY)) document.getElementById("app").style.setProperty("--tree-w", localStorage.getItem(TREE_WIDTH_KEY));
+document.addEventListener("mousedown", e => {
+  if (e.target.id !== "tree-grip") return;
+  e.preventDefault();
+  const grip = e.target, left = document.querySelector(".treebox").getBoundingClientRect().left; grip.classList.add("drag");
+  const move = ev => { const w = Math.min(Math.max(ev.clientX - left, 240), innerWidth * .5) + "px";
+    document.getElementById("app").style.setProperty("--tree-w", w); localStorage.setItem(TREE_WIDTH_KEY, w); };
   const up = () => { grip.classList.remove("drag"); removeEventListener("mousemove", move); removeEventListener("mouseup", up); };
   addEventListener("mousemove", move); addEventListener("mouseup", up);
 });

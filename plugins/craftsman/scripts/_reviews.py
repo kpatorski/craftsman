@@ -6,6 +6,7 @@ import os
 import pathlib
 import re
 
+import _declarations
 import _settings
 import fix_prompts
 import github_conversation
@@ -82,7 +83,8 @@ def read_review(review_id, content=None):
     use_cases = (state.get("structure") or {}).get("use-cases", [])
     viewed = set(state.get("viewed", []))
     files = [{**changed, "use-cases": [u["id"] for u in use_cases if changed["path"] in u.get("files", [])],
-              "viewed": changed["path"] in viewed} for changed in changed_files(diff_text(review_id))]
+              "viewed": changed["path"] in viewed}
+             for changed in changed_files(diff_text(review_id), review / "worktree")]
     conversation = github_conversation.read(review)
     directives = review_directives.listed(content or review_directives.CONTENT, state, _settings.review_directives())
     return {"state": state, "pending": len(pending_messages(review)), "html": rendered(state, conversation),
@@ -165,9 +167,10 @@ def file_parts(text):
     return parts
 
 
-def changed_files(text):
-    """Every file the diff changes: its path, `added`, `modified`, `deleted` or `renamed` (with `from`), and how many
-    lines it adds and removes."""
+def changed_files(text, worktree=None):
+    """Every file the diff changes: its path, `added`, `modified`, `deleted` or `renamed` (with `from`), how many
+    lines it adds and removes, and its top-level type (see _declarations), read from the file in `worktree`, or from
+    the diff's own lines when the worktree has no such file or the file is deleted."""
     files = []
     for (old, new), lines in file_parts(text):
         heading = "".join(line for line in lines if not line.startswith(("+", "-", " ", "@@")))
@@ -179,8 +182,32 @@ def changed_files(text):
                    "removed": sum(line.startswith("-") for line in body)}
         if change == "renamed":
             changed["from"] = old
+        kept = pathlib.Path(worktree) / changed["path"] if worktree and change != "deleted" else None
+        side = "-" if change == "deleted" else "+"
+        code = kept.read_text(errors="replace") if kept and kept.is_file() else \
+            "".join(line[1:] for line in body if line[:1] in (side, " "))
+        changed["declaration"] = _declarations.top_level(changed["path"], code)
         files.append(changed)
     return files
+
+
+def unchanged_files(review_id):
+    """Every file of the reviewed code the diff leaves as it is: its path and its top-level type, by path."""
+    worktree = review_dir(review_id) / "worktree"
+    changed = {changed["path"] for changed in changed_files(diff_text(review_id))}
+    paths = (candidate.relative_to(worktree) for candidate in worktree.rglob("*") if candidate.is_file())
+    kept = sorted(path.as_posix() for path in paths if ".git" not in path.parts and path.as_posix() not in changed)
+    return [{"path": path, "declaration": _declarations.top_level(path, (worktree / path).read_text(errors="replace"))
+             if pathlib.PurePath(path).suffix in _declarations.SUFFIXES else None} for path in kept]
+
+
+def file_text(review_id, path):
+    """One file of the reviewed code, as the pull request's branch has it. Raises Refused for anything else."""
+    worktree = (review_dir(review_id) / "worktree").resolve()
+    target = (worktree / path).resolve()
+    if worktree not in target.parents or ".git" in target.relative_to(worktree).parts or not target.is_file():
+        raise review_state.Refused(f"not a file of the reviewed code: {path!r}")
+    return target.read_text(errors="replace")
 
 
 def references(review_id, path, limit=50):

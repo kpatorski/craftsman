@@ -3,6 +3,21 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.21.0
+
+- The Code tab shows the changed files as IntelliJ's project tree: folders open and close one by one (⊞/⊟ for all),
+  packages share a row, and source, test and resources roots have coloured folders. What is open is kept per review.
+- Left of a file's name, the kind of its top-level type (class, interface, record, enum, annotation; a test class
+  marked) and its visibility, read by the server from Java, Groovy and Kotlin, and the kind from TypeScript; other
+  files show what they are (Docker, Maven, Gradle, npm, YAML, SQL, …). Right of it, its findings coloured by the worst
+  one, GitHub's change mark, and the viewed mark, which a click toggles.
+- "Unchanged files" adds the files the PR leaves as they are, greyed; one opens as the PR's branch has it, to read and
+  ask AI Agent about.
+- The tree's keys: `↑`/`↓` open the file the cursor lands on with the focus kept in the tree, `←`/`→` close and open a
+  folder, `Enter` goes into the diff and `Esc` back to the tree, `Space` marks the file viewed. The Code tab opens with
+  the focus on the tree.
+- The tree's width is dragged at its right edge and kept.
+
 ## 0.20.2
 
 - The Code tab's file list scrolls on its own beside the diff and keeps its place: marking a file viewed or opening

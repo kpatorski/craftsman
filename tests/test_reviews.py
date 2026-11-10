@@ -345,6 +345,41 @@ class ReviewsTest(unittest.TestCase):
 
         self.assertEqual(reviews.references(ID, "Old.java"), ["src/Uses.java:2"])
 
+    def test_each_changed_file_names_its_top_level_type_from_the_reviewed_code_or_else_from_the_diff(self):
+        worktree = self.review / "worktree"
+        worktree.mkdir()
+        (worktree / "B.java").write_text("public class B {\n  long x;\n}\n")
+
+        files = {f["path"]: f["declaration"] for f in reviews.read_review(ID)["files"]}
+
+        self.assertEqual(files["B.java"], {"kind": "class", "visibility": "public"})
+        self.assertEqual(files["A.java"], {"kind": "class", "visibility": "package"})
+        self.assertEqual(files["Old.java"], {"kind": "class", "visibility": "package"})
+        self.assertEqual(reviews.changed_files(DIFF)[1]["declaration"], {"kind": "class", "visibility": "package"})
+
+    def test_the_files_the_change_leaves_as_they_are_are_listed_apart(self):
+        worktree = self.review / "worktree"
+        (worktree / ".git").mkdir(parents=True)
+        (worktree / ".git" / "config").write_text("")
+        (worktree / "src").mkdir()
+        for name in ("A.java", "B.java", "src/K.java"):
+            (worktree / name).write_text("public interface K {}\n")
+        (worktree / "src" / "notes.txt").write_text("class Z {}\n")
+
+        self.assertEqual(reviews.unchanged_files(ID), [
+            {"path": "src/K.java", "declaration": {"kind": "interface", "visibility": "public"}},
+            {"path": "src/notes.txt", "declaration": None}])
+
+    def test_a_file_of_the_reviewed_code_is_served_and_nothing_outside_it(self):
+        (self.review / "worktree" / "src").mkdir(parents=True)
+        (self.review / "worktree" / "src" / "K.java").write_text("class K {}\n")
+        (self.review / "worktree" / ".git").write_text("gitdir: elsewhere\n")
+
+        self.assertEqual(reviews.file_text(ID, "src/K.java"), "class K {}\n")
+        for path in ("../review.json", "/etc/hosts", ".git", "src"):
+            with self.subTest(path=path), self.assertRaises(review_state.Refused):
+                reviews.file_text(ID, path)
+
 
 class ReviewEndpointsTest(ReviewsTest):
     """The same through HTTP, as the page does it."""
@@ -427,6 +462,15 @@ class ReviewEndpointsTest(ReviewsTest):
 
         self.assertEqual(status, 200)
         self.assertEqual(body["state"]["scope"], "Cancels a reservation.")
+
+    def test_the_page_reads_the_unchanged_files_and_one_of_them(self):
+        (self.review / "worktree" / "src").mkdir(parents=True)
+        (self.review / "worktree" / "src" / "K.java").write_text("class K {}\n")
+
+        self.assertEqual(self.call(f"/api/review/files?id={ID}"),
+                         (200, {"unchanged": [{"path": "src/K.java", "declaration": {"kind": "class", "visibility": "package"}}]}))
+        self.assertEqual(self.text(f"/api/review/file?id={ID}&path=src/K.java"), "class K {}\n")
+        self.assertEqual(self.call(f"/api/review/file?id={ID}&path=../review.json")[0], 409)
 
     def test_a_review_still_opening_answers_with_its_session_and_what_it_asks_permission_for(self):
         shutil.rmtree(self.review)
@@ -668,10 +712,17 @@ class ReviewEndpointsTest(ReviewsTest):
         # the panel draws the draft again from the review's state, so the state is read again first
         self.assertIn("await reload()", discard)
 
-    def test_the_code_tabs_file_list_scrolls_on_its_own_and_keeps_its_place(self):
+    def test_the_code_tabs_file_tree_scrolls_on_its_own_and_keeps_its_place(self):
         served = self.page(f"/review?review={ID}")
-        for hook in ('id="code-file-list"', ".code-files { position: sticky", "keepFileInView",
-                     'const fly = document.getElementById("code-file-list")?.scrollTop'):
+        for hook in ('id="tree"', ".treebox { position: sticky", "keepCursorInView",
+                     'const treeY = document.getElementById("tree")?.scrollTop'):
+            with self.subTest(hook=hook):
+                self.assertIn(hook, served)
+
+    def test_the_code_tab_reads_the_unchanged_files_and_remembers_the_trees_folders_and_width(self):
+        served = self.page(f"/review?review={ID}")
+        for hook in ("/api/review/files?", '/api/review/${same ? "file" : "diff"}?', "craftsman.review.tree-closed.", "craftsman.review.tree-width",
+                     "function treeHtml(", 'role="tree"'):
             with self.subTest(hook=hook):
                 self.assertIn(hook, served)
 

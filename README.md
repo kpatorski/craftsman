@@ -200,11 +200,16 @@ rail on the left; the open one has six tabs:
 - **Structure** — the change as use cases, each a card: what it does before and after, how it runs from its entry
   point (a call the PR leaves unchanged shows where it is called from; a call that crosses a boundary is marked), its
   branches and whether a test covers each, and its files' diffs beside it.
-- **Code** — every changed file with its diff, the code coloured by its language (Java, Kotlin, TypeScript, JavaScript,
-  Python, Go, C#, SQL, shell, YAML, JSON, XML); findings are dots beside the line numbers, opened under the line on a
-  click, or all inline with a switch. A folder shortened in the file list shows its full path on hover. "✎ Comment"
-  over selected lines, or "✎ Comment on file" in a file's header, opens the comment panel: a markdown editor with a
-  rendered preview, one draft per file that stays while you move between files, and "Make it a finding".
+- **Code** — the changed files as IntelliJ's project tree beside the diff of the open one. Packages share a row
+  (`com.example.booking`), source, test and resources roots have coloured folders, and each file shows the kind and
+  the visibility of its top-level type (Java, Groovy, Kotlin; the kind for TypeScript), its findings, GitHub's change
+  mark and whether you viewed it. What is open, and the tree's width, are kept across reloads; "Unchanged files" adds
+  the files the PR leaves as they are, to read and ask about. `↑`/`↓` open the file the cursor lands on, `←`/`→` close
+  and open a folder, `Enter` goes into the diff and `Esc` back, `Space` marks the file viewed. The code is coloured by
+  its language (Java, Kotlin, TypeScript, JavaScript, Python, Go, C#, SQL, shell, YAML, JSON, XML); findings are dots
+  beside the line numbers, opened under the line on a click, or all inline with a switch. "✎ Comment" over selected
+  lines, or "✎ Comment on file" in a file's header, opens the comment panel: a markdown editor with a rendered
+  preview, one draft per file that stays while you move between files, and "Make it a finding".
 - **Findings** — a table to filter, search and sort; a finding opens in a side panel to edit, ask about, drop, or mark
   to send. "Fix prompts → comment" turns the findings marked to send into a comment for the author: one prompt per
   category for their AI coding agent, each fixed as one commit. A finding's "In fix prompt" switch leaves it out.

@@ -251,7 +251,8 @@ class Handler(BaseHTTPRequestHandler):
                 review["running"] = bool(runner and runner.running())
                 review["restoring"] = bool(runner and runner.restoring)
             return self.send(200, dict(reviews=listed))
-        if url.path in ("/api/review", "/api/review/diff", "/api/review/references"):
+        if url.path in ("/api/review", "/api/review/diff", "/api/review/references", "/api/review/files",
+                        "/api/review/file"):
             query = {key: values[0] for key, values in urllib.parse.parse_qs(url.query).items()}
             return self.review_request(query, url.path)
         return self.send(404, dict(error="not found"))
@@ -331,6 +332,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, dict(ok=True))
             if path == "/api/review/diff":
                 return self.send(200, reviews.diff_text(review_id, body.get("path")), "text/plain")
+            if path == "/api/review/files":
+                return self.send(200, dict(unchanged=reviews.unchanged_files(review_id)))
+            if path == "/api/review/file":
+                return self.send(200, reviews.file_text(review_id, str(body.get("path", ""))), "text/plain")
             if path == "/api/review/references":
                 return self.send(200, dict(references=reviews.references(review_id, body.get("path", ""))))
             if path == "/api/review/send":

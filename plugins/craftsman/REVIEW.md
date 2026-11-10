@@ -103,7 +103,11 @@ The page reads `review.json` together with what the server works out from the di
 be missed:
 
 - `files` — every changed file: `path`, `change` (`added`, `modified`, `deleted`, or `renamed` with `from`), the
-  lines it adds and removes, the use cases it belongs to, and whether the developer viewed it;
+  lines it adds and removes, the use cases it belongs to, whether the developer viewed it, and `declaration`: the
+  kind (`class`, `interface`, `record`, `enum`, `annotation`) and visibility (`public`, `package`, `private`) of its
+  top-level type, from `scripts/_declarations.py`, or null. Java, Groovy and Kotlin give both; TypeScript gives the
+  kind of its one exported class, interface or enum, with a null visibility. The type is read from the file in
+  `worktree/`, or from the diff's lines when the file is deleted or the worktree is missing;
 - `untied` — the changed files no use case reaches. The page shows them as one more card, so every changed file is
   in a card;
 - `github` — the content of `github.json`, or null before the conversation was first read;
@@ -113,7 +117,9 @@ be missed:
 - `missing-diff` — `head` when `diff/<head>.diff` is missing, or null. The Code tab then says so instead of a diff,
   and `files` is empty.
 
-For a deleted file, the server also lists where the reviewed code in `worktree/` still names it.
+For a deleted file, the server also lists where the reviewed code in `worktree/` still names it. On request it lists
+the files of `worktree/` the diff leaves as they are (`/api/review/files`), and serves one file of `worktree/` as the
+pull request's branch has it (`/api/review/file`); a path outside `worktree/`, or into its `.git`, is refused.
 
 ### The developer's reading
 
