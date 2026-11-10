@@ -247,6 +247,7 @@
   .elsewhere a { display: block; padding: 3px 0 3px 12px; cursor: pointer; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .agent-asks { border: 1px solid var(--should); border-left-width: 3px; border-radius: 12px; padding: 10px 12px; margin-top: 12px; background: var(--should-bg); }
   .agent-asks .who { font-size: .75rem; color: var(--should); margin-bottom: 4px; }
+  .ctx-notes .who { font-size: .75rem; color: var(--muted); margin-bottom: 6px; } .ctx-notes .ctx-note { font-size: .8125rem; }
   .codediff { min-height: 0; min-width: 0; } .codediff .diffcard { height: 100%; display: flex; flex-direction: column; box-sizing: border-box; }
   .codediff .diffbody { flex: 1; min-height: 0; overflow: auto; }
   .log div { font-size: .7812rem; padding: 3px 0; white-space: pre-wrap; }
@@ -260,26 +261,11 @@
     border: 1px solid var(--line2); box-shadow: 0 10px 30px var(--shadow); z-index: 30; }
 
   /* ---- files and diffs ---- */
-  .pdir { font-family: var(--mono); font-size: .7188rem; color: var(--muted); margin: 8px 0 2px 6px; }
-  .pf { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 7px; font-size: .7812rem;
-    font-family: var(--mono); margin-left: 8px; cursor: pointer; }
-  .pf:hover { background: var(--card); }
-  /* the file's name gets the whole line; its findings sit under it */
-  .pf { align-items: flex-start; } .pf .vbox, .pf .kd { margin-top: 3px; }
-  .pf .pfmain { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-  .pf .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .pf.on { background: var(--card); color: var(--heading); box-shadow: 2px 0 0 var(--heading) inset; }
-  .pf.del .nm { text-decoration: line-through; color: var(--muted); }
   .vbox { width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--line2); display: inline-grid; place-items: center;
     font-size: .625rem; flex: none; font-family: -apple-system, sans-serif; cursor: pointer; }
   .vbox.on { background: var(--neon); border-color: var(--neon); color: var(--bg); }
   .kd { display: inline-block; width: 12px; text-align: center; font-family: var(--mono); font-weight: 600; }
   .kd.added { color: var(--neon); } .kd.modified, .kd.renamed { color: var(--change); } .kd.deleted { color: var(--must); }
-  .dots { display: inline-flex; gap: 6px; flex: none; font-size: .6875rem; font-family: -apple-system, sans-serif; font-weight: 500; }
-  .dots span { display: inline-flex; align-items: center; gap: 3px; color: var(--muted); }
-  .dots span::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--nit-dot); }
-  .dots .must-fix::before { background: var(--must); } .dots .should-fix::before { background: var(--should); }
-  .klegend { font-size: .7188rem; color: var(--muted); margin: 10px 0 0 6px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
   .diffcard { background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; min-width: 0; }
   .diffhead { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 16px;
     border-bottom: 1px solid var(--line); flex-wrap: wrap; }
@@ -378,44 +364,31 @@
   .banner.red { background: var(--must-bg); border-color: var(--must-bg); }
   .snip .ln { grid-template-columns: 36px 18px minmax(0, 1fr); white-space: pre-wrap; overflow-wrap: anywhere; }
 
-  /* ---- structure: use cases as cards, one opened beside them ---- */
-  .ucs { position: relative; min-height: 120px; }
-  .uc { position: absolute; width: 260px; background: var(--card2); border: 1px solid var(--line2); border-radius: 14px; padding: 14px 16px;
-    cursor: pointer; transition: left .42s cubic-bezier(.2, .7, .2, 1), top .42s cubic-bezier(.2, .7, .2, 1), width .42s cubic-bezier(.2, .7, .2, 1),
-    border-color .2s, box-shadow .2s; }
-  .uc:hover { border-color: var(--neon-dim); }
-  .uc .gac { font-size: .7188rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .uc .name { color: var(--heading); font-size: .9375rem; margin: 2px 0 8px; }
-  .uc .meta { display: flex; justify-content: space-between; font-size: .75rem; color: var(--muted); margin-bottom: 8px; }
-  .uc.untied { border-style: dashed; border-color: var(--should-bg); } .uc.untied .name { color: var(--should); }
-  .uc.picked { border-color: var(--neon); box-shadow: 0 0 0 3px var(--neon-bg); }
-  .uc.related { border-style: dashed; border-color: var(--line2); }
-  .tip { position: absolute; width: 320px; background: var(--float); border: 1px solid var(--line2); border-radius: 12px; padding: 12px 14px;
-    z-index: 25; box-shadow: 0 16px 40px var(--shadow); font-size: .8125rem; pointer-events: none; display: none; }
-  .tip .say { color: var(--heading); margin-bottom: 8px; }
-  .tip .shares { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); font-size: .75rem; color: var(--muted); }
-  .slide > * { flex: none; }
-  .slide { position: fixed; right: 0; bottom: 0; z-index: 15; border-left: 1px solid var(--line2); box-shadow: -30px 0 60px var(--shadow);
-    transform: translateX(100%); transition: transform .42s cubic-bezier(.2, .7, .2, 1); visibility: hidden; }
-  .slide.shown { transform: none; visibility: visible; }
-  .slide > * { transition: opacity .14s ease; } .slide.swap > * { opacity: 0; }
-  .change { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; font-size: .8438rem; }
-  .change > div { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
-  .change > div:last-child { border-color: var(--neon-dim); }
-  .change .l { font-size: .75rem; color: var(--muted); margin-bottom: 4px; }
-  details.how { margin-top: 14px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
-  details.how summary { cursor: pointer; font-size: .7812rem; color: var(--muted); }
-  .hflow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
-  .hstep { display: inline-flex; gap: 6px; align-items: center; padding: 5px 10px; border-radius: 8px; background: var(--card2);
-    border: 1px solid var(--line2); font-size: .75rem; cursor: pointer; }
-  .harr { color: var(--muted); font-size: .75rem; } .harr.bad { color: var(--must); }
-  .hstep.still { cursor: default; border-style: dashed; color: var(--muted); }
-  .hstep.still.go { cursor: pointer; } .hstep.still.go:hover { color: var(--text); border-color: var(--line2); }
   .ln.lit { outline: 1px solid var(--neon); outline-offset: -1px; }
-  .hstep.cross { border-color: var(--must); }
-  .xtag { font-size: .6875rem; padding: 1px 7px; border-radius: 6px; background: var(--must-bg); color: var(--must); white-space: nowrap; }
-  .hbr { margin-top: 10px; font-size: .7812rem; } .hbr div { padding: 2px 0; }
-  .fnotes { margin-top: 14px; } .fnotes .ann { cursor: pointer; margin: 0 0 6px; } .fnotes .ann b { font-weight: 500; } .fnotes .where { margin-left: auto; color: var(--dim); white-space: nowrap; }
+
+  /* ---- story: a table of contents beside the PR told in chapters ---- */
+  .storybox { display: grid; grid-template-columns: 210px minmax(0, 760px); gap: 28px; justify-content: center; }
+  .toc { position: sticky; top: 0; align-self: start; display: flex; flex-direction: column; gap: 2px; }
+  .toc a { padding: 6px 10px; border-radius: 8px; font-size: .8125rem; color: var(--muted); cursor: pointer; }
+  .toc a.on, .toc a:hover { background: var(--hover); color: var(--heading); }
+  .chapter { padding: 6px 0 26px; border-bottom: 1px solid var(--line); margin-bottom: 22px; cursor: pointer; }
+  .chapter:last-child { border-bottom: 0; }
+  .chapter h2 { font-weight: 300; font-size: 1.25rem; color: var(--heading); margin: 0 0 10px; }
+  .chapter h2 .num { color: var(--dim); margin-right: 8px; } .chapter.cur h2 { color: var(--neon); }
+  .chapter .md { font-size: .9375rem; line-height: 1.7; }
+  .chapter .lead { font-size: 1.0625rem; line-height: 1.65; color: var(--heading); font-weight: 300; }
+  .ba { display: grid; grid-template-columns: 70px 1fr; gap: 6px 12px; margin: 14px 0 0; font-size: .875rem; }
+  .ba dt { color: var(--muted); } .ba dd { margin: 0; } .ba dd p { margin: 0; }
+  .mini { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: .8125rem; color: var(--muted); align-items: baseline; margin-top: 16px; }
+  .mini b { font-size: 1.25rem; font-weight: 300; margin-right: 4px; }
+  .fchips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .fchip { font: .75rem var(--mono); padding: 3px 9px; border-radius: 8px; background: var(--card2); border: 1px solid var(--line); cursor: pointer; color: var(--text); }
+  .fchip:hover { border-color: var(--neon-dim); color: var(--neon); }
+  .diagram { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0; padding: 14px; border: 1px solid var(--line);
+    border-radius: 12px; background: var(--card); font: .75rem var(--mono); }
+  .dbox { padding: 7px 12px; border-radius: 8px; background: var(--card2); border: 1px solid var(--line2); color: var(--heading); }
+  .darr { color: var(--neon); }
+  .dends { flex-basis: 100%; color: var(--muted); font-family: inherit; }
 
   /* where the review is: its steps, and what a tab waits for */
   .steps { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
@@ -445,7 +418,6 @@
   <div id="grip" title="Drag to make the AI Agent panel wider or narrower"></div>
   <aside class="panel" id="panel" style="display:none"></aside>
 </div>
-<aside class="panel slide" id="ucpanel"></aside>
 <div class="hover" id="hover"></div>
 <div class="pop" id="pop"></div>
 <div class="gtip" id="gtip"></div>
@@ -459,7 +431,7 @@
 const params = new URLSearchParams(location.search);
 let current = { id: params.get("review") };
 let reviewsList = [], R = null, deferred = false;
-const ui = { assistant: localStorage.getItem("craftsman-assistant") !== "off", tab: params.get("tab") || "overview", panel: null, file: params.get("file"), uc: null, ucFile: null,
+const ui = { assistant: localStorage.getItem("craftsman-assistant") !== "off", tab: tabOf(params.get("tab")), panel: null, file: params.get("file"),
   fsev: null, fby: null, fstatus: "open", fcat: "", fquestions: false, search: "", codeFilter: "all", editing: null,
   selection: null, sort: { key: "severity", dir: 1 }, inline: localStorage.getItem("craftsman-review-inline") === "1", open: new Set(),
   ghRead: new Set(), ghReading: false, replyTo: null, editComment: null, rfilter: "all", unchanged: false, cursor: null,
@@ -482,7 +454,6 @@ const q = () => `id=${encodeURIComponent(current.id)}`;
 const folder = path => String(path || "").split("/").pop();
 const SEV = { "must-fix": "Must fix", "should-fix": "Should fix", "nit": "Nit" };
 const SEVS = Object.keys(SEV);
-const KIND = { added: "+", modified: "~", renamed: "~", deleted: "−", unchanged: "·" };
 const STATUS = { open: f => !["deleted", "sent"].includes(f.status), "to-send": f => f.status === "to-send",
   sent: f => f.status === "sent", deleted: f => f.status === "deleted" };
 // The review's steps, as the code-review bundle runs them. The page works out the step from what the state already
@@ -491,6 +462,7 @@ const STATUS = { open: f => !["deleted", "sent"].includes(f.status), "to-send": 
 const STEPS = [["open-review", "Open the review", "fetches the PR, checks out its code, and stores the diff"],
   ["read-pr-scope", "Read what the PR is for", "reads the PR's description and tickets: how it was, how it will be"],
   ["map-change-structure", "Map the use cases", "follows each entry point through the change"],
+  ["tell-the-story", "Tell the PR's story", "writes the PR's story, chapter by chapter, as a teammate would tell it"],
   ["read-test-rules", "Read the rules from the tests", "reads the business rules the tests check"],
   ["triage-explanations", "Note the places that are hard to follow", "writes notes on the places a reviewer stops at"],
   ["review-use-cases", "Review the use cases", "reviews the code use case by use case and writes findings"],
@@ -552,15 +524,20 @@ const api = async (path, body) => {
   return out;
 };
 const change = (action, body) => api("/api/review/change", { ...K(), action, ...body });
+// The tab an address opens: the Story when it names none, and for the addresses of Overview and Structure, which the
+// Story replaces.
+function tabOf(given) {
+  return !given || given === "overview" || given === "structure" ? "story" : given;
+}
 function go(target) {
   const other = target.id !== undefined && target.id !== current.id;
   if (target.id !== undefined) current = { id: target.id };
   Object.assign(ui, target.ui || {});
   if (other) { R = null; Object.keys(diffs).forEach(k => delete diffs[k]); Object.keys(refs).forEach(k => delete refs[k]); unchangedFiles = null;
-    Object.assign(ui, { uc: null, file: null, selection: null, cursor: null, ctxBy: {}, pinned: false, log: false }); }
+    Object.assign(ui, { file: null, selection: null, cursor: null, ctxBy: {}, pinned: false, log: false }); }
   const p = new URLSearchParams();
   if (current.id) p.set("review", current.id);
-  if (ui.tab !== "overview") p.set("tab", ui.tab);
+  if (ui.tab !== "story") p.set("tab", ui.tab);
   if (ui.tab === "code" && ui.file) p.set("file", ui.file);
   history.replaceState(null, "", "?" + p.toString());
   return other ? reload() : render();
@@ -591,8 +568,6 @@ function sourceLabel(src) {
   return `${src.target} ← ${src.source}` + (src["pull-request"] ? ` · PR #${src["pull-request"].number}` : " · no PR");
 }
 const pull = src => src && (src.kind === "pull-request" ? src : src["pull-request"]);
-const dotsOf = list => `<span class="dots" title="${plural(list.length, "finding")}">${SEVS.map(k => [k, list.filter(f => f.severity === k).length])
-  .filter(([, n]) => n).map(([k, n]) => `<span class="${k}">${n}</span>`).join("")}</span>`;
 const sev = s => `<span class="sev ${esc(s)}">${SEV[s] || esc(s)}</span>`;
 const who = by => by === "developer" ? `<span class="who-developer">● you</span>` : `<span class="who-agent">✦ AI Agent</span>`;
 const md = key => R.html[key] || "";
@@ -610,14 +585,16 @@ function reviewStep() {
   const s = S(), cp = s.checkpoint, ucs = useCases(), asked = cp && stepAt(cp.step);
   if (waiting() && asked >= 0) return asked;
   const later = (s.rules || []).length || (s.threads || []).some(t => t.messages[0].by === "agent") || ucs.some(u => u.status !== "pending");
-  let at = !s.scope ? 0 : !ucs.length ? 1 : (later || asked >= 2) ? 3 : 2;
-  if (at >= 3 && later) at = 4;
-  if (ucs.some(u => u.status !== "pending")) at = 5;
-  if (ucs.length && ucs.every(u => u.status === "reviewed")) at = 6;
-  if (at === 6 && s.findings.some(f => f.status === "merged")) at = 7;
+  const [story, rules, review, merge, last] = ["tell-the-story", "read-test-rules", "review-use-cases", "deduplicate-findings", "serve-page"].map(stepAt);
+  let at = !s.scope ? 0 : !ucs.length ? 1 : (later || asked >= 2) ? story : 2;
+  if (at === story && (s.story || later)) at = rules;
+  if (at >= rules && later) at = rules + 1;
+  if (ucs.some(u => u.status !== "pending")) at = review;
+  if (ucs.length && ucs.every(u => u.status === "reviewed")) at = merge;
+  if (at === merge && s.findings.some(f => f.status === "merged")) at = last;
   if (cp && cp.answer && asked >= 0) at = Math.max(at, asked + 1);
-  if (at >= 6 && idle()) at = 7;
-  return Math.min(at, 7);
+  if (at >= merge && idle()) at = last;
+  return Math.min(at, last);
 }
 function stepsStrip(at, mode) {
   // one bar per step, always in the same place; the line above the strip says what the AI agent does at the current one
@@ -638,8 +615,8 @@ const doing = () => R.restoring ? "waits while the repository is restored" : ask
 // Under the tabs until the review reaches its last step: where it is, and what the AI agent does now.
 function progressLine() {
   const at = reviewStep();
-  const ask = waiting() && ui.tab !== "overview" ? `<div class="asks"><span class="pulse"></span><span class="grow"><b>AI Agent asks you</b> · ${esc(S().checkpoint.question.split("\n")[0])}</span>
-    <button class="btn sm" data-answer-here>Answer here</button><a class="btn ghost sm" data-tab="overview">Open in Overview</a></div>` : "";
+  const ask = waiting() && ctx().kind !== "review" ? `<div class="asks"><span class="pulse"></span><span class="grow"><b>AI Agent asks you</b> · ${esc(S().checkpoint.question.split("\n")[0])}</span>
+    <button class="btn sm" data-answer-here>Answer here</button></div>` : "";
   const silent = stuck() ? `<div class="asks"><span class="pulse"></span><span class="grow"><b>AI Agent has been silent for ${ago(quietFor())}</b>
     · ${R.background ? `${plural(R.background, "reviewer")} it started still run in the background, or ` : ""}the session may be stuck.
     Restarting it continues the same conversation.</span>
@@ -657,7 +634,7 @@ function progressLine() {
         writing ones too. <a style="color:var(--neon)" data-agent-tools>AI Agent tools</a></span>
         <button class="btn go sm" data-allow-tool="${esc(t.rule)}">Allow and go on</button></div>`).join("");
   const permits = asking() ? R.permissions.map(permitCard).join("") : "";
-  if (at >= 7) return permits + restoring + problem + refused + ask + silent;
+  if (at >= STEPS.length - 1) return permits + restoring + problem + refused + ask + silent;
   return permits + restoring + problem + refused + ask + silent + `<div style="margin:-8px 0 18px"><div class="stepline"><span>Step ${at + 1} of ${STEPS.length} · <b>${STEPS[at][1]}</b></span>
     <span>AI Agent ${doing()}</span></div>${stepsStrip(at, sessionMode())}</div>`;
 }
@@ -685,7 +662,7 @@ function pendingCard(step, what) {
     <div>This fills in at step ${step + 1} of ${STEPS.length}, <b>${STEPS[step][1].toLowerCase()}</b>. The AI agent is at step ${at + 1},
       ${STEPS[at][1].toLowerCase()}, and ${doing().replace(/^— /, "")}.</div>
     ${stepsStrip(at, sessionMode())}
-    ${waiting() ? `<a class="btn go sm" data-tab="overview">Answer its question →</a>` : !R.running && !S().closed ? `<button class="btn go sm" data-power>Start the session</button>` : ""}</div>`;
+    ${waiting() ? `<button class="btn go sm" data-answer-here>Answer its question →</button>` : !R.running && !S().closed ? `<button class="btn go sm" data-power>Start the session</button>` : ""}</div>`;
 }
 
 // ================================================================ rail
@@ -747,10 +724,10 @@ function renderHead() {
     : ["off", s.closed ? "Review closed" : "Session stopped · start it"];
   const branches = s.source && (s.source["base-branch"] ? `${s.source["base-branch"]} ← ${s.source["head-branch"]}` :
     s.source.kind === "branches" ? `${s.source.target} ← ${s.source.source}` : "");
-  const tabs = [["overview", "Overview", ""], ["structure", "Structure", useCases().length || ""],
+  const tabs = [["story", "Story", ""],
     ["code", "Code", plural(files.length, "file")], ["findings", "Findings", live(s.findings).length],
     ["comments", "Comments", pr ? conversation().length + myComments("to-send").length : ""],
-    ["rules", "Rules", (R.directives || []).filter(d => d.on).length]];
+    ["rules", "Rules", ""]];
   return `<div class="head"><div>
       <div class="title"><h1>${esc((s.source && s.source.title) || sourceLabel(s.source))}</h1>
         ${pr ? `<span class="tag">PR #${pr.number}</span>` : '<span class="tag">no PR</span>'}
@@ -762,54 +739,40 @@ function renderHead() {
       <button class="btn go" data-send ${toSend && pr && !ui.sending ? "" : "disabled"} title="${pr ? "" : "No pull request to send to"}">${ui.sending ? "Sending…" : `Send ${plural(toSend, "comment")}`}</button>
       <button class="btn ghost" data-power title="${R.running ? "Stop the session" : "Start the session"}">⏻</button>
     </div></div>
-    <div class="tabs">${tabs.map(([id, name, n]) => `<a class="tab${id === ui.tab ? " on" : ""}" data-tab="${id}">${id === "overview" && waiting() ? '<span class="qdot" title="The AI agent waits for your answer"></span>' : ""}${name}${n !== "" ? `<span class="n">${n}</span>` : ""}</a>`).join("")}</div>`;
+    <div class="tabs">${tabs.map(([id, name, n]) => `<a class="tab${id === ui.tab ? " on" : ""}" data-tab="${id}">${id === "story" && waiting() ? '<span class="qdot" title="The AI agent waits for your answer"></span>' : ""}${name}${n !== "" ? `<span class="n">${n}</span>` : ""}</a>`).join("")}</div>`;
 }
 
 // ================================================================ overview
 // the developer's notes of context; a review that kept one text as its context shows it as one note
 const contextNotes = s => Array.isArray(s.context) ? s.context : s.context ? [{ id: "x1", text: s.context, at: null }] : [];
-function viewOverview() {
-  const s = S(), open = live(s.findings);
-  const bySev = Object.fromEntries(SEVS.map(k => [k, open.filter(f => f.severity === k).length]));
-  const cats = {};
-  open.forEach(f => { cats[f.category] ||= { "must-fix": 0, "should-fix": 0, "nit": 0, n: 0 }; cats[f.category][f.severity]++; cats[f.category].n++; });
-  const most = Math.max(1, ...Object.values(cats).map(c => c.n));
-  const toSend = s.findings.filter(f => f.status === "to-send").length + myComments("to-send").length;
-  const sent = s.findings.filter(f => f.status === "sent").length + myComments("sent").length;
-  const ucs = useCases(), done = ucs.filter(u => u.status === "reviewed").length, cp = s.checkpoint;
-  const scope = `<div class="md">${md("scope") || '<span class="muted">AI Agent has not read the PR yet.</span>'}</div>` +
-    (md("requirements") ? `<h3 style="margin-top:14px"><span>What the ticket asks for</span></h3><div class="md">${md("requirements")}</div>` : "") +
-    `<h3 style="margin-top:14px"><span>Context for the AI Agent</span></h3>
-      ${contextNotes(s).map(n => `<div class="ctx-note"><div class="ctx-text">${esc(n.text)}</div>
-        <span class="muted ctx-at">${when(n.at)}</span><button class="btn ghost ctx-x" data-context-remove="${esc(n.id)}" title="Take this note back; AI Agent is told">×</button></div>`).join("")}
-      <textarea class="field" id="context" placeholder="What the pull request does not say: why it is built this way, what is out of date, what to look at closely…"></textarea>
-      <div style="display:flex;gap:10px;align-items:center;margin-top:8px"><button class="btn" data-context-save>Send to AI Agent</button>
-        <span class="muted" style="font-size:.8125rem">⌘ Enter · AI Agent takes it into account from its next step on.</span></div>`;
-  let html = `<div class="grid">`;
-  html += waiting() ? `<section class="card now s8"><h3><span>AI Agent asks you · ${esc(cp.step || "")}</span></h3>
-      <div class="q">${esc(cp.question)}</div>
-      <input class="field" id="cp-note" placeholder="A note with your answer (optional)" style="margin-bottom:10px">
-      <div style="display:flex;gap:8px;flex-wrap:wrap">${(cp.options || []).map((o, i) =>
-        `<button class="btn${i === 0 ? " go" : ""}" data-answer="${esc(o)}">${esc(o)}</button>`).join("")}</div></section>`
-    : `<section class="card s8"><h3><span>What the PR is for</span></h3>${scope}</section>`;
-  html += `<section class="card s4"><h3><span>Comments for the author</span><a data-tab="findings" data-fstatus="to-send">Review them →</a></h3>
-      <div class="kpis" style="grid-template-columns:1fr 1fr"><div><div class="kpi">${toSend}</div><div class="l">ready to send</div></div>
-        <div><div class="kpi nit">${sent}</div><div class="l">sent</div></div></div>
-      <div class="muted" style="font-size:.8125rem;margin-top:14px">${plural(open.filter(f => f.status === "proposed").length, "finding")} not marked to send yet.
-        ${pull(s.source) ? `<a data-tab="comments" style="color:var(--neon)">The conversation on GitHub →</a>` : ""}</div></section>`;
-  html += `<section class="card s4"><h3><span>Findings by severity</span><a data-tab="findings" data-fsev="">${open.length} →</a></h3>
-      <div class="kpis">${SEVS.map(k => `<a data-tab="findings" data-fsev="${k}"><div class="kpi ${k.split("-")[0]}">${bySev[k]}</div><div class="l">${SEV[k].toLowerCase()}</div></a>`).join("")}</div>
-      <div class="track" style="height:10px;margin-top:22px">${SEVS.map(k => `<i class="${k.split("-")[0]}" style="width:${open.length ? 100 * bySev[k] / open.length : 0}%"></i>`).join("")}</div></section>`;
-  html += `<section class="card s4"><h3><span>Findings by category</span></h3><div class="bars">${Object.entries(cats).sort((a, b) => b[1].n - a[1].n).slice(0, 6).map(([c, v]) =>
-      `<div class="bar" data-tab="findings" data-fcat="${esc(c)}"><span>${esc(c)}</span><span class="track">${SEVS.map(k => `<i class="${k.split("-")[0]}" style="width:${100 * v[k] / most}%"></i>`).join("")}</span><span class="n">${v.n}</span></div>`).join("") || `<span class="muted">${reviewStep() < 5 ? `Findings come at step 6, ${STEPS[5][1].toLowerCase()}.` : "No findings yet."}</span>`}</div></section>`;
-  html += `<section class="card s4"><h3><span>Review progress</span><span>${done} of ${ucs.length} use cases</span></h3>
-      <div class="progress" style="margin-bottom:10px"><i style="width:${ucs.length ? 100 * done / ucs.length : 0}%"></i></div>
-      ${ucs.map(u => `<div class="row" data-tab="structure" data-uc="${esc(u.id)}" style="cursor:pointer"><span class="${u.status === "pending" ? "wip" : "ok"}">${u.status === "reviewed" ? "✓" : u.status === "reviewing" ? "●" : "○"}</span>
-        <span>${esc(u.name)}</span>${dotsOf(open.filter(f => (f.locations || []).some(l => (u.files || []).includes(l.path))))}</div>`).join("") || '<span class="muted">AI Agent has not mapped the use cases yet.</span>'}</section>`;
-  const must = open.filter(f => f.severity === "must-fix");
-  if (must.length) html += `<section class="card s12"><h3><span>Must fix</span><a data-tab="findings" data-fsev="">All findings →</a></h3>${findingTable(must)}</section>`;
-  if (waiting()) html += `<section class="card s12"><h3><span>What the PR is for</span></h3>${scope}</section>`;
-  return html + `</div>`;
+// The PR as a teammate tells it: what it does, then its chapters. The opening is about the whole PR; a chapter shown is
+// the panel's context. Until the agent writes the story, the opening is the PR's scope.
+function viewStory() {
+  const s = S(), st = s.story, open = live(s.findings), files = R.files || [], c = ctx();
+  const n = k => open.filter(f => f.severity === k).length, on = id => (id ? c.kind === "chapter" && c.id === id : c.kind === "review");
+  const tickets = (s.tickets || []).map(k => `<span class="tag">${esc(k)}</span>`).join(" ");
+  const opening = `<section class="chapter${on(null) ? " cur" : ""}" id="ch-pr" data-chapter="">
+      <h2>What this PR does</h2>
+      ${st ? `<div class="lead md">${md("story:does")}</div>` : `<div class="md">${md("scope") || '<span class="muted">AI Agent has not read the PR yet.</span>'}</div>`}
+      ${tickets || (st && st["left-out"]) ? `<dl class="ba">${tickets ? `<dt>Ticket</dt><dd>${tickets}</dd>` : ""}
+        ${st && st["left-out"] ? `<dt>Left out</dt><dd class="muted md">${md("story:left-out")}</dd>` : ""}</dl>` : ""}
+      <div class="mini"><span><b style="color:var(--must)">${n("must-fix")}</b>must fix</span><span><b style="color:var(--should)">${n("should-fix")}</b>should fix</span>
+        <span><b>${n("nit")}</b>nit</span><span><b>${files.filter(f => f.viewed).length}/${files.length}</b>files viewed</span>
+        <a class="muted" data-tab="findings" data-fsev="">all findings →</a></div></section>`;
+  const chapters = (st && st.chapters) || [];
+  const told = chapters.map((ch, i) => `<section class="chapter${on(ch.id) ? " cur" : ""}" id="ch-${esc(ch.id)}" data-chapter="${esc(ch.id)}">
+      <h2><span class="num">${i + 1}</span>${esc(ch.title)}</h2><div class="md">${md("story:" + ch.id)}</div>
+      ${ch.diagram ? diagramHtml(ch.diagram) : ""}
+      ${(ch.files || []).length ? `<div class="fchips">${ch.files.map(p => `<button class="fchip" data-open-file="${esc(p)}" title="${esc(p)}">${esc(p.split("/").pop())}</button>`).join("")}</div>` : ""}</section>`).join("");
+  const toc = `<nav class="toc" aria-label="Chapters"><a data-chapter="" class="${on(null) ? "on" : ""}">What this PR does</a>${chapters.map((ch, i) =>
+    `<a data-chapter="${esc(ch.id)}" class="${on(ch.id) ? "on" : ""}">${i + 1}. ${esc(ch.title)}</a>`).join("")}</nav>`;
+  const pending = st ? "" : pendingCard(stepAt("tell-the-story"), "The story comes next");
+  return `<div class="storybox">${toc}<div>${opening}${told || pending}</div></div>`;
+}
+// A chapter's diagram: the flow through its boxes, in order, and how it ends.
+function diagramHtml(d) {
+  return `<div class="diagram">${d.boxes.map((b, i) => `${i ? '<span class="darr">→</span>' : ""}<span class="dbox">${esc(b)}</span>`).join("")}` +
+    `${d.ends ? `<span class="dends">${esc(d.ends)}</span>` : ""}</div>`;
 }
 
 // ================================================================ findings
@@ -843,7 +806,7 @@ function findingTable(list, sortable) {
     }).join("")}</tbody></table>`;
 }
 function viewFindings() {
-  if (!S().findings.length && reviewStep() < 5) return pendingCard(5, "No findings yet");
+  if (!S().findings.length && reviewStep() < stepAt("review-use-cases")) return pendingCard(stepAt("review-use-cases"), "No findings yet");
   const all = S().findings.filter(f => f.status !== "merged"), base = all.filter(STATUS[ui.fstatus] || STATUS.open);
   const openQ = f => threadsOf("finding", f.id).some(t => t.status === "open"), text = ui.search.toLowerCase();
   const list = base.filter(f => (!ui.fsev || f.severity === ui.fsev) && (!ui.fby || (f.by || "agent") === ui.fby) && (!ui.fcat || f.category === ui.fcat) &&
@@ -953,7 +916,7 @@ function panelFinding(id) {
 const PR = { kind: "review" };
 // the key that sends a text box: ⌘ on a Mac, Ctrl elsewhere; both work everywhere
 const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl";
-const REVIEW_TABS = ["overview", "structure", "code", "findings", "comments", "rules"];
+const REVIEW_TABS = ["story", "code", "findings", "comments", "rules"];
 // Whether a thread about `about` belongs to the context `ctx`: the same thing, and for a file the same lines, or none.
 function aboutContext(about, ctx) {
   if (about.kind !== ctx.kind) return false;
@@ -993,10 +956,12 @@ function ctxLabel(c) {
   if (c.kind === "finding") { const f = S().findings.find(x => x.id === c.id); return ["Finding", `${c.id} · ${f ? f.title : ""}`, false]; }
   if (c.kind === "github") { const m = conversation().find(x => x.id === c.id) || {}; return ["GitHub", `${m.author || "comment"}: ${(m.body || "").slice(0, 80)}`, false]; }
   if (c.kind === "directive") return ["Rule", c.id, true];
+  if (c.kind === "chapter") { const ch = chapterOf(c.id); return ["Chapter", ch ? ch.title : c.id, false]; }
   const uc = c.kind === "use-case" && useCases().find(u => u.id === c.id);
   return ["Use case", uc ? uc.name : c.id, false];
 }
-const NOUN = { review: "the PR", folder: "this folder", file: "this file", finding: "this finding", github: "this comment", directive: "this rule", "use-case": "this use case" };
+const chapterOf = id => ((S().story || {}).chapters || []).find(ch => ch.id === id);
+const NOUN = { chapter: "this chapter", review: "the PR", folder: "this folder", file: "this file", finding: "this finding", github: "this comment", directive: "this rule", "use-case": "this use case" };
 const nounOf = c => c.kind === "file" && c.lines ? "these lines" : NOUN[c.kind] || "this";
 const SUGGESTIONS = {
   review: ["What does this PR change, in short?", "What should I read first?", "What is risky here?"],
@@ -1006,6 +971,7 @@ const SUGGESTIONS = {
   finding: ["Is this a real problem?", "How would you fix it?"],
   github: ["What does the author mean?", "How could I answer?"],
   directive: ["What does this rule ask for?", "Where does this PR break it?"],
+  chapter: ["Show me where this happens", "What is risky here?"],
   "use-case": ["How does this use case run?", "What is not tested here?"] };
 // Open threads in full; resolved ones folded under one line, so the conversation that matters stays in view. A question
 // waiting for an answer says plainly whether the session that answers it is running.
@@ -1030,6 +996,7 @@ function placeOf(about) {
   if (about.kind === "review") return "the whole review";
   if (about.kind === "github") return "a comment on GitHub";
   if (about.kind === "directive") return `the rule ${about.id}`;
+  if (about.kind === "chapter") return `the chapter ${(chapterOf(about.id) || about).title || about.id}`;
   const uc = about.kind === "use-case" && useCases().find(u => u.id === about.id);
   return uc ? uc.name : `${about.kind} ${about.id}`;
 }
@@ -1048,13 +1015,17 @@ function askTab(c) {
   const gh = c.kind === "github" ? ghContext(c.id) : "";
   const elsewhere = (S().threads || []).filter(t => t.status === "open" && !aboutContext(t.about, c));
   const quote = c.kind === "file" && c.lines && ui.selection && ui.selection.path === c.path ? ui.selection.quote : null;
-  const empty = threads.length || cp || gh ? "" : `<div class="muted" style="padding-top:12px;font-size:.8125rem">No conversation about ${nounOf(c)} yet. It stays with the review and never goes to GitHub.</div>`;
-  return `<div class="ask-out">${gh}${cp ? agentAsks(cp) : ""}${threadsBlock(threads)}${empty}</div>
+  const empty = threads.length || cp || gh || (c.kind === "review" && contextNotes(S()).length) ? "" : `<div class="muted" style="padding-top:12px;font-size:.8125rem">No conversation about ${nounOf(c)} yet. It stays with the review and never goes to GitHub.</div>`;
+  const notes = c.kind === "review" ? contextNotes(S()) : [];
+  const context = notes.length ? `<div class="ctx-notes"><div class="who">Context you gave the AI Agent</div>${notes.map(n => `<div class="ctx-note"><div class="ctx-text">${esc(n.text)}</div>
+        <span class="muted ctx-at">${when(n.at)}</span><button class="btn ghost ctx-x" data-context-remove="${esc(n.id)}" title="Take this note back; AI Agent is told">×</button></div>`).join("")}</div>` : "";
+  return `<div class="ask-out">${gh}${context}${cp ? agentAsks(cp) : ""}${threadsBlock(threads)}${empty}</div>
     ${elsewhere.length ? `<details class="elsewhere"><summary>${plural(elsewhere.length, "open conversation")} about other places</summary>${elsewhere.map(t =>
       `<a data-thread="${esc(t.id)}" title="${esc(placeOf(t.about))}">${esc(placeOf(t.about))} · ${noteTitle(t.messages[0].text)}</a>`).join("")}</details>` : ""}
     <div class="ask-in">${quote ? `<div class="quote">${esc(quote)}</div>` : ""}<textarea id="ask-in" placeholder="Ask AI Agent about ${nounOf(c)}…${cp ? " Or write a note for your answer above." : ""}"></textarea></div>
     <div class="ask-foot">${(SUGGESTIONS[c.kind === "file" && c.lines ? "lines" : c.kind] || []).map(q => `<button class="sugg" data-sugg="${esc(q)}">${esc(q)}</button>`).join("")}
-      <span class="grow"></span><button class="btn go sm" data-ask title="${MOD} Enter">Ask <kbd>${MOD} Enter</kbd></button></div>`;
+      <span class="grow"></span>${c.kind === "review" ? `<button class="btn ghost sm" data-context-add title="What the PR does not say: the AI Agent takes it into account from its next step on">Add as context</button>` : ""}
+      <button class="btn go sm" data-ask title="${MOD} Enter">Ask <kbd>${MOD} Enter</kbd></button></div>`;
 }
 async function askNow() {
   const box = document.getElementById("ask-in"), text = box && box.value.trim(); if (!text) return;
@@ -1394,25 +1365,6 @@ function folderLabels(folders) {
   });
   return labels;
 }
-// Files under their folders, by the whole folder, each named short: the common root once, then folderLabels.
-function fileList(paths, selected, opts = {}) {
-  const root = commonRoot();
-  const dirOf = p => (p.startsWith(root) ? p.slice(root.length) : p).split("/").slice(0, -1).join("/");
-  const groups = new Map();
-  paths.forEach(p => { const d = dirOf(p); groups.has(d) || groups.set(d, []); groups.get(d).push(p); });
-  const labels = folderLabels([...groups.keys()].filter(Boolean).map(d => d + "/"));
-  const folder = d => d ? labels[d + "/"] : root ? "./" : "project root";
-  return (root ? `<div class="dim" style="font-size:.7188rem;margin:0 0 2px 6px" title="${esc(root)}">in …/${esc(root.split("/").filter(Boolean).pop() || "")}/</div>` : "") +
-    [...groups].map(([d, ps]) => `<div class="pdir" title="${esc(root + d + "/")}">${esc(folder(d))}</div>` + ps.map(p => {
-      const f = fileInfo(p), shared = f["use-cases"].length > 1;
-      return `<div class="pf${p === selected ? " on" : ""}${f.change === "deleted" ? " del" : ""}" data-pick-file="${esc(p)}" title="${esc(p)}">` +
-        `<span class="vbox${f.viewed ? " on" : ""}" data-view="${esc(p)}">${f.viewed ? "✓" : ""}</span><span class="kd ${f.change}">${KIND[f.change] || "~"}</span>` +
-        `<span class="pfmain"><span class="nm">${esc(p.split("/").pop())}</span>${findingsAt(p).some(x => x.status !== "sent") ? dotsOf(findingsAt(p).filter(x => x.status !== "sent")) : ""}</span>` +
-        `${shared ? '<span class="dim" title="in more than one use case">⇄</span>' : ""}</div>`;
-    }).join("")).join("") +
-    `<div class="klegend"><span class="kd added">+</span> added <span class="kd modified">~</span> modified <span class="kd deleted">−</span> deleted${opts.shared ? ' <span class="dim">⇄</span> in more than one use case' : ""}</div>`;
-}
-
 // ================================================================ the file tree
 // The tree's rows, as IntelliJ's project tree shows them: folders before files, each sorted by name; a folder holding
 // one folder and no files shares its row with it (packages joined by ".", other folders by "/"), but never across a
@@ -1622,95 +1574,6 @@ function viewCode() {
     <div class="codediff">${ui.file ? diffView(ui.file, at < 0 ? "" : `file ${at + 1} of ${order.length} &nbsp;<a data-step-file="-1">← prev</a> · <a data-step-file="1" style="color:var(--neon)">next →</a>`) : '<div class="muted">No changed files.</div>'}</div></div>`;
 }
 
-// ================================================================ structure
-function cards() {
-  const list = useCases().map(u => ({ ...u, files: u.files || [] }));
-  if ((R.untied || []).length) list.push({ id: "untied", untied: true, name: "Not tied to a use case", entry: "not reached from any entry point",
-    says: "Changes no use case of the PR reaches — worth asking the author why they are here.", files: R.untied });
-  return list;
-}
-function viewStructure() {
-  if (!useCases().length) return pendingCard(2, "No use cases yet");
-  const list = cards(), files = R.files || [], viewed = files.filter(f => f.viewed).length, untied = (R.untied || []).length;
-  return `<div class="filters"><span class="muted" style="font-size:.8125rem">${plural(useCases().length, "use case")} · you viewed <b>${viewed} of ${files.length}</b> files</span>
-      <span class="progress" style="width:120px"><i style="width:${files.length ? 100 * viewed / files.length : 0}%"></i></span>
-      <span class="cover"><span class="ok">✓</span> ${untied ? `${files.length - untied} of ${files.length} changed files are in a use case, the rest under “Not tied to a use case”` : `All ${files.length} changed files are in a use case`}</span></div>
-    <div class="ucs" id="ucs">${list.map(u => {
-      const fs = u.files.map(fileInfo), seen = fs.filter(f => f.viewed).length;
-      return `<div class="uc${u.untied ? " untied" : ""}${ui.uc === u.id ? " picked" : ""}" data-uccard="${esc(u.id)}">
-        <div class="gac" title="${esc(u.entry || "")}">${esc(shortPath(u.entry || ""))}</div><div class="name">${esc(u.name)}</div>
-        <div class="meta"><span>${plural(fs.length, "file")} · ${seen} viewed</span>${dotsOf(live(S().findings).filter(f => (f.locations || []).some(l => u.files.includes(l.path))))}</div>
-        <div class="progress"><i style="width:${fs.length ? 100 * seen / fs.length : 0}%"></i></div></div>`;
-    }).join("")}<div class="tip" id="tip"></div></div>`;
-}
-// The cards stand in a row (wrapping) without the panel, and in one column beside it; they glide between the two.
-function layoutCards(animate) {
-  const box = document.getElementById("ucs"); if (!box) return;
-  const list = [...box.querySelectorAll(".uc")], W = box.clientWidth, w = 260, gap = 24, cols = Math.max(1, Math.floor((W + gap) / (w + gap)));
-  const width = ui.uc ? 300 : w;
-  // a card is as tall as its text at the width it is going to; a hidden copy measures it without stopping the glide
-  const height = e => {
-    const copy = e.cloneNode(true);
-    copy.style.cssText = `visibility:hidden;transition:none;left:0;top:0;width:${width}px`;
-    box.appendChild(copy); const h = copy.offsetHeight; copy.remove(); return h;
-  };
-  // in rows every card is as tall as the tallest of its row; beside the panel each keeps the height of its text
-  const heights = list.map(height), tops = [], rowHeight = [];
-  let bottom = 0;
-  if (ui.uc) heights.forEach(h => { tops.push(bottom); bottom += h + 14; });
-  else for (let row = 0; row * cols < list.length; row++) {
-    const inRow = heights.slice(row * cols, (row + 1) * cols), tallest = Math.max(...inRow);
-    inRow.forEach(() => { tops.push(bottom); rowHeight.push(tallest); });
-    bottom += tallest + 20;
-  }
-  if (!animate) list.forEach(e => e.style.transition = "none");
-  list.forEach((e, i) => {
-    e.style.left = (ui.uc ? 0 : (i % cols) * (w + gap)) + "px"; e.style.top = tops[i] + "px"; e.style.width = width + "px";
-    e.style.height = ui.uc ? "" : rowHeight[i] + "px";
-  });
-  box.style.height = Math.max(0, bottom - (ui.uc ? 14 : 20)) + "px";
-  if (!animate) { void box.offsetHeight; list.forEach(e => e.style.transition = ""); }
-}
-function ucPanel() {
-  const el = document.getElementById("ucpanel"), u = ui.tab === "structure" && R && ui.uc && cards().find(x => x.id === ui.uc);
-  if (!u) { el.classList.remove("shown"); return; }
-  const tabs = document.querySelector(".tabs"), box = document.getElementById("ucs");
-  el.style.top = (tabs ? tabs.getBoundingClientRect().bottom : 160) + "px";
-  el.style.left = (box ? box.getBoundingClientRect().left + 300 + 24 : 420) + "px";
-  if (!u.files.includes(ui.ucFile)) ui.ucFile = u.files.find(p => !fileInfo(p).viewed) || u.files[0];
-  const at = u.files.indexOf(ui.ucFile), seen = u.files.filter(p => fileInfo(p).viewed).length, flow = u.flow || { steps: [], branches: [] };
-  const how = u.untied ? `<div class="muted" style="font-size:.8125rem;margin-top:8px">No entry point reaches these files — nothing in the PR's use cases calls them.</div>`
-    : `<div class="hflow">${(flow.steps || []).map((st, i) => {
-        const changed = path => (R.files || []).some(f => f.path === path), inPr = changed(st.path);
-        // a unit the PR leaves alone opens where the PR calls it; one the PR changes opens itself
-        const to = inPr ? { path: st.path, line: st.line } : st.from && changed(st.from.path) ? st.from : null;
-        const at = x => `${esc(x.path.split("/").pop())}${x.line ? ":" + x.line : ""}`;
-        return `${i ? `<span class="harr${st.crosses ? " bad" : ""}">→</span>` : ""}<span class="hstep${st.crosses ? " cross" : ""}${inPr ? "" : " still"}${to ? " go" : ""}"` +
-          `${to ? ` data-pick-file="${esc(to.path)}" data-pick-line="${to.line || ""}"` : ""} title="${st.from ? `Called from ${at(st.from)}\n` : ""}Defined in ${at(st)}${inPr ? "" : " · not changed by this PR"}${st.crosses ? "\nCrosses " + esc(st.crosses) : ""}">` +
-          `<span class="kd ${st.change}">${KIND[st.change] || "·"}</span><span class="mono">${esc(st.call)}</span>` +
-          `${st.crosses ? `<span class="xtag" title="${esc(st.crosses)}">crosses ${esc(st.crosses.split(/[\s—,(]/)[0])}</span>` : ""}</span>`;
-      }).join("") || '<span class="muted">AI Agent did not record how it runs.</span>'}</div>
-      <div class="hbr">${(flow.branches || []).map(b => `<div><span class="${b.tested ? "ok" : "no"}">${b.tested ? "✓" : "✕"}</span> ${inline(b.what)} <span class="dim">· ${b.tested ? "tested" : "not tested"}</span></div>`).join("")}</div>`;
-  const notes = u.untied ? [] : threadsOf("use-case", u.id);
-  // what was said about lines of this use case's files lives with those lines; here it is listed so it is not missed
-  const lineNotes = u.files.flatMap(path => threadsOf("file", path));
-  const onLines = lineNotes.length ? `<div class="fnotes"><div class="muted" style="font-size:.75rem;margin-bottom:6px">Notes and questions on lines of its files · ${lineNotes.length} · click one to read it beside its lines</div>` +
-    lineNotes.map(t => `<div class="ann" data-thread="${esc(t.id)}" data-thread-file="${esc(t.about.path)}"><span class="tag">${t.messages[0].by === "agent" ? "✦" : "💬"} ${t.messages.length}</span>` +
-      `<span>${noteTitle(t.messages[0].text)}</span>` +
-      `<span class="where mono">${esc(t.about.path.split("/").pop())}${t.about.lines ? ":" + t.about.lines.join("–") : ""}${t.status === "resolved" ? " · resolved" : ""}</span></div>`).join("") + `</div>` : "";
-  el.innerHTML = `<div class="crumb"><span title="${esc(u.entry || "")}">${esc(shortPath(u.entry || ""))}</span><a data-close-uc>✕</a></div>
-    <h2>${esc(u.name)}</h2><div class="muted" style="font-size:.8438rem">${inline(u.says)}</div>
-    ${u.before || u.after ? `<div class="change"><div><div class="l">Before</div>${inline(u.before || "—")}</div>
-      <div><div class="l">After</div>${inline(u.after || "—")}</div></div>` : ""}
-    <details class="how" open><summary>How it runs</summary>${how}</details>
-    ${onLines}
-    ${notes.length ? threadsBlock(notes, { kind: "use-case", id: u.id }, "Ask about this use case…") : ""}
-    <div style="display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;margin-top:14px;align-items:start">
-      <div><div class="muted" style="font-size:.75rem;margin-bottom:6px">${seen} of ${u.files.length} viewed</div>${fileList(u.files, ui.ucFile, { shared: true })}
-        ${u.untied || notes.length ? "" : `<button class="btn ghost sm" style="margin-top:12px" data-ask-uc="${esc(u.id)}">Ask about this use case</button>`}</div>
-      <div>${ui.ucFile ? diffView(ui.ucFile, `file ${at + 1} of ${u.files.length} &nbsp;<a data-step-uc="-1">← prev</a> · <a data-step-uc="1" style="color:var(--neon)">next →</a> · <a data-open-file="${esc(ui.ucFile)}">Full screen ⤢</a>`) : ""}</div></div>`;
-  el.classList.add("shown");
-}
 // A note opens with a bold heading; that heading, or else its first sentence, names it in a list.
 function noteTitle(text) {
   const head = text.match(/^\s*\*\*(.+?)\*\*/);
@@ -1724,30 +1587,6 @@ function showLine(path, n, tries = 20) {
   line.scrollIntoView({ block: "center", behavior: "smooth" });
   line.classList.add("lit"); setTimeout(() => line.classList.remove("lit"), 1600);
 }
-// A click opens the use case beside the cards; another card reloads the panel in place; the same card closes it.
-function openUseCase(id) {
-  const first = !ui.uc;
-  ui.uc = ui.uc === id ? null : id; ui.ucFile = null;
-  document.querySelectorAll(".uc").forEach(x => x.classList.toggle("picked", x.dataset.uccard === ui.uc));
-  const tip = document.getElementById("tip"); if (tip) tip.style.display = "none";
-  layoutCards(true);
-  const el = document.getElementById("ucpanel");
-  if (!ui.uc) { el.classList.remove("shown"); return; }
-  if (first) return ucPanel();
-  el.classList.add("swap"); setTimeout(() => { ucPanel(); el.classList.remove("swap"); }, 140);
-}
-function showTip(card) {
-  const u = cards().find(x => x.id === card.dataset.uccard), tip = document.getElementById("tip"); if (!u || !tip || ui.uc === u.id) return;
-  const shares = cards().filter(x => x !== u).map(x => [x, u.files.filter(p => x.files.includes(p)).map(p => p.split("/").pop())]).filter(([, fs]) => fs.length);
-  document.querySelectorAll(".uc").forEach(x => x.classList.toggle("related", shares.some(([y]) => y.id === x.dataset.uccard)));
-  tip.innerHTML = `<div class="say">${inline(u.says)}</div>${u.after ? `<div class="muted" style="margin:-4px 0 8px">After: ${inline(u.after)}</div>` : ""}${fileList(u.files, null)}${shares.length ? `<div class="shares">⇄ shares files with ${shares.map(([x, fs]) =>
-    `<b>${esc(x.name)}</b> <span class="mono" style="font-size:.6875rem">(${esc(fs.join(", "))})</span>`).join(", ")}</div>` : ""}`;
-  // beside the panel the cards stand in a column, so the preview opens to the right and never covers the cards below
-  if (ui.uc) { tip.style.left = card.offsetLeft + card.offsetWidth + 12 + "px"; tip.style.top = card.offsetTop + "px"; }
-  else { tip.style.left = card.offsetLeft + "px"; tip.style.top = card.offsetTop + card.offsetHeight + 10 + "px"; }
-  tip.style.display = "block";
-}
-
 // ================================================================ rules
 // Every directive the review could check, as the server lists it, with what it found in each use case; the review's
 // agent checks every directive switched on here, never a choice of its own.
@@ -1851,7 +1690,7 @@ function viewNew() {
     </div></div>
     <div class="wstep"><div class="wn">3</div><div class="grow"><div class="wl">What AI Agent should know <span class="muted" style="font-weight:400">· optional</span></div>
       <textarea class="field" id="nr-context" placeholder="What the pull request does not say: why it is built this way, what is out of date, what to look at closely…" style="margin-top:10px">${esc(n.context)}</textarea>
-      <div class="muted wnote">You can change it later on the Overview tab.</div>
+      <div class="muted wnote">You can add to it later in the AI Agent panel, on the whole PR.</div>
     </div></div>
     <button class="btn go" data-start disabled>Start the review</button>${existingReview()}</div>`;
 }
@@ -1960,20 +1799,19 @@ function render() {
   deferred = false;
   const typed = {}, focused = document.activeElement && document.activeElement.id;
   document.querySelectorAll("input[id], textarea[id]").forEach(el => typed[el.id] = [el.value, el.selectionStart, el.selectionEnd]);
-  const main = document.getElementById("main"), panel = document.getElementById("panel"), side = document.getElementById("ucpanel");
-  const y = main.scrollTop, py = panel.scrollTop, sy = side.scrollTop, diffY = document.querySelector(".codediff .diffbody")?.scrollTop;
+  const main = document.getElementById("main"), panel = document.getElementById("panel");
+  const y = main.scrollTop, py = panel.scrollTop, diffY = document.querySelector(".codediff .diffbody")?.scrollTop;
   // the conversation in the panel keeps its place, or stays at its end to show what comes next
   const out = document.querySelector(".ask-out"), outY = out && (out.scrollHeight - out.scrollTop - out.clientHeight < 8 ? Infinity : out.scrollTop);
   const treeY = document.getElementById("tree")?.scrollTop, inTree = focused === "tree", inDiff = document.activeElement?.dataset?.diff;
   renderRail();
-  if (ui.tab !== "structure") ui.uc = null;
   if (ui.tab === "new" || (!current.id && !R && !["archived", "tools"].includes(ui.tab))) main.innerHTML = viewNew();
   else if (ui.tab === "archived") main.innerHTML = viewArchived();
   else if (ui.tab === "tools") main.innerHTML = viewTools();
   else if (!R) main.innerHTML = `<h1>${esc(current.id)}</h1>${opening && opening.running ? (opening.permissions || []).map(permitCard).join("") : ""}<div class="card pending" style="margin-top:20px"><h3><span>Step 1 of ${STEPS.length} · Open the review</span></h3>
     <div>The AI agent reads the pull request, gives the review its own copy of the code, and stores the diff. The page fills in as soon as it has.</div>
     <div class="indeterminate"></div></div>`;
-  else main.innerHTML = `<div class="view">${({ overview: viewOverview, findings: viewFindings, code: viewCode, structure: viewStructure, comments: viewComments, rules: viewRules }[ui.tab] || viewOverview)()}</div>`;
+  else main.innerHTML = `<div class="view">${({ story: viewStory, findings: viewFindings, code: viewCode, comments: viewComments, rules: viewRules }[ui.tab] || viewStory)()}</div>`;
   // the header runs over the content and the panel
   document.getElementById("head").innerHTML = R && current.id && REVIEW_TABS.includes(ui.tab) ? renderHead() + progressLine() : "";
   main.classList.toggle("frames", !!(R && ui.tab === "code" && !R["missing-diff"] && REVIEW_TABS.includes(ui.tab)));
@@ -1989,8 +1827,8 @@ function render() {
   if (inTree && tree) tree.focus({ preventScroll: true });
   else if (inDiff) document.querySelector(`.diffbody[data-diff="${CSS.escape(inDiff)}"]`)?.focus({ preventScroll: true });
   document.title = (R && (waiting() || asking()) ? "● " : "") + "craftsman review";
-  renderPanel(); layoutCards(false); ucPanel();
-  panel.scrollTop = py; side.scrollTop = sy;
+  renderPanel();
+  panel.scrollTop = py;
   const newOut = document.querySelector(".ask-out");
   if (newOut) newOut.scrollTop = outY === undefined || outY === Infinity ? newOut.scrollHeight : outY;
   Object.entries(typed).forEach(([id, [value, start, end]]) => {
@@ -2014,13 +1852,13 @@ function hidePop() {
 }
 const stepIn = (list, at, by) => list[Math.min(list.length - 1, Math.max(0, list.indexOf(at) + by))];
 
-const CLICKABLE = ["tab", "sort", "restart", "inline", "gutter", "goto", "finding", "thread", "close-panel", "edit", "save", "status", "set-sev", "resolve", "view", "pick-file",
-  "open-file", "step-file", "step-uc", "code-filter", "fsev", "fby", "fquestions", "fstatus", "answer", "live", "refresh", "send", "power",
-  "close-review", "uccard", "close-uc", "ask-uc", "open-review", "archive", "new", "archived", "unarchive", "start", "pop", "nr-kind", "nr-how", "nr-browse",
+const CLICKABLE = ["tab", "sort", "restart", "inline", "gutter", "goto", "finding", "thread", "close-panel", "edit", "save", "status", "set-sev", "resolve", "view",
+  "open-file", "step-file", "code-filter", "fsev", "fby", "fquestions", "fstatus", "answer", "live", "refresh", "send", "power",
+  "close-review", "open-review", "archive", "new", "archived", "unarchive", "start", "pop", "nr-kind", "nr-how", "nr-browse",
   "comment-file", "draft-whole", "draft-sev", "draft-make", "draft-discard", "md-tool", "assistant-switch", "answer-here", "agent-tools", "allow-tool", "tool-toggle", "nr-existing", "permit",
   "gh-read", "gh-quote", "gh-reply-open", "gh-reply", "gh-thread", "comment-add", "cedit", "csave", "cdrop",
-  "directive-switch", "directive-check", "directive-default", "rfilter", "context-save", "context-remove", "fix-prompts", "in-prompt",
-  "ai-edit", "ai-save", "ai-cancel", "ai-again", "style-reset", "row", "chev", "tree-all", "unchanged", "ctx", "ptab", "pin", "sugg", "ask"].map(name => `[data-${name}]`).join(",");
+  "directive-switch", "directive-check", "directive-default", "rfilter", "context-add", "context-remove", "fix-prompts", "in-prompt",
+  "ai-edit", "ai-save", "ai-cancel", "ai-again", "style-reset", "row", "chev", "tree-all", "unchanged", "ctx", "ptab", "pin", "sugg", "ask", "chapter"].map(name => `[data-${name}]`).join(",");
 document.addEventListener("click", async e => {
   if (!e.target.closest("#pop")) hidePop();
   const t = e.target.closest(CLICKABLE); if (!t) return;
@@ -2038,7 +1876,6 @@ document.addEventListener("click", async e => {
     if (d.fsev !== undefined) Object.assign(extra, { fsev: d.fsev || null, fby: null, fcat: "", fquestions: false, fstatus: "open" });
     if (d.fcat !== undefined) Object.assign(extra, { fcat: d.fcat, fsev: null, fstatus: "open" });
     if (d.fstatus) Object.assign(extra, { fstatus: d.fstatus, fsev: null });
-    if (d.uc) Object.assign(extra, { uc: d.uc, ucFile: null });
     // the Code tab opens with the focus on the tree, where its keys work
     return Promise.resolve(go({ ui: extra })).then(() => d.tab === "code" && focusTree());
   }
@@ -2049,14 +1886,12 @@ document.addEventListener("click", async e => {
   if (d.finding) { setCtx({ kind: "finding", id: d.finding }, "finding"); ui.editing = null; return render(); }
   if (d.sort) { ui.sort = ui.sort.key === d.sort ? { key: d.sort, dir: -ui.sort.dir } : { key: d.sort, dir: 1 }; return render(); }
   if (d.inline !== undefined) { ui.inline = !ui.inline; localStorage.setItem("craftsman-review-inline", ui.inline ? "1" : "0"); return render(); }
-  if (d.gutter) { ui.open.has(d.gutter) ? ui.open.delete(d.gutter) : ui.open.add(d.gutter); document.getElementById("gtip").style.display = "none"; return ui.uc ? ucPanel() : render(); }
+  if (d.gutter) { ui.open.has(d.gutter) ? ui.open.delete(d.gutter) : ui.open.add(d.gutter); document.getElementById("gtip").style.display = "none"; return render(); }
   if (d.goto) {
     const [path, line] = [d.goto.slice(0, d.goto.lastIndexOf("|")), +d.goto.slice(d.goto.lastIndexOf("|") + 1)];
-    if (ui.tab === "structure" && ui.uc && cards().find(x => x.id === ui.uc)?.files.includes(path)) { ui.ucFile = path; ucPanel(); }
-    else if (!(ui.tab === "code" && ui.file === path)) go({ ui: { tab: "code", file: path, codeFilter: "all" } });
+    if (!(ui.tab === "code" && ui.file === path)) go({ ui: { tab: "code", file: path, codeFilter: "all" } });
     return showLine(path, line);
   }
-  if (d.threadFile && ui.tab === "structure" && ui.uc) { ui.ucFile = d.threadFile; ucPanel(); }
   if (d.thread) { const t = (S().threads || []).find(x => x.id === d.thread); if (t) setCtx(t.about, "ask"); return render(); }
   if (d.ghThread) { setCtx({ kind: "github", id: +d.ghThread }, "ask"); return render(); }
   if (d.ctx) { setCtx(JSON.parse(d.ctx), "ask"); return render(); }
@@ -2094,13 +1929,8 @@ document.addEventListener("click", async e => {
   if (d.status) return change("status", { finding: ctx().id, status: d.status }).then(o => o && reload());
   if (d.setSev) return change("edit", { finding: ctx().id, fields: { severity: d.setSev } }).then(o => o && reload());
   if (d.resolve) return change("resolve", { thread: d.resolve }).then(o => o && reload());
-  if (d.pickFile) {
-    if (ui.tab === "structure" && ui.uc) { ui.ucFile = d.pickFile; ucPanel(); return d.pickLine && showLine(d.pickFile, +d.pickLine); }
-    return go({ ui: { tab: "code", file: d.pickFile } });
-  }
-  if (d.openFile) { ui.uc = null; return go({ ui: { tab: "code", file: d.openFile, codeFilter: "all" } }); }
+  if (d.openFile) return Promise.resolve(go({ ui: { tab: "code", file: d.openFile, cursor: d.openFile, codeFilter: "all" } })).then(focusTree);
   if (d.stepFile) { const file = stepIn(treeFiles(), ui.file, +d.stepFile); setCtx({ kind: "file", path: file }); return go({ ui: { file, cursor: file } }); }
-  if (d.stepUc) { const u = cards().find(x => x.id === ui.uc); ui.ucFile = stepIn(u.files, ui.ucFile, +d.stepUc); return ucPanel(); }
   if (d.codeFilter) { ui.codeFilter = d.codeFilter; return render(); }
   if (d.answerHere !== undefined) { setCtx(PR, "ask"); return render(); }
   if (d.answer !== undefined) return change("answer", { option: d.answer, note: ["cp-note", "ask-in"].map(id => document.getElementById(id)?.value.trim()).find(Boolean) || null }).then(o => {
@@ -2125,13 +1955,13 @@ document.addEventListener("click", async e => {
     const f = S().findings.find(x => x.id === d.inPrompt);
     return change("in-prompt", { finding: d.inPrompt, included: f["in-prompt"] === false }).then(o => o && reload());
   }
-  if (d.contextSave !== undefined) {
+  if (d.contextAdd !== undefined) {
     // cleared at once, so a refresh while it is sent never puts the text back; given back if it is refused
-    const text = document.getElementById("context").value;
+    const text = document.getElementById("ask-in").value;
     if (!text.trim()) return;
-    document.getElementById("context").value = "";
+    document.getElementById("ask-in").value = "";
     return change("add-context", { text }).then(o => {
-      const box = document.getElementById("context");
+      const box = document.getElementById("ask-in");
       if (o) toast("sent to AI Agent"); else if (box && !box.value) box.value = text;
     });
   }
@@ -2164,13 +1994,15 @@ document.addEventListener("click", async e => {
     if (out) toast(`sent ${out.sent.length}` + (out.errors.length ? ` · problems: ${out.errors.join("; ")}` : ""));
     return readGithub();
   }
-  if (d.uccard) return openUseCase(d.uccard);
-  if (d.closeUc !== undefined) return openUseCase(ui.uc);
-  if (d.askUc) { setCtx({ kind: "use-case", id: d.askUc }, "ask"); render(); return document.getElementById("ask-in")?.focus(); }
+  if (d.chapter !== undefined) {
+    setCtx(d.chapter ? { kind: "chapter", id: d.chapter } : PR, "ask"); render();
+    if (t.closest(".toc")) document.getElementById(d.chapter ? "ch-" + d.chapter : "ch-pr")?.scrollIntoView({ block: "start", behavior: "smooth" });
+    return;
+  }
   if (d.openReview !== undefined) {
     const r = shownReviews()[+d.openReview];
     document.getElementById("hover").style.display = "none";
-    return go({ id: r.id, ui: { tab: "overview" } });
+    return go({ id: r.id, ui: { tab: "story" } });
   }
   if (d.archive !== undefined) {
     const r = shownReviews()[+d.archive];
@@ -2181,7 +2013,7 @@ document.addEventListener("click", async e => {
   }
   if (d.unarchive) {
     const id = d.unarchive;
-    return api("/api/review/change", { id, action: "archive", archived: false }).then(() => go({ id, ui: { tab: "overview" } }));
+    return api("/api/review/change", { id, action: "archive", archived: false }).then(() => go({ id, ui: { tab: "story" } }));
   }
   if (d.new !== undefined) { ui.tab = "new"; ui.nr = newReview(); return render(); }
   if (d.nrKind) { ui.nr.kind = d.nrKind; render(); return nrCheck(); }
@@ -2194,7 +2026,7 @@ document.addEventListener("click", async e => {
     return;
   }
   if (d.archived !== undefined) { ui.tab = "archived"; return render(); }
-  if (d.agentTools !== undefined) { ui.tab = ui.tab === "tools" ? "overview" : "tools"; return render(); }
+  if (d.agentTools !== undefined) { ui.tab = ui.tab === "tools" ? "story" : "tools"; return render(); }
   if (d.allowTool !== undefined) {
     toast(R.running ? "restarting the session with the server allowed" : "allowed; start the session and it goes on");
     return api("/api/review/tools", { ...K(), rule: d.allowTool, allow: true, restart: true }).then(() => reload());
@@ -2217,22 +2049,22 @@ document.addEventListener("click", async e => {
       body: JSON.stringify(body) });
     const out = await r.json().catch(() => ({ error: "no answer from the server" }));
     n.starting = false;
-    if (r.ok) { ui.nr = newReview(); return go({ id: out.id, ui: { tab: "overview" } }); }
+    if (r.ok) { ui.nr = newReview(); return go({ id: out.id, ui: { tab: "story" } }); }
     if (out.existing) { n.existing = { ...out.existing, source: body.source, body }; return render(); }
     paintNew(); return toast(out.error || "failed");
   }
   if (d.nrExisting) {
     const e = ui.nr.existing;
-    if (d.nrExisting === "open") { ui.nr = newReview(); return go({ id: e.id, ui: { tab: "overview" } }); }
+    if (d.nrExisting === "open") { ui.nr = newReview(); return go({ id: e.id, ui: { tab: "story" } }); }
     if (d.nrExisting === "back") {
       return api("/api/review/change", { id: e.id, action: "archive", archived: false })
-        .then(o => { if (o) { ui.nr = newReview(); go({ id: e.id, ui: { tab: "overview" } }); } });
+        .then(o => { if (o) { ui.nr = newReview(); go({ id: e.id, ui: { tab: "story" } }); } });
     }
     if (!confirm(`Start ${e.id} over? Its findings and answers are deleted.`)) return;
     ui.nr.starting = true; paintNew();
     const out = await api("/api/review/start", { ...e.body, replace: true });
     ui.nr.starting = false;
-    if (out) { ui.nr = newReview(); return go({ id: out.id, ui: { tab: "overview" } }); }
+    if (out) { ui.nr = newReview(); return go({ id: out.id, ui: { tab: "story" } }); }
     return paintNew();
   }
   if (d.pop) {
@@ -2293,7 +2125,6 @@ document.addEventListener("input", e => { if (e.target.id === "fsearch") { ui.se
   if (field) { ui.nr[field] = e.target.value; if (field !== "context") nrCheck(); } } });
 document.addEventListener("keydown", e => {
   if (e.target.id === "ask-in" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); askNow(); }
-  if (e.target.id === "context" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); document.querySelector("[data-context-save]")?.click(); }
   if (e.target.id === "draft-box" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); makeFinding(); }
   if (e.target.id === "tree" && !e.metaKey && !e.ctrlKey && !e.altKey && treeKey(e)) e.preventDefault();
   if (e.key === "Escape") onEscape(e);
@@ -2314,7 +2145,6 @@ function onEscape(e) {
   const diff = ui.tab === "code" && e.target.closest && e.target.closest(".diffbody"), c = ctx();
   if (diff && c.kind === "file" && c.lines && !ui.pinned) { ui.selection = null; setCtx({ kind: "file", path: c.path }); return render(); }
   if (diff) { ui.cursor = ui.file; render(); return focusTree(); }
-  if (ui.uc) openUseCase(ui.uc);
 }
 document.addEventListener("selectionchange", () => { if (deferred && !busy()) render(); });
 setInterval(() => { if (R && R.working) render(); }, 30000);
@@ -2396,9 +2226,6 @@ document.addEventListener("mouseover", e => {
     gtip.innerHTML = dots.querySelector(".gl").innerHTML; gtip.style.display = "block";
     gtip.style.left = at.left + "px"; gtip.style.top = Math.min(at.bottom + 4, innerHeight - gtip.offsetHeight - 8) + "px";
   } else gtip.style.display = "none";
-  const card = e.target.closest("[data-uccard]"), tip = document.getElementById("tip");
-  if (card) return showTip(card);
-  if (tip && tip.style.display === "block") { tip.style.display = "none"; document.querySelectorAll(".uc.related").forEach(x => x.classList.remove("related")); }
 });
 // The side panel's left edge resizes it; the width survives a reload.
 const WIDTH_KEY = "craftsman.review.ai-panel-width";
@@ -2424,7 +2251,6 @@ document.addEventListener("mousedown", e => {
   const up = () => { grip.classList.remove("drag"); removeEventListener("mousemove", move); removeEventListener("mouseup", up); };
   addEventListener("mousemove", move); addEventListener("mouseup", up);
 });
-addEventListener("resize", () => { layoutCards(false); ucPanel(); });
 const events = new EventSource("/api/events");
 events.addEventListener("hello", () => reload());
 events.addEventListener("change", () => reload());

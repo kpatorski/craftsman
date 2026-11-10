@@ -22,8 +22,17 @@ def function(name):
     return found.group(0)
 
 
-def run(name, *args):
-    program = f"{function(name)}\nconsole.log(JSON.stringify({name}(...{json.dumps(args)})));"
+def constant(name):
+    """One top-level one-line `const` of the page's script."""
+    found = re.search(rf"^const {name} = .*$", PAGE.read_text(), re.M)
+    if not found:
+        raise AssertionError(f"the page has no const {name}")
+    return found.group(0)
+
+
+def run(name, *args, uses=()):
+    """Runs the page's function `name` on `args`; `uses` names the one-line consts it needs."""
+    program = "\n".join([*map(constant, uses), function(name)]) + f"\nconsole.log(JSON.stringify({name}(...{json.dumps(args)})));"
     return json.loads(subprocess.run([NODE, "-e", program], capture_output=True, text=True, check=True).stdout)
 
 
@@ -132,6 +141,8 @@ class PanelContextTest(unittest.TestCase):
             ({"kind": "finding", "id": "f2"}, {"kind": "finding", "id": "f2"}, True),
             ({"kind": "finding", "id": "f2"}, {"kind": "finding", "id": "f3"}, False),
             ({"kind": "github", "id": 12}, {"kind": "github", "id": 12}, True),
+            ({"kind": "chapter", "id": "c2"}, {"kind": "chapter", "id": "c2"}, True),
+            ({"kind": "chapter", "id": "c2"}, {"kind": "chapter", "id": "c3"}, False),
             ({"kind": "directive", "id": "naming"}, {"kind": "review"}, False)]
         for about, ctx, belongs in cases:
             with self.subTest(about=about, ctx=ctx):
@@ -141,7 +152,7 @@ class PanelContextTest(unittest.TestCase):
         for ctx, tabs in [({"kind": "review"}, ["ask"]), ({"kind": "folder", "path": "a/"}, ["ask", "finding"]),
                           (self.FILE, ["ask", "finding"]), (self.LINES, ["ask", "finding"]),
                           ({"kind": "finding", "id": "f1"}, ["ask", "finding"]), ({"kind": "github", "id": 1}, ["ask"]),
-                          ({"kind": "directive", "id": "naming"}, ["ask"]), ({"kind": "use-case", "id": "u1"}, ["ask"])]:
+                          ({"kind": "directive", "id": "naming"}, ["ask"]), ({"kind": "chapter", "id": "c1"}, ["ask"])]:
             with self.subTest(ctx=ctx):
                 self.assertEqual(run("panelTabs", ctx), tabs)
 
@@ -151,6 +162,29 @@ class PanelContextTest(unittest.TestCase):
         self.assertEqual(run("draftKey", {"kind": "folder", "path": "a/b/"}), "a/b/")
         self.assertIsNone(run("draftKey", {"kind": "finding", "id": "f1"}))
         self.assertIsNone(run("draftKey", {"kind": "review"}))
+
+
+@unittest.skipUnless(NODE, "node is not installed")
+class StoryTest(unittest.TestCase):
+    def test_a_review_opens_on_the_story_and_the_old_addresses_of_overview_and_structure_lead_there(self):
+        for given, tab in [(None, "story"), ("", "story"), ("overview", "story"), ("structure", "story"),
+                           ("code", "code"), ("findings", "findings"), ("tools", "tools"), ("new", "new")]:
+            with self.subTest(given=given):
+                self.assertEqual(run("tabOf", given), tab)
+
+    def test_a_diagram_is_its_boxes_in_order_with_an_arrow_between_each_two(self):
+        html = run("diagramHtml", {"boxes": ["Cancel button", "Controller", "<CancelReservation>"],
+                                   "ends": "Cancelled · NotOwner"}, uses=["esc"])
+
+        boxes = re.findall(r'<span class="dbox">(.*?)</span>', html)
+        self.assertEqual(boxes, ["Cancel button", "Controller", "&lt;CancelReservation&gt;"])
+        self.assertEqual(html.count('class="darr"'), 2)
+        self.assertIn("Cancelled · NotOwner", html)
+
+    def test_a_diagram_without_ends_says_nothing_under_its_boxes(self):
+        html = run("diagramHtml", {"boxes": ["A", "B", "C"]}, uses=["esc"])
+
+        self.assertNotIn("dends", html)
 
 
 if __name__ == "__main__":

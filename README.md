@@ -180,26 +180,24 @@ see [`MANAGEMENT.md`](plugins/craftsman/MANAGEMENT.md) for exactly what it check
 itself. On the page, a wizard asks what is reviewed — a pull request, or what one local branch adds on top of another —
 and where its code is read from: your checkout of the repository (typed, or picked with "Browse…"), or, for a pull
 request, a clone made for the review in `/tmp`. `/craftsman:pr-review https://github.com/org/repo/pull/123` fills the
-wizard in, or opens that PR's review when it is already under way. A pull request on a GitHub Enterprise host works
-the same, with `gh` signed in to that host. The review reads the PR's Jira tickets through your Jira MCP server once you
+wizard in, or opens that PR's review when it is already under way. A pull request on a GitHub Enterprise host works the
+same, with `gh` signed in to that host. The review reads the PR's Jira tickets through your Jira MCP server once you
 allow it: the page asks the first time the review wants one of its tools, and ⚙ in the rail lists the servers. Whatever
 else the review wants beyond its own tools it asks for on the page, and waits: allow it once, in every review, or deny
-it with a reason — see `REVIEW.md`, "The review's session". The review reads the PR's description and the tickets
-it links, maps the change into use cases, reads the business rules in its tests, notes the few places that are hard to
-follow, and only then reviews the code, use case by use case from the entry point down, against the enabled directives —
-including whether the code could be simpler or left to the standard library, the framework or a dependency the build
-already has. Every finding is a proposed PR comment: edit it, delete it, or mark it to send, and send the marked ones to
-GitHub whenever you like — nothing is posted before that.
+it with a reason — see `REVIEW.md`, "The review's session". The review reads the PR's description and the tickets it
+links, maps the change into use cases, tells the PR's story, reads the business rules in its tests, notes the few places
+that are hard to follow, and only then reviews the code, use case by use case from the entry point down, against the
+enabled directives — including whether the code could be simpler or left to the standard library, the framework or a
+dependency the build already has. Every finding is a proposed PR comment: edit it, delete it, or mark it to send, and
+send the marked ones to GitHub whenever you like — nothing is posted before that.
 
 Reviews have their own page, `/review` on the dashboard server, apart from the dashboard. The reviews are tiles in a
-rail on the left; the open one has six tabs:
+rail on the left; the open one has five tabs:
 
-- **Overview** — what the PR is for, as how the system behaves before it and after it, what it leaves out, the
-  review's progress, and the agent's questions to answer. Under what the PR is for, notes of context for the agent:
-  what it should know that the PR does not say. The new-review wizard asks for the first one.
-- **Structure** — the change as use cases, each a card: what it does before and after, how it runs from its entry
-  point (a call the PR leaves unchanged shows where it is called from; a call that crosses a boundary is marked), its
-  branches and whether a test covers each, and its files' diffs beside it.
+- **Story** — where a review opens: what the PR does, its ticket, what it leaves out, and its findings and viewed
+  files in one line; then the PR told as a teammate would, in short chapters, each ending with chips of its files that
+  open them in Code, and a diagram where a flow crosses three or more parts. A table of contents beside it; the chapter
+  picked is what the AI Agent panel is about. An address with `tab=overview` or `tab=structure` opens the Story.
 - **Code** — the changed files as IntelliJ's project tree beside the diff of the open one. Packages share a row
   (`com.example.booking`), source, test and resources roots have coloured folders, and each file shows the kind and
   the visibility of its top-level type (Java, Groovy, Kotlin; the kind for TypeScript), its findings, GitHub's change
@@ -221,19 +219,20 @@ rail on the left; the open one has six tabs:
   every review.
 
 The **AI Agent panel** stands beside every tab, under a header that runs over both. It is about what is picked in the
-tab — a folder, a file or lines selected in the diff on Code, a finding, a GitHub comment, a rule — or the whole PR
-when nothing is; on Code, 📌 keeps it while you move around the code. "Ask about it" holds the conversation about that
-and the box to ask in (`⌘ Enter` on a Mac, `Ctrl Enter` elsewhere), with suggested questions; the agent's own
-question, the one the run stopped on, waits there in the PR's conversation. "Finding" is there on a folder, a file or
-lines: a markdown editor with the finding as AI Agent writes it, one draft per file or folder that stays while you
-move around, and "Make it a finding"; a finding on a folder goes to the PR's conversation. On a finding, "Finding" is
-the finding itself. A progress strip under the tabs says
-which of the review's steps the agent is at and what it does there; the header says whether it is working, idle, or
-silent for longer than it should be, with a button to restart its session in the same conversation. The review's
-Claude session runs on the dashboard server, so its questions, its progress and your messages to it all stay on the
-page; once stopped, `claude --resume` continues the same conversation in the CLI. Send posts every marked finding as an
-inline comment on its first place, with a pointer from each further place, and every comment and reply of yours; a
-comment the PR already has is never posted twice.
+tab — a folder, a file or lines selected in the diff on Code, a chapter of the Story, a finding, a GitHub comment, a
+rule — or the whole PR when nothing is; on Code, 📌 keeps it while you move around the code. "Ask about it" holds the
+conversation about that and the box to ask in (`⌘ Enter` on a Mac, `Ctrl Enter` elsewhere), with suggested questions;
+the agent's own question, the one the run stopped on, waits there in the PR's conversation. On the whole PR, "Add as
+context" keeps what you write as a note for the agent: what it should know that the PR does not say; the new-review
+wizard asks for the first one. "Finding" is there on a folder, a file or lines: a markdown editor with the finding as AI
+Agent writes it, one draft per file or folder that stays while you move around, and "Make it a finding"; a finding on a
+folder goes to the PR's conversation. On a finding, "Finding" is the finding itself. A progress strip under the tabs
+says which of the review's steps the agent is at and what it does there; the header says whether it is working, idle, or
+silent for longer than it should be, with a button to restart its session in the same conversation. The review's Claude
+session runs on the dashboard server, so its questions, its progress and your messages to it all stay on the page; once
+stopped, `claude --resume` continues the same conversation in the CLI. Send posts every marked finding as an inline
+comment on its first place, with a pointer from each further place, and every comment and reply of yours; a comment the
+PR already has is never posted twice.
 
 Each review keeps its state in `~/.craftsman/reviews/<review-id>/`, outside the repository, and reads the code from its
 own `git worktree`, so your checkout is never touched and several reviews can run at once. A clone is deleted when its

@@ -100,6 +100,10 @@ def rendered(state, conversation=None):
     """Every markdown text of the review and of its conversation on GitHub as HTML, keyed the way the page looks it
     up. The renderer escapes HTML, so what others wrote on GitHub shows as text."""
     texts = {"scope": state.get("scope"), "requirements": state.get("requirements")}
+    story = state.get("story") or {}
+    texts.update({"story:does": story.get("does"), "story:left-out": story.get("left-out")})
+    for chapter in story.get("chapters", []):
+        texts[f"story:{chapter['id']}"] = chapter.get("text")
     for found in state.get("findings", []):
         for field in ("description", "comment"):
             texts[f"finding:{found['id']}:{field}"] = found.get(field)

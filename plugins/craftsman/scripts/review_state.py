@@ -35,7 +35,7 @@ TEXT_FIELDS = ("title", "description", "comment")
 DEVELOPER_FIELDS = TEXT_FIELDS + ("severity",)
 AGENT_FIELDS = DEVELOPER_FIELDS + ("category", "locations", "directive", "kind", "when")
 SETTABLE = ("source", "checkout", "refreshed", "session", "closed", "language", "scope",
-            "requirements", "tickets", "structure", "rules", "checkpoint")
+            "requirements", "tickets", "structure", "story", "rules", "checkpoint")
 STATUS_BY = {
     "agent": ("maybe-resolved", "merged", "proposed"),
     "developer": ("to-send", "deleted", "proposed"),
@@ -44,7 +44,7 @@ USE_CASE_STATUS = ("pending", "reviewing", "reviewed")
 CHECK_RESULT = ("findings", "clean", "not-applicable", "failed")
 UNTIED = "untied"  # the changed files no use case reaches, reviewed together as a use case of their own
 CHANGES = ("added", "modified", "deleted", "unchanged")
-ABOUT = ("review", "finding", "file", "folder", "use-case", "github", "directive")
+ABOUT = ("review", "finding", "file", "folder", "use-case", "chapter", "github", "directive")
 COMMENT_STATUS = ("to-send", "deleted")
 NO_CATEGORY = "yours"  # the category of a developer's finding that names none
 # the shape of a comment the AI Agent writes of a draft: how close to the draft's words, in what tone, how long, and
@@ -61,7 +61,7 @@ class Refused(Exception):
 
 def empty_state(source, base, head, checkout=None):
     return {"source": source, "checkout": checkout, "base": base, "head": head, "refreshed": None, "session": None, "closed": None,
-            "language": None, "scope": None, "requirements": None, "tickets": [], "structure": None, "rules": [],
+            "language": None, "scope": None, "requirements": None, "tickets": [], "structure": None, "story": None, "rules": [],
             "checkpoint": None, "findings": [], "comments": [], "threads": [], "viewed": [], "archived": False, "handled": [],
             "directive-switches": {}, "checks": [], "context": [], "drafts": {}}
 
@@ -132,6 +132,30 @@ def check_structure(structure):
                 raise Refused("a branch needs what, and tested: true or false")
 
 
+def check_story(story):
+    """The story opens with what the PR does and tells the rest in chapters: each a title and its text, with the files
+    it is about; a diagram, when a chapter has one, is a flow through three or more boxes."""
+    if not isinstance(story, dict) or not isinstance(story.get("does"), str) or not story["does"].strip():
+        raise Refused("a story needs does: what the PR does")
+    if not isinstance(story.get("left-out", ""), str):
+        raise Refused("a story's left-out is text")
+    chapters = story.get("chapters", [])
+    if not isinstance(chapters, list):
+        raise Refused("a story's chapters are a list")
+    for chapter in chapters:
+        missing = [field for field in ("id", "title", "text") if not isinstance(chapter.get(field), str) or not chapter[field]]
+        if missing:
+            raise Refused(f"a chapter needs {', '.join(missing)}")
+        if not isinstance(chapter.get("files", []), list):
+            raise Refused("a chapter's files are a list of paths")
+        diagram = chapter.get("diagram")
+        if diagram is not None and (len(diagram.get("boxes") or []) < 3 or not all(diagram["boxes"])):
+            raise Refused("a diagram is a flow through three or more named boxes")
+    ids = [chapter["id"] for chapter in chapters]
+    if len(set(ids)) != len(ids):
+        raise Refused("every chapter has its own id")
+
+
 def now():
     return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
 
@@ -200,6 +224,8 @@ def set_fields(state, payload, by):
         raise Refused(f"not settable: {', '.join(unknown)}")
     if "structure" in payload:
         check_structure(payload["structure"])
+    if payload.get("story") is not None:
+        check_story(payload["story"])
     state.update(payload)
     return state, None
 
@@ -417,6 +443,8 @@ def check_about(state, about):
         by_id(state["findings"], about.get("id"))
     if kind == "use-case":
         by_id((state.get("structure") or {}).get("use-cases", []), about.get("id"))
+    if kind == "chapter":
+        by_id((state.get("story") or {}).get("chapters", []), about.get("id"))
     if kind in ("file", "folder") and not about.get("path"):
         raise Refused(f"a thread about a {kind} names its path")
     if kind in ("github", "directive") and not about.get("id"):

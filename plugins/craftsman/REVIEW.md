@@ -73,7 +73,7 @@ What the page shows above the findings. Every text field is GitHub markdown.
   with the reason in `requirements`, when no ticket is linked or Jira cannot be read.
 - `context` — what the developer tells the agent that the pull request does not say: why the change is built this
   way, what in the ticket is out of date, what to look at closely. A list of notes, `{"id", "text", "at"}`, written
-  only by the developer: sent from the review page's Overview tab (`add-context`), taken back there
+  only by the developer: added in the review page's AI Agent panel on the whole PR (`add-context`), taken back there
   (`remove-context <id>`), or given in the new-review wizard. The agent reads every note before every step and weighs
   them like the description; where they disagree, it asks. The wizard's text waits as `context.md` in the review's
   folder until `init` makes it the first note.
@@ -91,11 +91,17 @@ What the page shows above the findings. Every text field is GitHub markdown.
     `added`, `modified`, `deleted` or `unchanged`, `crosses` is null or the boundary the call should not cross, and
     `from` is `{"path", "line"}` of the call itself, absent on the entry point; and `branches`, each
     `{"what", "tested"}`, the ways the use case can end and whether a test covers each.
+- `story` — the PR told as a teammate would tell it (`tell-the-story`), or null until it is written:
+  `{"does", "left-out", "chapters": [...]}`:
+  - `does` — what the PR does, three to five sentences, markdown; the Story tab opens with it;
+  - `left-out` — what the PR leaves for later, markdown, or absent;
+  - `chapters` — each `{"id", "title", "text", "files": [...], "diagram"}`: `text` is markdown, `files` the changed
+    files the chapter is about, opened in the Code tab from it; `diagram`, absent or `{"boxes": [...], "ends"}`, is a
+    flow through three or more parts in the order of the calls, drawn by the page, and how it can end.
 - `rules` — business rules read from the test suites, each `{"id", "rule", "test", "requirement"}`; `test` is
   `path:line`, `requirement` says which requirement it covers, or that none does.
 
-The page lists the use cases as cards. Pointing at a card shows what it says and its files, and marks the use cases
-that share a file with it; clicking a card opens its files, its flow and their diff beside the cards.
+The page does not show `structure`: the use cases are the agent's working map, which the story and the review follow.
 
 ### What the server adds
 
@@ -132,9 +138,10 @@ pull request's branch has it (`/api/review/file`); a path outside `worktree/`, o
   with it, and opens it anew.
 - `threads` — questions about a part of the review, and notes the agent writes unasked: `{"id", "about", "quote",
   "status", "messages"}`:
-  - `about` — `{"kind": "review"}`, `{"kind": "finding", "id"}`, `{"kind": "use-case", "id"}`, `{"kind": "file",
-    "path", "lines": [first, last]}`, `{"kind": "folder", "path"}` (the path ends with `/`), `{"kind": "github", "id"}`
-    (a comment or thread of the pull request's conversation, by its GitHub id), or `{"kind": "directive", "id"}`;
+  - `about` — `{"kind": "review"}`, `{"kind": "finding", "id"}`, `{"kind": "use-case", "id"}`, `{"kind": "chapter",
+    "id"}`, `{"kind": "file", "path", "lines": [first, last]}`, `{"kind": "folder", "path"}` (the path ends with `/`),
+    `{"kind": "github", "id"}` (a comment or thread of the pull request's conversation, by its GitHub id), or `{"kind":
+    "directive", "id"}`;
   - `quote` — the text or the lines the developer selected, or null;
   - `status` — `open`, or `resolved` once the developer resolves it; a new message from the developer opens it
     again;

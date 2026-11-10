@@ -3,6 +3,19 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.23.0
+
+- The Story tab replaces Overview and Structure, and a review opens on it: what the PR does, its ticket, what it leaves
+  out, and its findings and viewed files in one line; then the PR told as a teammate would, in short chapters, each
+  with chips of its files that open them in Code, and a diagram where a flow crosses three or more parts. A table of
+  contents beside it; the chapter picked is what the AI Agent panel is about. `tab=overview` and `tab=structure` open
+  the Story.
+- The agent writes the story in a step of its own, `tell-the-story`, after it maps the use cases: update the workshop
+  (`/craftsman:install` on its source) for the step and its directive, `pr-story`. Until then a review's Story shows
+  the PR's scope.
+- Notes of context for the agent are added in the AI Agent panel on the whole PR, with "Add as context".
+- Code, Findings and Comments count their items next to their names; Story and Rules do not.
+
 ## 0.22.0
 
 - The AI Agent panel stands beside every tab of a review, in place of the "Ask AI" popover, the comment panel and the

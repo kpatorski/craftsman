@@ -729,6 +729,45 @@ class ReviewStateTest(unittest.TestCase):
         self.assertEqual(self.state()["structure"]["use-cases"][0]["flow"]["steps"][0]["from"],
                          {"path": "S.java", "line": 35})
 
+    def test_the_story_tells_what_the_pr_does_and_then_its_chapters(self):
+        self.opened()
+        chapter = {"id": "c1", "title": "Cancelling a reservation", "text": "A new endpoint hands the call on.",
+                   "files": ["CancelController.java"],
+                   "diagram": {"boxes": ["Cancel button", "Controller", "CancelReservation"], "ends": "Cancelled"}}
+        story = {"does": "An employee cancels their own reservation.", "left-out": "Refunds.", "chapters": [chapter]}
+
+        for wrong in ({**story, "does": ""}, {**story, "left-out": ["not text"]}, {**story, "chapters": "c1"},
+                      {**story, "chapters": [{**chapter, "title": ""}]},
+                      {**story, "chapters": [{**chapter, "text": ""}]},
+                      {**story, "chapters": [{**chapter, "files": "A.java"}]},
+                      {**story, "chapters": [chapter, {**chapter, "title": "Again"}]},
+                      {**story, "chapters": [{**chapter, "diagram": {"boxes": ["Controller", "Use case"]}}]},
+                      {**story, "chapters": [{**chapter, "diagram": {"boxes": ["A", "", "C"]}}]}):
+            self.run_state("set", payload={"story": wrong}, expect_ok=False)
+        refused = self.run_state("set", payload={"story": {**story, "chapters": "c1"}}, expect_ok=False)
+        self.run_state("set", payload={"story": story})
+
+        self.assertIn("a story's chapters are a list", refused.stderr)
+        self.assertEqual(self.state()["story"], story)
+
+    def test_a_chapter_without_files_or_a_diagram_is_a_story_too(self):
+        self.opened()
+
+        self.run_state("set", payload={"story": {"does": "Renames a class.", "chapters": [
+            {"id": "c1", "title": "Tidying", "text": "`Desk` is `Seat` now."}]}})
+
+        self.assertNotIn("diagram", self.state()["story"]["chapters"][0])
+
+    def test_a_thread_is_about_a_chapter_of_the_story(self):
+        self.opened()
+        self.run_state("open-thread", payload={"about": {"kind": "chapter", "id": "c1"}, "text": "?"}, expect_ok=False)
+        self.run_state("set", payload={"story": {"does": "Cancels.", "chapters": [
+            {"id": "c1", "title": "Cancelling", "text": "The owner cancels."}]}})
+
+        self.run_state("open-thread", payload={"about": {"kind": "chapter", "id": "c1"}, "text": "Why here?"})
+
+        self.assertEqual(self.state()["threads"][0]["about"], {"kind": "chapter", "id": "c1"})
+
     def test_the_developer_archives_a_review(self):
         self.opened()
 

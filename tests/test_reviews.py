@@ -295,6 +295,17 @@ class ReviewsTest(unittest.TestCase):
         self.assertIn("<code>ReservationId</code>", html["finding:f1:comment"])
         self.assertIn("Cancels a reservation.", html["scope"])
 
+    def test_the_story_reaches_the_page_rendered(self):
+        review_state.change(self.review, "set", {"story": {"does": "Lets the owner **cancel**.", "left-out": "No `refund`.",
+                                                           "chapters": [{"id": "c1", "title": "Cancelling",
+                                                                         "text": "One.\n\n`CancelReservation` two."}]}})
+
+        html = reviews.read_review(ID)["html"]
+
+        self.assertIn("<strong>cancel</strong>", html["story:does"])
+        self.assertIn("<code>refund</code>", html["story:left-out"])
+        self.assertEqual(html["story:c1"].count("<p>"), 2)
+
     def test_the_diff_of_the_reviewed_head_is_served(self):
         self.assertIn("+class A {}", reviews.diff_text(ID))
 
@@ -578,11 +589,6 @@ class ReviewEndpointsTest(ReviewsTest):
         self.call("/api/review/change", {"id": ID, "action": "fix-prompts"})
         self.assertEqual(len(review_state.read(self.review)["comments"]), 2)
 
-    def test_the_use_case_cards_of_one_row_are_as_tall_as_its_tallest(self):
-        served = self.page(f"/review?review={ID}")
-
-        self.assertIn("e.style.height = ui.uc ? \"\" : rowHeight[i] + \"px\"", served)
-
     def test_the_review_page_has_the_fix_prompts(self):
         served = self.page(f"/review?review={ID}")
         for hook in ("data-fix-prompts", 'change("fix-prompts"', "data-in-prompt", 'change("in-prompt"'):
@@ -686,11 +692,22 @@ class ReviewEndpointsTest(ReviewsTest):
     def test_the_ai_agent_panel_stands_beside_every_tab_under_a_header_running_over_both(self):
         served = self.page(f"/review?review={ID}")
         for hook in ('grid-template-areas: "rail head head head" "rail main grip panel"', "#panel { grid-area: panel;",
-                     'main.classList.toggle("frames"', 'const REVIEW_TABS = ["overview", "structure", "code", "findings", "comments", "rules"]',
+                     'main.classList.toggle("frames"', 'const REVIEW_TABS = ["story", "code", "findings", "comments", "rules"]',
                      "function askTab(", "data-pin", "Ask about it", "agentAsks(cp)", "data-sugg", 'data-ctx="'):
             with self.subTest(hook=hook):
                 self.assertIn(hook, served)
         for gone in ("panelAsk", "panelThread", "panelCheckpoint", "placePanel", 'id="compose"'):
+            with self.subTest(gone=gone):
+                self.assertNotIn(gone, served)
+
+    def test_the_story_takes_the_place_of_overview_and_structure(self):
+        served = self.page(f"/review?review={ID}")
+        for hook in ("function viewStory(", '["story", "Story", ""]', "data-chapter", "story:does", "diagramHtml(",
+                     'data-open-file="', '"tell-the-story"', "data-context-add", 'stepAt("review-use-cases")'):
+            with self.subTest(hook=hook):
+                self.assertIn(hook, served)
+        for gone in ("viewOverview", "viewStructure", '"Overview"', '"Structure"', "ucpanel", "layoutCards", "data-uccard",
+                     "showTip", "function fileList", 'data-tab="overview"', 'data-tab="structure"'):
             with self.subTest(gone=gone):
                 self.assertNotIn(gone, served)
 
@@ -756,10 +773,10 @@ class ReviewEndpointsTest(ReviewsTest):
 
         self.assertEqual([n["text"] for n in review_state.read(review)["context"]], ["Only the cancel path changed."])
 
-    def test_the_review_page_has_a_place_for_the_agents_context(self):
+    def test_the_context_for_the_agent_is_given_in_the_panel_on_the_whole_pr(self):
         served = self.page(f"/review?review={ID}")
-        for hook in ("data-context-save", "Context for the AI Agent", 'change("add-context"', 'change("remove-context"', "data-context-remove", "nr-context",
-                     'e.target.id === "context" && e.key === "Enter"'):
+        for hook in ('c.kind === "review" ? contextNotes(S())', "Context you gave the AI Agent", "data-context-add",
+                     'change("add-context"', 'change("remove-context"', "data-context-remove", "nr-context"):
             with self.subTest(hook=hook):
                 self.assertIn(hook, served)
 
@@ -895,7 +912,7 @@ class ReviewEndpointsTest(ReviewsTest):
 
     def test_the_review_page_shows_the_conversation_and_writes_comments_and_replies(self):
         served = self.page(f"/review?review={ID}")
-        for hook in ("/api/review/github", 'data-tab="comments"', "data-comment-add", "data-gh-reply", "data-gh-thread"):
+        for hook in ("/api/review/github", '["comments", "Comments"', "data-comment-add", "data-gh-reply", "data-gh-thread"):
             with self.subTest(hook=hook):
                 self.assertIn(hook, served)
 
