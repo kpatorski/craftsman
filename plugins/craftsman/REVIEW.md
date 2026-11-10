@@ -132,8 +132,9 @@ pull request's branch has it (`/api/review/file`); a path outside `worktree/`, o
   with it, and opens it anew.
 - `threads` — questions about a part of the review, and notes the agent writes unasked: `{"id", "about", "quote",
   "status", "messages"}`:
-  - `about` — `{"kind": "review"}`, `{"kind": "finding", "id"}`, `{"kind": "use-case", "id"}`, or `{"kind": "file",
-    "path", "lines": [first, last]}`;
+  - `about` — `{"kind": "review"}`, `{"kind": "finding", "id"}`, `{"kind": "use-case", "id"}`, `{"kind": "file",
+    "path", "lines": [first, last]}`, `{"kind": "folder", "path"}` (the path ends with `/`), `{"kind": "github", "id"}`
+    (a comment or thread of the pull request's conversation, by its GitHub id), or `{"kind": "directive", "id"}`;
   - `quote` — the text or the lines the developer selected, or null;
   - `status` — `open`, or `resolved` once the developer resolves it; a new message from the developer opens it
     again;
@@ -176,8 +177,9 @@ pull request's branch has it (`/api/review/file`); a path outside `worktree/`, o
 
 ### Drafts
 
-`drafts` — the developer's drafts of findings, one per file, by the file's path, written in the comment panel of the
-Code tab. Each one:
+`drafts` — the developer's drafts of findings, one per file or folder, by its path (a folder's ends with `/`),
+written in the AI Agent panel of the Code tab. A finding made of a folder's draft has the folder as its place, with no
+line, and goes to the pull request's conversation, naming the folder. Each one:
 
 - `text` — the comment so far, in markdown.
 - `lines` — `[first, last]`, the lines it is about, or null for the whole file.

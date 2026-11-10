@@ -87,8 +87,8 @@ class DraftPreviewTest(unittest.TestCase):
     def calls(self):
         return [json.loads(line) for line in self.log.read_text().splitlines()]
 
-    def preview(self, text, lines=(2, 3)):
-        return _draft_preview.preview(self.review, "src/Cancel.java", text, list(lines) if lines else None,
+    def preview(self, text, lines=(2, 3), path="src/Cancel.java"):
+        return _draft_preview.preview(self.review, path, text, list(lines) if lines else None,
                                       content=self.content, command=self.command)
 
     def test_the_finding_comes_back_as_the_call_wrote_it(self):
@@ -182,6 +182,14 @@ class DraftPreviewTest(unittest.TestCase):
         self.preview("too big", lines=None)
 
         self.assertIn("src/Cancel.java, the whole file", self.calls()[0]["prompt"])
+
+    def test_a_draft_about_a_folder_names_the_folder_and_its_changed_files(self):
+        self.preview("one aggregate here", path="src/", lines=None)
+
+        prompt = self.calls()[0]["prompt"]
+        self.assertIn("src/, the whole folder", prompt)
+        self.assertIn("src/Cancel.java", prompt[prompt.index("<code>"):prompt.index("</code>")])
+        self.assertNotIn("the whole file", prompt)
 
     def test_the_call_is_short_and_has_no_tools(self):
         self.preview("klasa nie musi byc publiczna")

@@ -198,6 +198,16 @@ class SendReviewTest(unittest.TestCase):
         self.assertEqual((self.posted_reviews(), self.posted("/pulls/123/comments")), ([], []))
         self.assertEqual(self.findings()[found]["status"], "sent")
 
+    def test_a_finding_on_a_folder_goes_to_the_conversation_naming_the_folder(self):
+        self.opened()
+        found = self.finding("One aggregate here.", [at("src/desk/", None)])
+
+        send_review.send(self.review, gh=self.gh)
+
+        self.assertEqual([g["body"] for g in self.posted("/issues/123/comments")], ["**`src/desk/`**\n\nOne aggregate here."])
+        self.assertEqual((self.posted_reviews(), self.posted("/pulls/123/comments")), ([], []))
+        self.assertEqual(self.findings()[found]["status"], "sent")
+
     def test_a_whole_file_comment_already_on_github_is_not_sent_again(self):
         self.opened()
         found = self.finding("Split this class.", [at("src/Cancel.java", None)])

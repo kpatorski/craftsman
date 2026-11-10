@@ -19,14 +19,22 @@
   ::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 4px; } ::-webkit-scrollbar-thumb:hover { background: var(--dim); }
   ::-webkit-scrollbar-corner { background: transparent; }
 
-  .app { display: grid; grid-template-columns: 64px minmax(0, 1fr); height: 100vh; }
-  /* the side panel grows with the screen and can be dragged wider or narrower; the width is remembered */
-  /* with the side panel open, the content under the tabs makes room for it; the header and the tabs keep the width */
-  .app.with-panel .view { margin-right: calc(var(--panel-w, clamp(560px, 42vw, 980px)) - 12px); }
-  main { overflow-y: auto; padding: 24px 32px 48px; min-width: 0; }
+  .app { display: grid; grid-template-columns: 64px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: "rail head" "rail main"; height: 100vh; }
+  /* the AI Agent panel stands beside every tab of a review, level with its content; the header runs over both. It
+     grows with the screen and can be dragged wider or narrower; the width is remembered */
+  .app.with-panel { grid-template-columns: 64px minmax(0, 1fr) 10px var(--panel-w, clamp(420px, 27vw, 640px));
+    grid-template-areas: "rail head head head" "rail main grip panel"; }
+  #rail { grid-area: rail; } #grip { grid-area: grip; display: none; } .app.with-panel #grip { display: block; }
+  #head { grid-area: head; padding: 24px 32px 0; min-width: 0; } #head:empty { display: none; }
+  main { grid-area: main; overflow-y: auto; padding: 24px 32px 48px; min-width: 0; }
+  #head:not(:empty) + main { padding-top: 0; }
+  /* the Code tab: the tree, the diff and the panel are frames that start and end on the same lines */
+  main.frames { overflow: hidden; padding-bottom: 16px; display: flex; flex-direction: column; }
+  main.frames > .view { flex: 1; min-height: 0; }
   /* the Code tab's file tree stays beside a long diff and scrolls on its own */
-  .codegrid { display: grid; grid-template-columns: var(--tree-w, clamp(340px, 26vw, 520px)) 8px minmax(0, 1fr); gap: 12px; align-items: start; }
-  .treebox { position: sticky; top: 0; display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--line);
+  .codegrid { height: 100%; display: grid; grid-template-columns: var(--tree-w, clamp(340px, 26vw, 520px)) 8px minmax(0, 1fr); gap: 12px; align-items: stretch; }
+  .treebox { height: 100%; display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--line);
     border-radius: 14px; background: var(--card); overflow: hidden; }
   .treetop { padding: 12px 14px 2px; border-bottom: 1px solid var(--line); }
   .treehead { display: flex; align-items: center; gap: 6px; font-size: .7812rem; color: var(--muted); margin-bottom: 6px; }
@@ -54,6 +62,8 @@
   .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .7188rem; color: var(--muted); padding: 8px 14px; border-top: 1px solid var(--line); }
   .legend span { display: inline-flex; align-items: center; gap: 5px; } .legend .ico { width: 14px; height: 14px; }
   #tree-grip { cursor: col-resize; border-radius: 3px; align-self: stretch; } #tree-grip:hover, #tree-grip.drag { background: var(--line); }
+  .dtools { display: flex; gap: 6px 14px; align-items: center; flex-wrap: wrap; font-size: .7812rem; } .dtools > * { white-space: nowrap; }
+  .btn.go kbd { color: var(--on-strong); border-color: currentColor; opacity: .75; }
   kbd { font: .6875rem var(--mono); padding: 1px 5px; border: 1px solid var(--line2); border-radius: 4px; color: var(--text); }
   .diffbody:focus { outline: none; } .diffcard:focus-within { border-color: var(--line2); }
 
@@ -195,7 +205,7 @@
   .msgs { display: flex; flex-direction: column; gap: 10px; }
   .msg .who { font-size: .75rem; color: var(--muted); margin-bottom: 3px; }
   .msg .body { background: var(--card2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: .8438rem; }
-  .msg.developer .body { background: var(--select-bg); border-color: var(--select-bg); }
+  .msg.developer .body { background: var(--bg); border-color: var(--line2); }
   .composer { display: flex; gap: 8px; align-items: flex-end; padding: 6px; border-radius: 12px; background: var(--card);
     border: 1px solid var(--line2); margin-top: 12px; }
   .composer textarea { flex: 1; background: none; border: 0; color: var(--text); font: inherit; resize: none; min-height: 36px; padding: 6px; outline: none; }
@@ -206,13 +216,39 @@
   .ghc { padding: 14px 18px; } .ghc > .who, .msg .who a, .ghc .who a { font-size: .75rem; color: var(--muted); } .ghc > .who b { color: var(--heading); font-weight: 500; }
   .ghc > .who { margin-bottom: 6px; }
   :is([data-gh-quote], [data-gh-reply-open], [data-cedit], [data-cdrop]):not(button) { cursor: pointer; font-size: .75rem; }
-  .panel.dock { position: fixed; right: 0; bottom: 0; width: var(--panel-w, clamp(560px, 42vw, 980px)); z-index: 14; border-top: 1px solid var(--line); }
-  .panel.over { position: fixed; right: 0; bottom: 0; width: var(--panel-w, clamp(560px, 42vw, 980px)); z-index: 16;
-    border-left: 1px solid var(--line2); box-shadow: -30px 0 60px var(--shadow); }
-  .grip { position: absolute; left: -4px; top: 0; bottom: 0; width: 8px; cursor: col-resize; z-index: 3; }
-  .grip::after { content: ""; position: absolute; left: 3px; top: 50%; width: 2px; height: 36px; margin-top: -18px;
+  #grip { cursor: col-resize; position: relative; }
+  #grip::after { content: ""; position: absolute; left: 4px; top: 50%; width: 2px; height: 36px; margin-top: -18px;
     border-radius: 2px; background: var(--line2); }
-  .grip:hover::after, .grip.drag::after { background: var(--neon); }
+  #grip:hover::after, #grip.drag::after { background: var(--neon); }
+  #panel { grid-area: panel; margin: 0 16px 16px 0; border: 1px solid var(--line); border-radius: 14px; background: var(--card);
+    padding: 14px 16px; overflow-y: auto; overflow-x: hidden; gap: 12px; }
+  .ctxbox { display: flex; gap: 10px; align-items: center; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px;
+    background: var(--panel); min-width: 0; flex: none; }
+  .ctxbox .k { font-size: .6875rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); flex: none; }
+  .ctxbox .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--heading); font-size: .8125rem; }
+  .ctxbox .n.mono { font-family: var(--mono); }
+  .pin.on { color: var(--neon); border-color: var(--neon-dim); background: var(--neon-bg); }
+  .ptabs { display: flex; gap: 18px; border-bottom: 1px solid var(--line); font-size: .8125rem; flex: none; }
+  .ptabs a { padding: 4px 0 8px; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .ptabs a.on { color: var(--heading); border-color: var(--neon); }
+  .ptabs .q { color: var(--should); margin-left: 6px; font-size: .75rem; }
+  .ask-out { flex: 1 1 0; min-height: 140px; overflow: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--code-bg); padding: 2px 14px 14px; }
+  .ask-in { flex: none; background: var(--bg); border: 1px solid var(--line2); border-radius: 12px; }
+  .ask-in:focus-within { border-color: var(--muted); }
+  .ask-in textarea { display: block; width: 100%; box-sizing: border-box; background: none; border: 0; color: var(--text); font: inherit;
+    font-size: .8438rem; resize: vertical; min-height: 72px; padding: 10px 12px; outline: none; }
+  .ask-in .quote { margin: 8px 10px 0; }
+  .ask-foot { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; flex: none; }
+  .ask-foot .grow { flex: 1; }
+  .sugg { font: inherit; font-size: .75rem; padding: 3px 10px; border-radius: var(--pill); border: 1px solid var(--line); color: var(--muted);
+    cursor: pointer; background: none; }
+  .sugg:hover { color: var(--text); border-color: var(--line2); }
+  .elsewhere { font-size: .75rem; color: var(--muted); flex: none; } .elsewhere summary { cursor: pointer; }
+  .elsewhere a { display: block; padding: 3px 0 3px 12px; cursor: pointer; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .agent-asks { border: 1px solid var(--should); border-left-width: 3px; border-radius: 12px; padding: 10px 12px; margin-top: 12px; background: var(--should-bg); }
+  .agent-asks .who { font-size: .75rem; color: var(--should); margin-bottom: 4px; }
+  .codediff { min-height: 0; min-width: 0; } .codediff .diffcard { height: 100%; display: flex; flex-direction: column; box-sizing: border-box; }
+  .codediff .diffbody { flex: 1; min-height: 0; overflow: auto; }
   .log div { font-size: .7812rem; padding: 3px 0; white-space: pre-wrap; }
   .log .tool { font-family: var(--mono); font-size: .7188rem; color: var(--muted); }
   .log .denied { color: var(--must); font-family: var(--mono); font-size: .7188rem; }
@@ -278,13 +314,9 @@
   .gtip { position: fixed; display: none; z-index: 30; max-width: 520px; padding: 8px 12px; border-radius: 10px; background: var(--float);
     border: 1px solid var(--line2); box-shadow: 0 10px 30px var(--shadow); font-size: .7812rem; pointer-events: none; }
   .gtip div { display: flex; gap: 8px; align-items: center; padding: 2px 0; } .gtip .hint { color: var(--dim); font-size: .75rem; margin-top: 4px; }
-  .panel.card { right: 16px; bottom: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--card);
-    width: calc(var(--panel-w, clamp(560px, 42vw, 980px)) - 32px); overflow-x: hidden; padding: 18px 20px; }
-  .panel.card:has(#draft-box) { gap: 12px; }
-  .panel.card .grip { left: -6px; }
   .crumb-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .about-chip { align-self: flex-start; display: inline-flex; gap: 8px; align-items: center; padding: 4px 12px; border-radius: var(--pill);
-    border: 1px solid var(--select); font-size: .7812rem; color: var(--muted); max-width: 100%; }
+    border: 1px solid var(--line2); font-size: .7812rem; color: var(--muted); max-width: 100%; }
   .about-chip a { cursor: pointer; color: var(--text); }
   .draft-out, .draft-in { flex: 1 1 0; min-height: 140px; display: flex; flex-direction: column; border-radius: 12px; border: 1px solid var(--line); }
   .draft-out { background: var(--code-bg); }
@@ -293,8 +325,8 @@
   .draft-sev { display: flex; gap: 6px; } .draft-sev .chip { padding: 3px 10px; cursor: pointer; }
   .draft-preview { flex: 1; overflow: auto; padding: 12px 16px; }
   .draft-preview pre { overflow-x: auto; }
-  .draft-in { background: var(--card2); border-color: var(--line2); }
-  .draft-in:focus-within { border-color: var(--select); }
+  .draft-in { background: var(--bg); border-color: var(--line2); }
+  .draft-in:focus-within { border-color: var(--muted); }
   .md-tools { display: flex; gap: 2px; padding: 6px 8px; border-bottom: 1px solid var(--line); }
   .md-tools button { background: none; border: 0; color: var(--muted); min-width: 30px; height: 28px; border-radius: 7px;
     cursor: pointer; font: inherit; font-size: .8125rem; }
@@ -408,7 +440,9 @@
 <body>
 <div class="app" id="app">
   <nav class="rail" id="rail"></nav>
+  <header id="head"></header>
   <main id="main"></main>
+  <div id="grip" title="Drag to make the AI Agent panel wider or narrower"></div>
   <aside class="panel" id="panel" style="display:none"></aside>
 </div>
 <aside class="panel slide" id="ucpanel"></aside>
@@ -428,7 +462,8 @@ let reviewsList = [], R = null, deferred = false;
 const ui = { assistant: localStorage.getItem("craftsman-assistant") !== "off", tab: params.get("tab") || "overview", panel: null, file: params.get("file"), uc: null, ucFile: null,
   fsev: null, fby: null, fstatus: "open", fcat: "", fquestions: false, search: "", codeFilter: "all", editing: null,
   selection: null, sort: { key: "severity", dir: 1 }, inline: localStorage.getItem("craftsman-review-inline") === "1", open: new Set(),
-  ghRead: new Set(), ghReading: false, replyTo: null, editComment: null, rfilter: "all", unchanged: false, cursor: null };
+  ghRead: new Set(), ghReading: false, replyTo: null, editComment: null, rfilter: "all", unchanged: false, cursor: null,
+  ctxBy: {}, ptab: "ask", pinned: false, log: false };
 ui.nr = newReview();
 if (params.has("new")) {
   // opened by /craftsman:pr-review <source>: the wizard, with the source filled in
@@ -522,7 +557,7 @@ function go(target) {
   if (target.id !== undefined) current = { id: target.id };
   Object.assign(ui, target.ui || {});
   if (other) { R = null; Object.keys(diffs).forEach(k => delete diffs[k]); Object.keys(refs).forEach(k => delete refs[k]); unchangedFiles = null;
-    Object.assign(ui, { panel: null, uc: null, file: null, selection: null, cursor: null }); }
+    Object.assign(ui, { uc: null, file: null, selection: null, cursor: null, ctxBy: {}, pinned: false, log: false }); }
   const p = new URLSearchParams();
   if (current.id) p.set("review", current.id);
   if (ui.tab !== "overview") p.set("tab", ui.tab);
@@ -801,7 +836,7 @@ function findingTable(list, sortable) {
       const loc = (f.locations || [])[0] || {}, threads = threadsOf("finding", f.id);
       const st = { "to-send": '<span class="tag green">to send</span>', sent: '<span class="tag blue">sent</span>',
         "maybe-resolved": '<span class="tag amber">maybe resolved</span>', deleted: '<span class="tag">dropped</span>' }[f.status] || '<span class="tag">not yet</span>';
-      return `<tr data-finding="${esc(f.id)}"${ui.panel && ui.panel.finding === f.id ? ' class="sel"' : ""}><td>${sev(f.severity)}</td>
+      return `<tr data-finding="${esc(f.id)}"${ctx().kind === "finding" && ctx().id === f.id ? ' class="sel"' : ""}><td>${sev(f.severity)}</td>
         <td><div class="t">${inline(f.title)}</div><div class="w mono" title="${esc(loc.path || "")}">${esc(shortPath(loc.path || ""))}${loc.line ? ":" + loc.line : ""}</div></td>
         <td>${who(f.by)}</td><td class="muted">${esc(f.category)}</td>
         <td class="muted">${threads.length ? `💬 ${threads.reduce((a, t) => a + t.messages.length, 0)}` : '<span class="dim">—</span>'}</td><td>${st}</td></tr>`;
@@ -850,7 +885,7 @@ function ghHead(c, extra = "") {
 }
 function ghComment(c) {
   const decided = { APPROVED: ' · <span class="tag green">approved</span>', CHANGES_REQUESTED: ' · <span class="tag red">asked for changes</span>' }[c.state] || (c.kind === "review" ? " · reviewed" : "");
-  return `<div class="card ghc">${ghHead(c, decided)}${c.body ? `<div class="md">${md("github:" + c.id)}</div>` : ""}
+  return `<div class="card ghc" data-ctx="${esc(JSON.stringify({ kind: "github", id: c.id }))}">${ghHead(c, decided)}${c.body ? `<div class="md">${md("github:" + c.id)}</div>` : ""}
     ${c.kind === "issue" ? `<div class="row-actions"><a class="muted" data-gh-quote="${c.id}">Quote reply</a></div>` : ""}</div>`;
 }
 // One thread on the code: where it is, what was said, the developer's replies waiting for Send, and a reply box.
@@ -869,7 +904,7 @@ function ghPlace(first) {
 }
 function ghThreadCard(root, msgs) {
   const f = findingOfThread(root);
-  return `<div class="card ghc"><div class="thread-h"><span>${ghPlace(msgs[0])}</span>${f ? `<a data-finding="${esc(f.id)}">your finding ${esc(f.id)}</a>` : ""}</div>
+  return `<div class="card ghc" data-ctx="${esc(JSON.stringify({ kind: "github", id: root }))}"><div class="thread-h"><span>${ghPlace(msgs[0])}</span>${f ? `<a data-finding="${esc(f.id)}">your finding ${esc(f.id)}</a>` : ""}</div>
     ${ghThreadMessages(root, msgs)}</div>`;
 }
 function draftCard(c) {
@@ -879,10 +914,12 @@ function draftCard(c) {
       <div class="row-actions"><button class="btn go sm" data-csave="${esc(c.id)}">Save</button><button class="btn ghost sm" data-cedit="">Cancel</button></div>`
     : `<div class="body md">${md("comment:" + c.id)}</div><div class="row-actions"><a class="muted" data-cedit="${esc(c.id)}">Edit</a><a class="muted" data-cdrop="${esc(c.id)}">Drop</a></div>`}</div>`;
 }
-function panelGhThread(root) {
-  const msgs = ghThreads().get(root); if (!msgs) return `<div class="muted">This thread is not on GitHub any more.</div>`;
-  return `<div class="crumb"><span>Thread on GitHub · ${ghPlace(msgs[0])}</span><a data-close-panel>✕</a></div>
-    <div style="margin-top:12px">${ghThreadMessages(root, msgs)}</div>`;
+// The GitHub comment or thread the panel is about, as it reads on GitHub.
+function ghContext(id) {
+  const msgs = ghThreads().get(id);
+  if (msgs) return `<div class="thread"><div class="thread-h"><span>Thread on GitHub · ${ghPlace(msgs[0])}</span></div>${ghThreadMessages(id, msgs)}</div>`;
+  const c = conversation().find(x => x.id === id);
+  return c ? `<div class="thread">${ghHead(c)}${c.body ? `<div class="md">${md("github:" + c.id)}</div>` : ""}</div>` : `<div class="muted" style="padding-top:12px">This comment is not on GitHub any more.</div>`;
 }
 
 // ================================================================ the side panel
@@ -898,7 +935,7 @@ function panelFinding(id) {
   const byFile = new Map(); (f.locations || []).forEach(l => byFile.set(l.path, [...(byFile.get(l.path) || []), l.line]));
   const places = [...byFile].map(([path, lines]) => `<span title="${esc(path)}">${esc(path.split("/").pop())}</span> ` +
     lines.map(n => n == null ? `<a data-open-file="${esc(path)}" style="color:var(--neon)">whole file</a>` : `<a data-goto="${esc(path)}|${n}" style="color:var(--neon)">${n}</a>`).join(", ")).join(" · ");
-  return `<div class="crumb"><span>Finding ${esc(f.id)} · ${esc(f.category)} · ${who(f.by)}${places ? " · " + places : ""}</span><a data-close-panel>✕</a></div>
+  return `<div class="crumb"><span>Finding ${esc(f.id)} · ${esc(f.category)} · ${who(f.by)}${places ? " · " + places : ""}</span></div>
     ${editing ? `<input class="field" id="edit-title" value="${esc(f.title)}" style="margin-top:8px">` : `<h2>${inline(f.title)}</h2>`}
     <div class="filters" style="margin:6px 0 0">${SEVS.map(k => `<button class="chip${f.severity === k ? " on" : ""}" data-set-sev="${k}" ${sent ? "disabled" : ""}>${SEV[k]}</button>`).join("")}</div>
     ${f.status === "maybe-resolved" ? `<div class="banner" style="margin:12px 0 0">AI Agent no longer sees this problem at the PR's head. Drop it, or keep it.</div>` : ""}
@@ -908,13 +945,71 @@ function panelFinding(id) {
       ${editing ? `<textarea class="field" id="edit-comment" style="min-height:140px">${esc(f.comment)}</textarea>` : `<div class="md">${md(`finding:${f.id}:comment`)}</div>`}</div>
     <div class="row-actions">${actions}${f.status === "deleted" ? "" : `<span class="in-prompt" data-in-prompt="${esc(f.id)}" title="Whether the fix prompts ask the author's AI agent to fix this one">
       <span class="switch${f["in-prompt"] === false ? "" : " on"}"><i></i></span>In fix prompt</span>`}</div>
-    ${sentAs(f).filter(root => ghThreads().has(root)).map(root => `<div class="box"><div class="l">On GitHub</div>${ghThreadMessages(root, ghThreads().get(root))}</div>`).join("")}
-    ${threadsBlock(threadsOf("finding", f.id), { kind: "finding", id: f.id }, "Ask about this finding…")}`;
+    ${sentAs(f).filter(root => ghThreads().has(root)).map(root => `<div class="box"><div class="l">On GitHub</div>${ghThreadMessages(root, ghThreads().get(root))}</div>`).join("")}`;
 }
+// ================================================================ the AI Agent panel: what it is about
+// The panel stands beside every tab of a review and is about one thing, its context: what is picked in the tab, or
+// the whole PR when nothing is. Each tab keeps its own; on the Code tab a pin keeps it while the developer moves around.
+const PR = { kind: "review" };
+// the key that sends a text box: ⌘ on a Mac, Ctrl elsewhere; both work everywhere
+const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl";
+const REVIEW_TABS = ["overview", "structure", "code", "findings", "comments", "rules"];
+// Whether a thread about `about` belongs to the context `ctx`: the same thing, and for a file the same lines, or none.
+function aboutContext(about, ctx) {
+  if (about.kind !== ctx.kind) return false;
+  if (ctx.kind === "file" || ctx.kind === "folder") return about.path === ctx.path && JSON.stringify(about.lines || null) === JSON.stringify(ctx.lines || null);
+  return ctx.kind === "review" || about.id === ctx.id;
+}
+// The panel's tabs: "Finding" only where a finding can be written (a folder, a file, lines) or is shown.
+function panelTabs(ctx) {
+  return ["folder", "file", "finding"].includes(ctx.kind) ? ["ask", "finding"] : ["ask"];
+}
+// The draft a context writes: by its file's path, or its folder's (which ends with "/").
+function draftKey(ctx) {
+  return ctx.kind === "file" || ctx.kind === "folder" ? ctx.path : null;
+}
+function ctx() {
+  const own = ui.ctxBy[ui.tab];
+  if (ui.tab === "code") return own || (ui.file ? { kind: "file", path: ui.file } : PR);
+  if (ui.tab === "findings") {
+    const first = sorted(S().findings.filter(STATUS.open))[0];
+    return own && S().findings.some(f => f.id === own.id) ? own : first ? { kind: "finding", id: first.id } : PR;
+  }
+  return own || PR;
+}
+// The developer picked something: it becomes the context of the tab, unless the Code tab's context is pinned. A finding
+// picked anywhere is the one the Findings tab opens on.
+function setCtx(c, ptab) {
+  if (c.kind === "finding") ui.ctxBy.findings = c;
+  if (!(ui.tab === "code" && ui.pinned)) ui.ctxBy[ui.tab] = c;
+  if (ptab) ui.ptab = ptab;
+  ui.log = false;
+}
+const lineSpan = lines => lines ? `${lines[0]}${lines[1] !== lines[0] ? "–" + lines[1] : ""}` : "";
+function ctxLabel(c) {
+  if (c.kind === "review") return ["PR", "the whole pull request", false];
+  if (c.kind === "folder") return ["Folder", c.path, true];
+  if (c.kind === "file") return [c.lines ? "Lines" : "File", c.path.split("/").pop() + (c.lines ? ":" + lineSpan(c.lines) : ""), true];
+  if (c.kind === "finding") { const f = S().findings.find(x => x.id === c.id); return ["Finding", `${c.id} · ${f ? f.title : ""}`, false]; }
+  if (c.kind === "github") { const m = conversation().find(x => x.id === c.id) || {}; return ["GitHub", `${m.author || "comment"}: ${(m.body || "").slice(0, 80)}`, false]; }
+  if (c.kind === "directive") return ["Rule", c.id, true];
+  const uc = c.kind === "use-case" && useCases().find(u => u.id === c.id);
+  return ["Use case", uc ? uc.name : c.id, false];
+}
+const NOUN = { review: "the PR", folder: "this folder", file: "this file", finding: "this finding", github: "this comment", directive: "this rule", "use-case": "this use case" };
+const nounOf = c => c.kind === "file" && c.lines ? "these lines" : NOUN[c.kind] || "this";
+const SUGGESTIONS = {
+  review: ["What does this PR change, in short?", "What should I read first?", "What is risky here?"],
+  folder: ["What is this package for?", "What changed here, and why?"],
+  file: ["What does this file do?", "Is this change tested?"],
+  lines: ["What does this do?", "Is there a simpler way?", "Is a test covering this?"],
+  finding: ["Is this a real problem?", "How would you fix it?"],
+  github: ["What does the author mean?", "How could I answer?"],
+  directive: ["What does this rule ask for?", "Where does this PR break it?"],
+  "use-case": ["How does this use case run?", "What is not tested here?"] };
 // Open threads in full; resolved ones folded under one line, so the conversation that matters stays in view. A question
 // waiting for an answer says plainly whether the session that answers it is running.
-function threadsBlock(threads, about, placeholder) {
-  const last = [...threads].reverse().find(t => t.status === "open");
+function threadsBlock(threads) {
   const one = t => {
     const waits = t.status === "open" && t.messages[t.messages.length - 1].by === "developer";
     return `<div class="thread"><div class="thread-h"><span>${t.messages[0].by === "agent" ? "AI Agent's note" : "Your question"} · ${t.status}</span>
@@ -927,29 +1022,48 @@ function threadsBlock(threads, about, placeholder) {
   };
   const open = threads.filter(t => t.status === "open"), resolved = threads.filter(t => t.status !== "open");
   return (resolved.length ? `<details class="thread"><summary class="muted" style="font-size:.75rem;cursor:pointer">${plural(resolved.length, "resolved question")}</summary>${resolved.map(one).join("")}</details>` : "") +
-    open.map(one).join("") +
-    `<div class="composer"><textarea id="compose" placeholder="${esc(placeholder)}" rows="2"></textarea>
-      <button class="send" data-compose="${esc(JSON.stringify({ about, thread: last ? last.id : null }))}" title="Send (⌘↵)">→</button></div>`;
+    open.map(one).join("");
 }
 function placeOf(about) {
   if (about.kind === "file") return `${about.path}${about.lines ? ` ${about.lines[0]}–${about.lines[1]}` : ""}`;
+  if (about.kind === "folder") return about.path;
   if (about.kind === "review") return "the whole review";
+  if (about.kind === "github") return "a comment on GitHub";
+  if (about.kind === "directive") return `the rule ${about.id}`;
   const uc = about.kind === "use-case" && useCases().find(u => u.id === about.id);
   return uc ? uc.name : `${about.kind} ${about.id}`;
 }
-function panelAsk(p) {
-  const same = p.about.kind === "file" ? threadsOf("file", p.about.path).filter(t => JSON.stringify(t.about.lines) === JSON.stringify(p.about.lines))
-    : p.about.kind === "use-case" ? threadsOf("use-case", p.about.id) : [];
-  return `<div class="crumb"><span>Question · ${esc(placeOf(p.about))}</span><a data-close-panel>✕</a></div>
-    <h2>Ask AI Agent</h2>${p.quote && !same.length ? `<div class="quote">${esc(p.quote)}</div>` : ""}
-    ${threadsBlock(same, { ...p.about, quote: p.quote }, "What do you want to know?")}
-    ${p.about.kind === "file" ? `<div class="row-actions"><button class="btn sm" data-new-finding>Make it a finding</button></div>` : ""}`;
+// The AI Agent's question the run stopped on: in the PR's conversation, answered with one of its options; what is
+// written in the box below goes with the answer as a note.
+function agentAsks(cp) {
+  return `<div class="agent-asks"><div class="who">✦ AI Agent asks · waiting for you${cp.step ? " · " + esc(cp.step) : ""}</div>
+    <div style="white-space:pre-wrap;color:var(--heading)">${esc(cp.question)}</div>
+    <div class="row-actions">${(cp.options || []).map((o, i) => `<button class="btn${i === 0 ? " go" : ""} sm" data-answer="${esc(o)}">${esc(o)}</button>`).join("")}</div></div>`;
 }
-function panelThread(id) {
-  const t = (S().threads || []).find(x => x.id === id); if (!t) return "";
-  return `<div class="crumb"><span>Thread ${esc(t.id)} · ${esc(placeOf(t.about))}</span><a data-close-panel>✕</a></div>
-    ${threadsBlock([t], t.about, "Reply…")}
-    ${t.about.kind === "file" ? `<div class="row-actions"><button class="btn sm" data-open-file="${esc(t.about.path)}">Show the code</button></div>` : ""}`;
+// "Ask about it": the conversation about the context, and the box to ask in. A question goes on in the open thread
+// about the same context, or starts one.
+function askTab(c) {
+  const threads = (S().threads || []).filter(t => aboutContext(t.about, c));
+  const cp = c.kind === "review" && waiting() ? S().checkpoint : null;
+  const gh = c.kind === "github" ? ghContext(c.id) : "";
+  const elsewhere = (S().threads || []).filter(t => t.status === "open" && !aboutContext(t.about, c));
+  const quote = c.kind === "file" && c.lines && ui.selection && ui.selection.path === c.path ? ui.selection.quote : null;
+  const empty = threads.length || cp || gh ? "" : `<div class="muted" style="padding-top:12px;font-size:.8125rem">No conversation about ${nounOf(c)} yet. It stays with the review and never goes to GitHub.</div>`;
+  return `<div class="ask-out">${gh}${cp ? agentAsks(cp) : ""}${threadsBlock(threads)}${empty}</div>
+    ${elsewhere.length ? `<details class="elsewhere"><summary>${plural(elsewhere.length, "open conversation")} about other places</summary>${elsewhere.map(t =>
+      `<a data-thread="${esc(t.id)}" title="${esc(placeOf(t.about))}">${esc(placeOf(t.about))} · ${noteTitle(t.messages[0].text)}</a>`).join("")}</details>` : ""}
+    <div class="ask-in">${quote ? `<div class="quote">${esc(quote)}</div>` : ""}<textarea id="ask-in" placeholder="Ask AI Agent about ${nounOf(c)}…${cp ? " Or write a note for your answer above." : ""}"></textarea></div>
+    <div class="ask-foot">${(SUGGESTIONS[c.kind === "file" && c.lines ? "lines" : c.kind] || []).map(q => `<button class="sugg" data-sugg="${esc(q)}">${esc(q)}</button>`).join("")}
+      <span class="grow"></span><button class="btn go sm" data-ask title="${MOD} Enter">Ask <kbd>${MOD} Enter</kbd></button></div>`;
+}
+async function askNow() {
+  const box = document.getElementById("ask-in"), text = box && box.value.trim(); if (!text) return;
+  const c = ctx(), last = [...(S().threads || [])].reverse().find(t => t.status === "open" && aboutContext(t.about, c));
+  const { side, ...about } = c, quote = ui.selection && c.lines && ui.selection.path === c.path ? ui.selection.quote : null;
+  box.value = "";
+  const out = last ? await change("reply", { thread: last.id, text }) : await change("ask", { about, quote, text });
+  if (!out) { box.value = text; return; }
+  await reload();
 }
 // ================================================================ the comment panel
 // One draft of a finding per file, kept on the server; the panel shows the draft of the file open in Code, so moving
@@ -966,21 +1080,27 @@ function draftOf(path) {
   }
   return drafts[path];
 }
-const draftPlace = (path, d) => esc(path.split("/").pop()) + (d.lines ? `:${d.lines[0]}${d.lines[1] !== d.lines[0] ? "–" + d.lines[1] : ""}` : " · whole file");
+const draftPlace = (path, d) => path.endsWith("/") ? esc(path) + " · the folder" : esc(path.split("/").pop()) + (d.lines ? ":" + lineSpan(d.lines) : " · whole file");
 const MD_TOOLS = [["bold", "<b>B</b>", "Bold"], ["italic", "<i>I</i>", "Italic"], ["code", "&lt;/&gt;", "Inline code"],
   ["block", "{ }", "Code block"], ["list", "☰", "List"], ["quote", "❝", "Quote"], ["link", "🔗", "Link"]];
 const EMPTY_PREVIEW = '<div class="muted">What you write below shows here as the author will read it on GitHub.</div>';
-function panelComment() {
-  const path = ui.file; if (!path) return `<div class="muted">Open a file in Code to comment on it.</div>`;
-  const d = draftOf(path);
-  return `<div class="crumb"><span class="crumb-path">Comment · <span class="mono" title="${esc(path)}">${esc(path.split("/").pop())}</span></span><a data-close-panel>✕</a></div>
-    <div class="about-row"><div class="about-chip"><span>About <b class="mono">${draftPlace(path, d)}</b></span>${d.lines ? `<a data-draft-whole title="Make it about the whole file">×</a>` : ""}</div>
+// The Finding tab on a folder, a file or lines: one draft of a finding per file or folder, kept on the server. On lines,
+// the draft is about the lines picked.
+let draftAt = null;  // the key of the draft the Finding tab shows
+function syncDraft(c) {
+  const d = draftOf(draftKey(c));
+  if (c.lines && JSON.stringify(c.lines) !== JSON.stringify(d.lines)) { d.lines = c.lines; d.side = c.side || "RIGHT"; saveDraft(draftKey(c)); }
+}
+function panelComment(c) {
+  const path = draftAt = draftKey(c), d = draftOf(path), folder = path.endsWith("/");
+  return `<div class="about-row"><div class="about-chip"><span>About <b class="mono">${draftPlace(path, d)}</b></span>${d.lines ? `<a data-draft-whole title="Make it about the whole file">×</a>` : ""}</div>
       <span class="switch${ui.assistant ? " on" : ""}" data-assistant-switch title="AI Agent writes your draft up as a finding by the review's rules"><i></i>✦ AI Agent assistant</span></div>
+    ${folder ? `<div class="banner" style="margin:0">A finding on a folder goes to the PR's conversation, naming the folder: GitHub has no comment on a folder.</div>` : ""}
     <section class="draft-out" id="draft-out">${draftOut(path, d)}</section>
     ${ui.assistant ? `<div class="style-row" id="style-row">${styleControls(shapeOf(d), "data-style", d.style)}${Object.keys(d.style).length ? `<a data-style-reset title="Back to the default shape, set in AI Agent tools">default</a>` : ""}</div>` : ""}
     <section class="draft-in"><div class="md-tools">${MD_TOOLS.map(([k, label, title]) => `<button data-md-tool="${k}" title="${title}">${label}</button>`).join("")}</div>
       <textarea id="draft-box" placeholder="${ui.assistant ? "Tell AI Agent what you would change here, and why, in your own words. Enter is a new line." : "What would you change here, and why? Markdown works; Enter is a new line."}">${esc(d.text)}</textarea></section>
-    <div class="row-actions draft-actions"><button class="btn go sm" data-draft-make title="${esc(makeBlocked(d) || "⌘ Enter")}" ${makeBlocked(d) ? "disabled" : ""}>Make it a finding</button><button class="btn ghost sm" data-draft-discard>Discard</button></div>`;
+    <div class="row-actions draft-actions"><button class="btn go sm" data-draft-make title="${esc(makeBlocked(d) || MOD + " Enter")}" ${makeBlocked(d) ? "disabled" : ""}>Make it a finding</button><button class="btn ghost sm" data-draft-discard>Discard</button></div>`;
 }
 // The upper half: the finding as it will be. With the assistant on, the one AI Agent wrote of the draft; dimmed while
 // it no longer matches the draft below.
@@ -1033,10 +1153,10 @@ function styleControls(shape, attr, own) {
 const styleValue = el => el.type === "checkbox" ? el.checked : SHAPE.find(([key]) => key === (el.dataset.style || el.dataset.styleDefault))[2][+el.value];
 function paintDraftOut(path) {
   const el = document.getElementById("draft-out");
-  if (!el || ui.file !== path || !drafts[path]) return;
+  if (!el || draftAt !== path || !drafts[path]) return;
   el.innerHTML = draftOut(path, drafts[path]);
   const make = document.querySelector("[data-draft-make]"), why = makeBlocked(drafts[path]);
-  if (make) { make.disabled = !!why; make.title = why || "⌘ Enter"; }
+  if (make) { make.disabled = !!why; make.title = why || MOD + " Enter"; }
 }
 let assistantTimer;
 // AI Agent writes the draft up a moment after the developer stops; a newer draft makes the older answer stale.
@@ -1086,18 +1206,18 @@ function previewDraft(path) {
     if (!out) return;
     d.html = out.html;
     const el = document.getElementById("draft-preview");
-    if (el && ui.file === path) el.innerHTML = d.html || EMPTY_PREVIEW;
+    if (el && draftAt === path) el.innerHTML = d.html || EMPTY_PREVIEW;
   }, 300);
 }
-function openComment(path, lines, side) {
-  const d = draftOf(path);
-  if (lines !== undefined) { d.lines = lines; d.side = side || "RIGHT"; saveDraft(path, true); }
-  ui.file = path; ui.panel = { comment: true };
+// "✎ Comment on file": the Finding tab on the whole file.
+function openComment(path) {
+  setCtx({ kind: "file", path }, "finding");
+  ui.file = path;
   render();
   document.getElementById("draft-box")?.focus();
 }
 async function makeFinding() {
-  const path = ui.file, d = drafts[path]; if (!d) return;
+  const path = draftAt, d = drafts[path]; if (!d) return;
   if (!d.text.trim()) return toast("Write the comment first");
   clearTimeout(draftTimer);
   const why = makeBlocked(d); if (why) return toast(why);
@@ -1124,14 +1244,6 @@ function mdTool(kind) {
   box.focus(); box.setSelectionRange(a + open.length, a + open.length + inner.length);
   box.dispatchEvent(new Event("input", { bubbles: true }));
 }
-function panelCheckpoint() {
-  const cp = S().checkpoint;
-  if (!cp || cp.answer) return `<div class="crumb"><span>AI Agent's question</span><a data-close-panel>✕</a></div><h2>Answered</h2>`;
-  return `<div class="crumb"><span>AI Agent asks you · ${esc(cp.step || "")}</span><a data-close-panel>✕</a></div>
-    <div class="box" style="white-space:pre-wrap;color:var(--heading)">${esc(cp.question)}</div>
-    <input class="field" id="cp-note" placeholder="A note with your answer (optional)" style="margin-top:12px">
-    <div class="row-actions">${(cp.options || []).map((o, i) => `<button class="btn${i === 0 ? " go" : ""} sm" data-answer="${esc(o)}">${esc(o)}</button>`).join("")}</div>`;
-}
 function panelLog() {
   const s = S();
   return `<div class="crumb"><span>The review's AI Agent session</span><a data-close-panel>✕</a></div>
@@ -1141,27 +1253,22 @@ function panelLog() {
     ${s.session ? `<div class="box"><div class="l">Continue it in the CLI, once the session is stopped</div><code>cd ${esc(s.checkout)} && claude --resume ${esc(s.session)}</code></div>` : ""}
     <div class="box log">${(R.console || []).map(l => `<div class="${l.kind}">${esc(l.text)}</div>`).join("") || '<span class="muted">Nothing yet.</span>'}</div>`;
 }
+// The panel: the context box (with the pin on the Code tab), the tabs, and the tab shown; or the session's log.
 function renderPanel() {
-  const el = document.getElementById("panel"), app = document.getElementById("app"), p = ui.panel;
-  const body = !p || !R ? "" : p.finding ? panelFinding(p.finding) : p.thread ? panelThread(p.thread) : p.ghThread ? panelGhThread(p.ghThread) : p.ask ? panelAsk(p.ask)
-    : p.comment ? panelComment() : p.log ? panelLog() : p.checkpoint ? panelCheckpoint() : "";
-  // The panel starts under the tabs, level with the content beside it, so the header keeps its width. Over an open
-  // use case it floats on top of it instead of pushing the use case aside.
-  const over = !!body && ui.tab === "structure" && !!ui.uc;
-  app.classList.toggle("with-panel", !!body && !over);
-  el.classList.toggle("over", over);
-  el.classList.toggle("dock", !!body && !over);
-  el.classList.toggle("card", !!body && !over);
-  placePanel();
-  el.style.display = body ? "flex" : "none";
-  el.innerHTML = body ? `<div class="grip" id="grip"></div>` + body : "";
-}
-
-function placePanel() {
-  const tabs = document.querySelector(".tabs"), el = document.getElementById("panel");
-  const below = Math.max(0, tabs ? tabs.getBoundingClientRect().bottom : 0), view = document.querySelector("#main .view");
-  // a card starts level with the content beside it, and stays under the tabs once the page scrolls
-  el.style.top = (el.classList.contains("card") && view ? Math.max(below + 12, view.getBoundingClientRect().top) : below) + "px";
+  const el = document.getElementById("panel"), app = document.getElementById("app");
+  const shown = !!R && !!current.id && REVIEW_TABS.includes(ui.tab);
+  app.classList.toggle("with-panel", shown);
+  el.style.display = shown ? "flex" : "none";
+  if (!shown) { el.innerHTML = ""; return; }
+  if (ui.log) { el.innerHTML = panelLog(); return; }
+  const c = ctx(), tabs = panelTabs(c);
+  if (!tabs.includes(ui.ptab)) ui.ptab = "ask";
+  const [kind, name, mono] = ctxLabel(c), asks = c.kind === "review" && waiting();
+  const pin = ui.tab === "code" ? `<button class="btn ghost sm pin${ui.pinned ? " on" : ""}" data-pin title="${ui.pinned ? "Pinned: the panel stays on this while you move around the code. Click to unpin" : "Pin: keep the panel on this while you move around the code"}">📌${ui.pinned ? " Pinned" : ""}</button>` : "";
+  if (ui.ptab === "finding" && c.kind !== "finding") syncDraft(c);
+  el.innerHTML = `<div class="ctxbox"><span class="k">${kind}</span><span class="n${mono ? " mono" : ""}" title="${esc(c.path || name)}">${esc(name)}</span>${pin}</div>
+    <div class="ptabs">${tabs.map(t => `<a class="${t === ui.ptab ? "on" : ""}" data-ptab="${t}">${t === "ask" ? "Ask about it" + (asks ? '<span class="q">1 question</span>' : "") : "Finding"}</a>`).join("")}</div>
+    ${ui.ptab === "finding" ? (c.kind === "finding" ? panelFinding(c.id) : panelComment(c)) : askTab(c)}`;
 }
 
 // ================================================================ diffs
@@ -1209,10 +1316,10 @@ function snippetAt(path, line, side) {
 function diffView(path, position) {
   const same = !changed(path), info = same ? { ...fileInfo(path), change: "unchanged" } : fileInfo(path), hunks = diffs[path];
   const counts = [info.added ? "+" + info.added : "", info.removed ? "−" + info.removed : ""].filter(Boolean).join(" ");
-  const back = ui.tab === "code" ? `<span class="muted">back to the tree <kbd>Esc</kbd></span>` : "";
+  const code = ui.tab === "code", back = code ? `<span class="muted" title="Back to the tree"><kbd>Esc</kbd> tree</span>` : "";
   const head = `<div class="diffhead"><span>${position ? `<span class="muted" style="font-size:.7812rem">${position}</span><br>` : ""}<b class="mono">${esc(path)}</b>
       <span class="tag ${{ added: "green", deleted: "red", unchanged: "" }[info.change] ?? "blue"}" style="margin-left:6px">${info.change}${counts ? " · " + counts : ""}</span></span>
-    <span style="display:flex;gap:14px;align-items:center;font-size:.7812rem">${same ? `<span class="muted">select lines to ask AI Agent about them</span>${back}` : `<span class="muted">select lines to ask AI Agent or comment on them</span>${back}<button class="btn ghost sm" data-comment-file="${esc(path)}">✎ Comment on file</button>${sevCounts(findingsAt(path))}
+    <span class="dtools">${same ? (code ? back : `<span class="muted">select lines to ask AI Agent about them</span>`) : `${code ? back : `<span class="muted">select lines to ask AI Agent or comment on them</span>`}<button class="btn ghost sm" data-comment-file="${esc(path)}">✎ Comment on file</button>${sevCounts(findingsAt(path))}
       <span class="switch${ui.inline ? " on" : ""}" data-inline title="Every finding under its line, or dots beside the line number"><i></i>Show all inline</span>
       <span style="display:inline-flex;gap:6px;align-items:center;cursor:pointer" data-view="${esc(path)}"><span class="vbox${info.viewed ? " on" : ""}">${info.viewed ? "✓" : ""}</span>Viewed</span>`}</span></div>`;
   if (!hunks) { fileDiff(path); return `<div class="diffcard">${head}<div class="banner">Loading…</div></div>`; }
@@ -1229,21 +1336,21 @@ function diffView(path, position) {
   }
   const notes = threadsOf("file", path), anchored = findingsAt(path), whole = ["added", "deleted"].includes(info.change);
   const github = [...ghThreads()].filter(([root, msgs]) => msgs[0].path === path && msgs[0].line != null && !findingOfThread(root));
-  const sel = ui.selection && ui.selection.path === path ? ui.selection.lines
-    : ui.panel && ui.panel.comment && ui.file === path && drafts[path] ? drafts[path].lines : null;
-  const opened = ui.panel && ui.panel.finding ? S().findings.find(f => f.id === ui.panel.finding) : null;
+  // the lines the panel is about stay selected; the finding it shows is outlined
+  const c = ctx(), sel = c.kind === "file" && c.path === path && c.lines ? c.lines : null;
+  const opened = c.kind === "finding" ? S().findings.find(f => f.id === c.id) : null;
   const body = hunks.map(h => (same ? "" : `<div class="hunk">${esc(h.header)}</div>`) + h.lines.map(l => {
     const n = l.now ?? l.old, side = l.now === null ? "LEFT" : "RIGHT";
     const here = anchored.filter(f => f.locations.some(x => x.path === path && x.line === n && (x.side || "RIGHT") === side));
     const talk = notes.filter(t => t.about.lines && t.about.lines[1] === n && (side === "RIGHT" || info.change === "deleted"));
-    const inSel = sel && side === "RIGHT" && n >= sel[0] && n <= sel[1], key = `${path}|${side}|${n}`;
+    const inSel = sel && side === (c.side || "RIGHT") && n >= sel[0] && n <= sel[1], key = `${path}|${side}|${n}`;
     const shown = here.length && (ui.inline || ui.open.has(key)), lit = opened && here.includes(opened) ? " lf-" + opened.severity : "";
     return `<div class="ln ${l.kind}${whole ? " whole" : ""}${inSel ? " sel" : ""}${shown && !ui.inline ? " open" : ""}${lit}" data-line="${n}" data-side="${side}">` +
       `<span class="no">${l.old ?? ""}</span><span class="no">${l.now ?? ""}</span>${gutter(here, key)}<span class="sg">${l.kind === "add" ? "+" : l.kind === "del" ? "−" : ""}</span><span class="c">${l.html}</span></div>` +
       (shown ? here.map(f => `<div class="ann${f === opened ? " on" : ""}" data-finding="${esc(f.id)}">${sev(f.severity)}<span>${who(f.by)} · ${esc(f.id)} · ${inline(f.title)}</span></div>`).join("") : "") +
       talk.map(t => `<div class="ann" data-thread="${esc(t.id)}"><span class="tag">${t.messages[0].by === "agent" ? "✦" : "💬"} ${t.messages.length}</span><span>${noteTitle(t.messages[0].text)}</span></div>`).join("") +
       github.filter(([, msgs]) => msgs[0].line === n && (msgs[0].side || "RIGHT") === side).map(([root, msgs]) =>
-        `<div class="ann${ui.panel && ui.panel.ghThread === root ? " on" : ""}" data-gh-thread="${root}"><span class="tag blue">GitHub · ${msgs.length}</span><span>${esc(msgs[0].author || "")}: ${noteTitle(msgs[0].body)}</span></div>`).join("");
+        `<div class="ann${c.kind === "github" && c.id === root ? " on" : ""}" data-gh-thread="${root}"><span class="tag blue">GitHub · ${msgs.length}</span><span>${esc(msgs[0].author || "")}: ${noteTitle(msgs[0].body)}</span></div>`).join("");
   }).join("")).join("");
   const onFile = anchored.filter(f => f.locations.some(x => x.path === path && x.line == null));
   banner += onFile.map(f => `<div class="ann" data-finding="${esc(f.id)}">${sev(f.severity)}<span>${who(f.by)} · ${esc(f.id)} · whole file · ${inline(f.title)}</span></div>`).join("");
@@ -1446,6 +1553,8 @@ function treeHtml() {
   }).join("");
 }
 
+// a row of the tree as the panel's context: a folder's path ends with "/"
+const rowCtx = (path, type) => type === "dir" ? { kind: "folder", path: path + "/" } : { kind: "file", path };
 function toggleFolder(path) {
   const closed = closedFolders();
   closed.has(path) ? closed.delete(path) : closed.add(path);
@@ -1465,7 +1574,7 @@ function treeKey(e) {
     if (!rows[j]) return;
     ui.cursor = rows[j].dataset.row;
     if (rows[j].dataset.type === "file") ui.file = ui.cursor;
-    go({}); focusTree();
+    setCtx(rowCtx(ui.cursor, rows[j].dataset.type)); go({}); focusTree();
   };
   const fold = () => { toggleFolder(ui.cursor); render(); focusTree(); };
   switch (e.key) {
@@ -1510,7 +1619,7 @@ function viewCode() {
       <div id="tree" tabindex="0" role="tree" aria-label="Files">${treeHtml()}</div>
       <div class="legend"><span>${changeIcon("added")}added</span><span>${changeIcon("modified")}modified</span><span>${changeIcon("deleted")}removed</span><span>${changeIcon("renamed")}moved</span><span>${seenIcon(true)}viewed</span></div></div>
     <div id="tree-grip" title="Drag to resize the tree"></div>
-    <div>${ui.file ? diffView(ui.file, at < 0 ? "" : `file ${at + 1} of ${order.length} &nbsp;<a data-step-file="-1">← prev</a> · <a data-step-file="1" style="color:var(--neon)">next →</a>`) : '<div class="muted">No changed files.</div>'}</div></div>`;
+    <div class="codediff">${ui.file ? diffView(ui.file, at < 0 ? "" : `file ${at + 1} of ${order.length} &nbsp;<a data-step-file="-1">← prev</a> · <a data-step-file="1" style="color:var(--neon)">next →</a>`) : '<div class="muted">No changed files.</div>'}</div></div>`;
 }
 
 // ================================================================ structure
@@ -1623,7 +1732,7 @@ function openUseCase(id) {
   const tip = document.getElementById("tip"); if (tip) tip.style.display = "none";
   layoutCards(true);
   const el = document.getElementById("ucpanel");
-  if (!ui.uc) { el.classList.remove("shown"); if (ui.panel) { ui.panel = null; renderPanel(); } return; }
+  if (!ui.uc) { el.classList.remove("shown"); return; }
   if (first) return ucPanel();
   el.classList.add("swap"); setTimeout(() => { ucPanel(); el.classList.remove("swap"); }, 140);
 }
@@ -1673,7 +1782,7 @@ function viewRules() {
   };
   const row = d => {
     const missing = d.on ? unchecked(d) : [], n = found(d.id);
-    return `<div class="rrow${d.on ? "" : " off"}">
+    return `<div class="rrow${d.on ? "" : " off"}" data-ctx="${esc(JSON.stringify({ kind: "directive", id: d.id }))}">
       <span class="switch${d.on ? " on" : ""}" data-directive-switch="${esc(d.id)}" title="${d.on ? "Checked by this review — click to switch off" : "Not checked — click to switch on"}"><i></i></span>
       <div style="min-width:0"><div><b class="rid">${esc(d.id)}</b>${d.bundle ? ` <span class="tag">${esc(d.bundle)}</span>` : ""}${d.on !== d.default ? ` <span class="muted" style="font-size:.75rem">${d.on ? "on for this review only" : "off for this review only"}</span>`
           : d.default !== d.enabled ? ` <span class="muted" style="font-size:.75rem">${d.on ? "on in your review set" : "off in your review set"}</span>` : ""}</div>
@@ -1839,13 +1948,6 @@ function busy() {
 }
 // the file the Code tab showed last: opening another one starts at its top, while a refresh keeps the place
 let shownFile = null;
-document.getElementById("main").addEventListener("scroll", fitTree, { passive: true });
-addEventListener("resize", fitTree);
-// The tree's box ends at the bottom of the window, wherever the page is scrolled to; the tree scrolls inside it.
-function fitTree() {
-  const box = document.querySelector(".treebox"); if (!box) return;
-  box.style.maxHeight = Math.max(240, innerHeight - Math.max(box.getBoundingClientRect().top, 0) - 16) + "px";
-}
 // The cursor's row is shown in the tree, which scrolls for it on its own, never the page.
 function keepCursorInView(tree) {
   const on = tree.querySelector(".trow.cursor"); if (!on) return;
@@ -1859,7 +1961,9 @@ function render() {
   const typed = {}, focused = document.activeElement && document.activeElement.id;
   document.querySelectorAll("input[id], textarea[id]").forEach(el => typed[el.id] = [el.value, el.selectionStart, el.selectionEnd]);
   const main = document.getElementById("main"), panel = document.getElementById("panel"), side = document.getElementById("ucpanel");
-  const y = main.scrollTop, py = panel.scrollTop, sy = side.scrollTop;
+  const y = main.scrollTop, py = panel.scrollTop, sy = side.scrollTop, diffY = document.querySelector(".codediff .diffbody")?.scrollTop;
+  // the conversation in the panel keeps its place, or stays at its end to show what comes next
+  const out = document.querySelector(".ask-out"), outY = out && (out.scrollHeight - out.scrollTop - out.clientHeight < 8 ? Infinity : out.scrollTop);
   const treeY = document.getElementById("tree")?.scrollTop, inTree = focused === "tree", inDiff = document.activeElement?.dataset?.diff;
   renderRail();
   if (ui.tab !== "structure") ui.uc = null;
@@ -1869,19 +1973,26 @@ function render() {
   else if (!R) main.innerHTML = `<h1>${esc(current.id)}</h1>${opening && opening.running ? (opening.permissions || []).map(permitCard).join("") : ""}<div class="card pending" style="margin-top:20px"><h3><span>Step 1 of ${STEPS.length} · Open the review</span></h3>
     <div>The AI agent reads the pull request, gives the review its own copy of the code, and stores the diff. The page fills in as soon as it has.</div>
     <div class="indeterminate"></div></div>`;
-  else main.innerHTML = renderHead() + `<div class="view">${progressLine()}${({ overview: viewOverview, findings: viewFindings, code: viewCode, structure: viewStructure, comments: viewComments, rules: viewRules }[ui.tab] || viewOverview)()}</div>`;
+  else main.innerHTML = `<div class="view">${({ overview: viewOverview, findings: viewFindings, code: viewCode, structure: viewStructure, comments: viewComments, rules: viewRules }[ui.tab] || viewOverview)()}</div>`;
+  // the header runs over the content and the panel
+  document.getElementById("head").innerHTML = R && current.id && REVIEW_TABS.includes(ui.tab) ? renderHead() + progressLine() : "";
+  main.classList.toggle("frames", !!(R && ui.tab === "code" && !R["missing-diff"] && REVIEW_TABS.includes(ui.tab)));
   const opened = ui.tab === "code" && R && shownFile !== null && ui.file !== shownFile;
   if (ui.tab === "code" && R) shownFile = ui.file;
   main.scrollTop = opened ? 0 : y;
+  const diffBody = document.querySelector(".codediff .diffbody");
+  if (diffBody && !opened && diffY !== undefined) diffBody.scrollTop = diffY;
   const tree = document.getElementById("tree");
   // the tree keeps its place; it moves only to show its cursor, after a file was opened or when the tree first appears
-  if (tree) { fitTree(); tree.scrollTop = treeY || 0; if (opened || treeY === undefined) keepCursorInView(tree); }
+  if (tree) { tree.scrollTop = treeY || 0; if (opened || treeY === undefined) keepCursorInView(tree); }
   // a redraw keeps the focus where the keys were working: on the tree, or in the diff of the same file
   if (inTree && tree) tree.focus({ preventScroll: true });
   else if (inDiff) document.querySelector(`.diffbody[data-diff="${CSS.escape(inDiff)}"]`)?.focus({ preventScroll: true });
   document.title = (R && (waiting() || asking()) ? "● " : "") + "craftsman review";
   renderPanel(); layoutCards(false); ucPanel();
   panel.scrollTop = py; side.scrollTop = sy;
+  const newOut = document.querySelector(".ask-out");
+  if (newOut) newOut.scrollTop = outY === undefined || outY === Infinity ? newOut.scrollHeight : outY;
   Object.entries(typed).forEach(([id, [value, start, end]]) => {
     const el = document.getElementById(id); if (!el) return;
     if (!id.startsWith("nr-") && !id.startsWith("draft-")) el.value = value;  // drawn from ui.nr and drafts, which may be newer
@@ -1897,41 +2008,26 @@ function toast(msg) {
   const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show");
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 3200);
 }
-async function compose(spec) {
-  const box = document.getElementById("compose"), text = box.value.trim(); if (!text) return;
-  const { quote, ...about } = spec.about;
-  const out = spec.thread ? await change("reply", { thread: spec.thread, text }) : await change("ask", { about, quote: quote || null, text });
-  if (!out) return;
-  box.value = "";
-  await reload();
-  if (ui.panel && ui.panel.ask) { const t = (S().threads || []).slice(-1)[0]; ui.panel = t ? { thread: t.id } : null; ui.selection = null; render(); }
-}
 function hidePop() {
   document.getElementById("pop").style.display = "none";
   if (deferred) setTimeout(render, 0);
 }
-// A click elsewhere lets go of the selected lines, unless a question or a finding about them is open in the panel.
-function dropSelection() {
-  if (!ui.selection || (ui.panel && ui.panel.ask)) return;
-  ui.selection = null;
-  document.querySelectorAll(".ln.sel").forEach(l => { if (!l.closest(".snip")) l.classList.remove("sel"); });
-}
 const stepIn = (list, at, by) => list[Math.min(list.length - 1, Math.max(0, list.indexOf(at) + by))];
 
-const CLICKABLE = ["tab", "sort", "restart", "inline", "gutter", "goto", "finding", "thread", "close-panel", "edit", "save", "status", "set-sev", "resolve", "compose", "view", "pick-file",
+const CLICKABLE = ["tab", "sort", "restart", "inline", "gutter", "goto", "finding", "thread", "close-panel", "edit", "save", "status", "set-sev", "resolve", "view", "pick-file",
   "open-file", "step-file", "step-uc", "code-filter", "fsev", "fby", "fquestions", "fstatus", "answer", "live", "refresh", "send", "power",
-  "close-review", "uccard", "close-uc", "ask-uc", "open-review", "archive", "new", "archived", "unarchive", "start", "pop", "new-finding", "nr-kind", "nr-how", "nr-browse",
+  "close-review", "uccard", "close-uc", "ask-uc", "open-review", "archive", "new", "archived", "unarchive", "start", "pop", "nr-kind", "nr-how", "nr-browse",
   "comment-file", "draft-whole", "draft-sev", "draft-make", "draft-discard", "md-tool", "assistant-switch", "answer-here", "agent-tools", "allow-tool", "tool-toggle", "nr-existing", "permit",
   "gh-read", "gh-quote", "gh-reply-open", "gh-reply", "gh-thread", "comment-add", "cedit", "csave", "cdrop",
   "directive-switch", "directive-check", "directive-default", "rfilter", "context-save", "context-remove", "fix-prompts", "in-prompt",
-  "ai-edit", "ai-save", "ai-cancel", "ai-again", "style-reset", "row", "chev", "tree-all", "unchanged"].map(name => `[data-${name}]`).join(",");
+  "ai-edit", "ai-save", "ai-cancel", "ai-again", "style-reset", "row", "chev", "tree-all", "unchanged", "ctx", "ptab", "pin", "sugg", "ask"].map(name => `[data-${name}]`).join(",");
 document.addEventListener("click", async e => {
-  if (!e.target.closest("#pop")) { hidePop(); dropSelection(); }
+  if (!e.target.closest("#pop")) hidePop();
   const t = e.target.closest(CLICKABLE); if (!t) return;
   const d = t.dataset;
   if (d.view !== undefined) { e.stopPropagation(); return change(fileInfo(d.view).viewed ? "unview" : "view", { path: d.view }).then(o => o && reload()); }
   if (d.chev !== undefined) { toggleFolder(d.chev); ui.cursor = d.chev; render(); return focusTree(); }
-  if (d.row) { ui.cursor = d.row; if (d.type === "file") ui.file = d.row; go({}); return focusTree(); }
+  if (d.row) { ui.cursor = d.row; if (d.type === "file") ui.file = d.row; setCtx(rowCtx(d.row, d.type)); go({}); return focusTree(); }
   if (d.treeAll) {
     keepClosed(new Set(d.treeAll === "close" ? treeRows(treePaths(), []).filter(r => r.type === "dir").map(r => r.path) : []));
     render(); return focusTree();
@@ -1943,7 +2039,6 @@ document.addEventListener("click", async e => {
     if (d.fcat !== undefined) Object.assign(extra, { fcat: d.fcat, fsev: null, fstatus: "open" });
     if (d.fstatus) Object.assign(extra, { fstatus: d.fstatus, fsev: null });
     if (d.uc) Object.assign(extra, { uc: d.uc, ucFile: null });
-    if (!(ui.panel && ui.panel.log)) ui.panel = null;
     // the Code tab opens with the focus on the tree, where its keys work
     return Promise.resolve(go({ ui: extra })).then(() => d.tab === "code" && focusTree());
   }
@@ -1951,7 +2046,7 @@ document.addEventListener("click", async e => {
   if (d.fby) { ui.fby = ui.fby === d.fby ? null : d.fby; return render(); }
   if (d.fquestions !== undefined) { ui.fquestions = !ui.fquestions; return render(); }
   if (d.fstatus) { ui.fstatus = d.fstatus; return render(); }
-  if (d.finding) { ui.panel = ui.panel && ui.panel.finding === d.finding ? null : { finding: d.finding }; ui.editing = null; return render(); }
+  if (d.finding) { setCtx({ kind: "finding", id: d.finding }, "finding"); ui.editing = null; return render(); }
   if (d.sort) { ui.sort = ui.sort.key === d.sort ? { key: d.sort, dir: -ui.sort.dir } : { key: d.sort, dir: 1 }; return render(); }
   if (d.inline !== undefined) { ui.inline = !ui.inline; localStorage.setItem("craftsman-review-inline", ui.inline ? "1" : "0"); return render(); }
   if (d.gutter) { ui.open.has(d.gutter) ? ui.open.delete(d.gutter) : ui.open.add(d.gutter); document.getElementById("gtip").style.display = "none"; return ui.uc ? ucPanel() : render(); }
@@ -1962,8 +2057,13 @@ document.addEventListener("click", async e => {
     return showLine(path, line);
   }
   if (d.threadFile && ui.tab === "structure" && ui.uc) { ui.ucFile = d.threadFile; ucPanel(); }
-  if (d.thread) { ui.panel = ui.panel && ui.panel.thread === d.thread ? null : { thread: d.thread }; return render(); }
-  if (d.ghThread) { const root = +d.ghThread; ui.panel = ui.panel && ui.panel.ghThread === root ? null : { ghThread: root }; return render(); }
+  if (d.thread) { const t = (S().threads || []).find(x => x.id === d.thread); if (t) setCtx(t.about, "ask"); return render(); }
+  if (d.ghThread) { setCtx({ kind: "github", id: +d.ghThread }, "ask"); return render(); }
+  if (d.ctx) { setCtx(JSON.parse(d.ctx), "ask"); return render(); }
+  if (d.ptab) { ui.ptab = d.ptab; return renderPanel(); }
+  if (d.pin !== undefined) { ui.pinned = !ui.pinned; if (ui.pinned) ui.ctxBy.code = ctx(); return renderPanel(); }
+  if (d.sugg) { const box = document.getElementById("ask-in"); box.value = d.sugg; return box.focus(); }
+  if (d.ask !== undefined) return askNow();
   if (d.ghRead !== undefined) return readGithub();
   if (d.ghQuote) {
     const c = conversation().find(x => x.id === +d.ghQuote), box = document.getElementById("new-comment");
@@ -1991,26 +2091,25 @@ document.addEventListener("click", async e => {
     if (Object.keys(fields).length && !(await change("edit", { finding: d.save, fields }))) return;
     ui.editing = null; return reload();
   }
-  if (d.status) return change("status", { finding: ui.panel.finding, status: d.status }).then(o => o && reload());
-  if (d.setSev) return change("edit", { finding: ui.panel.finding, fields: { severity: d.setSev } }).then(o => o && reload());
+  if (d.status) return change("status", { finding: ctx().id, status: d.status }).then(o => o && reload());
+  if (d.setSev) return change("edit", { finding: ctx().id, fields: { severity: d.setSev } }).then(o => o && reload());
   if (d.resolve) return change("resolve", { thread: d.resolve }).then(o => o && reload());
-  if (d.compose) return compose(JSON.parse(d.compose));
   if (d.pickFile) {
     if (ui.tab === "structure" && ui.uc) { ui.ucFile = d.pickFile; ucPanel(); return d.pickLine && showLine(d.pickFile, +d.pickLine); }
     return go({ ui: { tab: "code", file: d.pickFile } });
   }
   if (d.openFile) { ui.uc = null; return go({ ui: { tab: "code", file: d.openFile, codeFilter: "all" } }); }
-  if (d.stepFile) { const file = stepIn(treeFiles(), ui.file, +d.stepFile); return go({ ui: { file, cursor: file } }); }
+  if (d.stepFile) { const file = stepIn(treeFiles(), ui.file, +d.stepFile); setCtx({ kind: "file", path: file }); return go({ ui: { file, cursor: file } }); }
   if (d.stepUc) { const u = cards().find(x => x.id === ui.uc); ui.ucFile = stepIn(u.files, ui.ucFile, +d.stepUc); return ucPanel(); }
   if (d.codeFilter) { ui.codeFilter = d.codeFilter; return render(); }
-  if (d.answerHere !== undefined) { ui.panel = { checkpoint: true }; return render(); }
-  if (d.answer !== undefined) return change("answer", { option: d.answer, note: document.getElementById("cp-note").value || null }).then(o => {
-    if (o && ui.panel && ui.panel.checkpoint) ui.panel = null;
+  if (d.answerHere !== undefined) { setCtx(PR, "ask"); return render(); }
+  if (d.answer !== undefined) return change("answer", { option: d.answer, note: ["cp-note", "ask-in"].map(id => document.getElementById(id)?.value.trim()).find(Boolean) || null }).then(o => {
+    if (o && document.getElementById("ask-in")) document.getElementById("ask-in").value = "";
     return o && reload();
   });
   if (d.live !== undefined) {
     if (!R.running && !S().closed) return api("/api/review/resume", K()).then(() => reload());
-    ui.panel = ui.panel && ui.panel.log ? null : { log: true }; return render();
+    ui.log = !ui.log; return renderPanel();
   }
   if (d.rfilter) { ui.rfilter = d.rfilter; return render(); }
   if (d.directiveSwitch) {
@@ -2067,7 +2166,7 @@ document.addEventListener("click", async e => {
   }
   if (d.uccard) return openUseCase(d.uccard);
   if (d.closeUc !== undefined) return openUseCase(ui.uc);
-  if (d.askUc) { ui.panel = { ask: { about: { kind: "use-case", id: d.askUc }, quote: null } }; return render(); }
+  if (d.askUc) { setCtx({ kind: "use-case", id: d.askUc }, "ask"); render(); return document.getElementById("ask-in")?.focus(); }
   if (d.openReview !== undefined) {
     const r = shownReviews()[+d.openReview];
     document.getElementById("hover").style.display = "none";
@@ -2084,7 +2183,7 @@ document.addEventListener("click", async e => {
     const id = d.unarchive;
     return api("/api/review/change", { id, action: "archive", archived: false }).then(() => go({ id, ui: { tab: "overview" } }));
   }
-  if (d.new !== undefined) { ui.tab = "new"; ui.panel = null; ui.nr = newReview(); return render(); }
+  if (d.new !== undefined) { ui.tab = "new"; ui.nr = newReview(); return render(); }
   if (d.nrKind) { ui.nr.kind = d.nrKind; render(); return nrCheck(); }
   if (d.nrHow) { ui.nr.how = d.nrHow; render(); return nrCheck(); }
   if (d.nrBrowse !== undefined) {
@@ -2094,8 +2193,8 @@ document.addEventListener("click", async e => {
     if (out && out.path) { ui.nr.path = out.path; render(); nrCheck(); }
     return;
   }
-  if (d.archived !== undefined) { ui.tab = "archived"; ui.panel = null; return render(); }
-  if (d.agentTools !== undefined) { ui.tab = ui.tab === "tools" ? "overview" : "tools"; ui.panel = null; return render(); }
+  if (d.archived !== undefined) { ui.tab = "archived"; return render(); }
+  if (d.agentTools !== undefined) { ui.tab = ui.tab === "tools" ? "overview" : "tools"; return render(); }
   if (d.allowTool !== undefined) {
     toast(R.running ? "restarting the session with the server allowed" : "allowed; start the session and it goes on");
     return api("/api/review/tools", { ...K(), rule: d.allowTool, allow: true, restart: true }).then(() => reload());
@@ -2139,83 +2238,81 @@ document.addEventListener("click", async e => {
   if (d.pop) {
     const s = ui.selection;
     getSelection().removeAllRanges(); hidePop();
-    if (d.pop === "ask") ui.panel = { ask: { about: s.about, quote: s.quote } };
-    if (d.pop === "comment") return openComment(s.path, s.lines, s.side);
-    if (d.pop === "quote") { ui.editing = ui.panel.finding; render(); const box = document.getElementById("edit-comment"); box.value = `> ${s.quote}\n\n` + box.value; return box.focus(); }
+    if (d.pop === "ask") { setCtx(s.about, "ask"); render(); return document.getElementById("ask-in")?.focus(); }
+    if (d.pop === "quote") { ui.editing = ctx().id; render(); const box = document.getElementById("edit-comment"); box.value = `> ${s.quote}\n\n` + box.value; return box.focus(); }
     return render();
   }
-  if (d.newFinding !== undefined) { const a = ui.panel.ask; return openComment(a.about.path, a.about.lines || null, "RIGHT"); }
   if (d.commentFile) { const dr = draftOf(d.commentFile); if (!dr.text.trim()) dr.lines = null; return openComment(d.commentFile); }
-  if (d.draftWhole !== undefined) { draftOf(ui.file).lines = null; saveDraft(ui.file, true); return render(); }
+  if (d.draftWhole !== undefined) { draftOf(draftAt).lines = null; saveDraft(draftAt, true); return render(); }
   if (d.draftSev) {
-    const dr = draftOf(ui.file), changed = dr.severity !== d.draftSev || !dr.sevChosen;
+    const dr = draftOf(draftAt), changed = dr.severity !== d.draftSev || !dr.sevChosen;
     Object.assign(dr, { severity: d.draftSev, sevChosen: true }); render();
-    return changed && ui.assistant ? rewrite(ui.file) : undefined;
+    return changed && ui.assistant ? rewrite(draftAt) : undefined;
   }
-  if (d.aiEdit !== undefined) { const dr = draftOf(ui.file); dr.aiEdit = { title: dr.ai.title, comment: dr.ai.comment }; return render(); }
-  if (d.aiCancel !== undefined) { delete draftOf(ui.file).aiEdit; return render(); }
+  if (d.aiEdit !== undefined) { const dr = draftOf(draftAt); dr.aiEdit = { title: dr.ai.title, comment: dr.ai.comment }; return render(); }
+  if (d.aiCancel !== undefined) { delete draftOf(draftAt).aiEdit; return render(); }
   if (d.aiSave !== undefined) {
-    const dr = draftOf(ui.file), out = await api("/api/review/markdown", { ...K(), text: dr.aiEdit.comment });
+    const dr = draftOf(draftAt), out = await api("/api/review/markdown", { ...K(), text: dr.aiEdit.comment });
     if (!out) return;
     Object.assign(dr.ai, { title: dr.aiEdit.title.trim() || dr.ai.title, comment: dr.aiEdit.comment, html: out.html, pinned: true });
     delete dr.aiEdit; return render();
   }
-  if (d.aiAgain !== undefined) return rewrite(ui.file, true);
-  if (d.styleReset !== undefined) { const dr = draftOf(ui.file); dr.style = {}; saveDraft(ui.file, true); render(); return rewrite(ui.file); }
+  if (d.aiAgain !== undefined) return rewrite(draftAt, true);
+  if (d.styleReset !== undefined) { const dr = draftOf(draftAt); dr.style = {}; saveDraft(draftAt, true); render(); return rewrite(draftAt); }
   if (d.assistantSwitch !== undefined) {
     ui.assistant = !ui.assistant; localStorage.setItem("craftsman-assistant", ui.assistant ? "on" : "off");
-    const dr = ui.file && draftOf(ui.file);
-    if (dr && dr.text.trim()) ui.assistant ? askAssistant(ui.file) : previewDraft(ui.file);
+    const dr = draftAt && draftOf(draftAt);
+    if (dr && dr.text.trim()) ui.assistant ? askAssistant(draftAt) : previewDraft(draftAt);
     return render();
   }
   if (d.draftMake !== undefined) return makeFinding();
   if (d.draftDiscard !== undefined) {
-    if (draftOf(ui.file).text.trim() && !(await ask("Discard this draft?", `<p>The draft about ${draftPlace(ui.file, drafts[ui.file])} is thrown away.</p>`, "Discard"))) return;
+    if (draftOf(draftAt).text.trim() && !(await ask("Discard this draft?", `<p>The draft about ${draftPlace(draftAt, drafts[draftAt])} is thrown away.</p>`, "Discard"))) return;
     clearTimeout(draftTimer);
-    if (!(await change("discard-draft", { path: ui.file }))) return;
-    delete drafts[ui.file]; await reload(); return render();
+    if (!(await change("discard-draft", { path: draftAt }))) return;
+    delete drafts[draftAt]; await reload(); return render();
   }
   if (d.mdTool) return mdTool(d.mdTool);
 });
 document.addEventListener("change", e => { if (e.target.id === "fcat") { ui.fcat = e.target.value; render(); }
-  if (e.target.dataset.style && ui.file) {
+  if (e.target.dataset.style && draftAt) {
     // a part of the shape equal to the default one is not kept: the draft follows the default when it changes
-    const dr = draftOf(ui.file), key = e.target.dataset.style, value = styleValue(e.target);
+    const dr = draftOf(draftAt), key = e.target.dataset.style, value = styleValue(e.target);
     if (value === ((R && R["comment-style"]) || {})[key]) delete dr.style[key]; else dr.style[key] = value;
-    saveDraft(ui.file, true); render(); rewrite(ui.file);
+    saveDraft(draftAt, true); render(); rewrite(draftAt);
   }
   if (e.target.dataset.styleDefault)
     api("/api/review/comment-style", { ...K(), style: { [e.target.dataset.styleDefault]: styleValue(e.target) } }).then(() => reload());
 });
 document.addEventListener("input", e => { if (e.target.id === "fsearch") { ui.search = e.target.value; render(); }
-  if ((e.target.id === "ai-title" || e.target.id === "ai-comment") && ui.file && drafts[ui.file]?.aiEdit)
-    drafts[ui.file].aiEdit[e.target.id === "ai-title" ? "title" : "comment"] = e.target.value;
-  if (e.target.id === "draft-box" && ui.file) { draftOf(ui.file).text = e.target.value; saveDraft(ui.file); ui.assistant ? assistantLater(ui.file) : previewDraft(ui.file); }
+  if ((e.target.id === "ai-title" || e.target.id === "ai-comment") && draftAt && drafts[draftAt]?.aiEdit)
+    drafts[draftAt].aiEdit[e.target.id === "ai-title" ? "title" : "comment"] = e.target.value;
+  if (e.target.id === "draft-box" && draftAt) { draftOf(draftAt).text = e.target.value; saveDraft(draftAt); ui.assistant ? assistantLater(draftAt) : previewDraft(draftAt); }
   if (e.target.id.startsWith("nr-")) {
   const field = { "nr-url": "url", "nr-target": "target", "nr-source": "source", "nr-path": "path", "nr-context": "context" }[e.target.id];
   if (field) { ui.nr[field] = e.target.value; if (field !== "context") nrCheck(); } } });
 document.addEventListener("keydown", e => {
-  if (e.target.id === "compose" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); document.querySelector("[data-compose]")?.click(); }
+  if (e.target.id === "ask-in" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); askNow(); }
   if (e.target.id === "context" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); document.querySelector("[data-context-save]")?.click(); }
   if (e.target.id === "draft-box" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); makeFinding(); }
   if (e.target.id === "tree" && !e.metaKey && !e.ctrlKey && !e.altKey && treeKey(e)) e.preventDefault();
   if (e.key === "Escape") onEscape(e);
 });
 function closePanel() {
-  ui.panel = null; ui.selection = null;
-  document.querySelectorAll(".ln.sel").forEach(l => { if (!l.closest(".snip")) l.classList.remove("sel"); });
-  render();
+  ui.log = false;
+  renderPanel();
 }
-// Esc steps back one layer: out of a text box first, so a half-written text stays; then the popover, the side panel,
-// and the use case.
+// Esc steps back one layer: out of a text box first, so a half-written text stays; then the popover, the session's
+// log, and the use case.
 function onEscape(e) {
   const box = e.target.closest && e.target.closest("textarea, input, select, [contenteditable]");
   if (box) return box.blur();
   if (document.getElementById("pop").style.display === "flex") return hidePop();
-  if (ui.panel) return closePanel();
-  // in the Code tab's diff: the selected lines go first, then the focus goes back to the tree, on the open file
-  const diff = ui.tab === "code" && e.target.closest && e.target.closest(".diffbody");
-  if (diff && ui.selection) { ui.selection = null; diff.querySelectorAll(".ln.sel").forEach(l => l.classList.remove("sel")); return; }
+  if (ui.log) return closePanel();
+  // in the Code tab's diff: the selected lines go first (the panel goes back to the file), then the focus goes back to
+  // the tree, on the open file
+  const diff = ui.tab === "code" && e.target.closest && e.target.closest(".diffbody"), c = ctx();
+  if (diff && c.kind === "file" && c.lines && !ui.pinned) { ui.selection = null; setCtx({ kind: "file", path: c.path }); return render(); }
   if (diff) { ui.cursor = ui.file; render(); return focusTree(); }
   if (ui.uc) openUseCase(ui.uc);
 }
@@ -2249,10 +2346,12 @@ document.addEventListener("mouseup", e => {
     if (diff && end && end.closest("[data-diff]") === diff && start.closest(".ln") && end.closest(".ln")) {
       const rows = [start.closest(".ln"), end.closest(".ln")], side = rows[0].dataset.side;
       const first = Math.min(...rows.map(r => +r.dataset.line)), last = Math.max(...rows.map(r => +r.dataset.line));
-      ui.selection = { path: diff.dataset.diff, lines: [first, last], side, quote: text, about: { kind: "file", path: diff.dataset.diff, lines: [first, last] } };
-      diff.querySelectorAll(".ln").forEach(l => l.classList.toggle("sel", l.dataset.side === side && +l.dataset.line >= first && +l.dataset.line <= last));
-      pop.innerHTML = `<button class="btn go sm" data-pop="ask">✦ Ask AI Agent</button>` + (diff.dataset.same !== undefined ? "" : `<button class="btn ghost sm" data-pop="comment">✎ Comment</button>`);
-      popAt(pop, e, diff);
+      // the lines become the panel's context, to ask about or to write a finding on
+      if (ui.tab === "code" && ui.pinned) return;
+      ui.selection = { path: diff.dataset.diff, lines: [first, last], side, quote: text };
+      setCtx({ kind: "file", path: diff.dataset.diff, lines: [first, last], side });
+      sel.removeAllRanges();
+      return render();
     } else if (about) {
       const [kind, id] = about.dataset.quoteAbout.split(":");
       ui.selection = { quote: text, about: { kind, id } };
@@ -2302,13 +2401,13 @@ document.addEventListener("mouseover", e => {
   if (tip && tip.style.display === "block") { tip.style.display = "none"; document.querySelectorAll(".uc.related").forEach(x => x.classList.remove("related")); }
 });
 // The side panel's left edge resizes it; the width survives a reload.
-const WIDTH_KEY = "craftsman.review.panel-width";
+const WIDTH_KEY = "craftsman.review.ai-panel-width";
 if (localStorage.getItem(WIDTH_KEY)) document.getElementById("app").style.setProperty("--panel-w", localStorage.getItem(WIDTH_KEY));
 document.addEventListener("mousedown", e => {
   if (e.target.id !== "grip") return;
   e.preventDefault();
   const grip = e.target; grip.classList.add("drag");
-  const move = ev => { const w = Math.min(Math.max(innerWidth - ev.clientX, 380), innerWidth * .7) + "px";
+  const move = ev => { const w = Math.min(Math.max(innerWidth - ev.clientX - 16, 360), innerWidth * .6) + "px";
     document.getElementById("app").style.setProperty("--panel-w", w); localStorage.setItem(WIDTH_KEY, w); };
   const up = () => { grip.classList.remove("drag"); removeEventListener("mousemove", move); removeEventListener("mouseup", up); };
   addEventListener("mousemove", move); addEventListener("mouseup", up);
@@ -2325,8 +2424,7 @@ document.addEventListener("mousedown", e => {
   const up = () => { grip.classList.remove("drag"); removeEventListener("mousemove", move); removeEventListener("mouseup", up); };
   addEventListener("mousemove", move); addEventListener("mouseup", up);
 });
-addEventListener("resize", () => { layoutCards(false); ucPanel(); placePanel(); });
-document.getElementById("main").addEventListener("scroll", placePanel);
+addEventListener("resize", () => { layoutCards(false); ucPanel(); });
 const events = new EventSource("/api/events");
 events.addEventListener("hello", () => reload());
 events.addEventListener("change", () => reload());

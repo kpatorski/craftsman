@@ -44,7 +44,7 @@ USE_CASE_STATUS = ("pending", "reviewing", "reviewed")
 CHECK_RESULT = ("findings", "clean", "not-applicable", "failed")
 UNTIED = "untied"  # the changed files no use case reaches, reviewed together as a use case of their own
 CHANGES = ("added", "modified", "deleted", "unchanged")
-ABOUT = ("review", "finding", "file", "use-case")
+ABOUT = ("review", "finding", "file", "folder", "use-case", "github", "directive")
 COMMENT_STATUS = ("to-send", "deleted")
 NO_CATEGORY = "yours"  # the category of a developer's finding that names none
 # the shape of a comment the AI Agent writes of a draft: how close to the draft's words, in what tone, how long, and
@@ -417,8 +417,10 @@ def check_about(state, about):
         by_id(state["findings"], about.get("id"))
     if kind == "use-case":
         by_id((state.get("structure") or {}).get("use-cases", []), about.get("id"))
-    if kind == "file" and not about.get("path"):
-        raise Refused("a thread about a file names its path")
+    if kind in ("file", "folder") and not about.get("path"):
+        raise Refused(f"a thread about a {kind} names its path")
+    if kind in ("github", "directive") and not about.get("id"):
+        raise Refused(f"a thread about a {'GitHub comment' if kind == 'github' else kind} names its id")
 
 
 def message(payload, by):

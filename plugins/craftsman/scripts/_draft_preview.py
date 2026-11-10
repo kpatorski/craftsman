@@ -12,6 +12,7 @@ call still running for it stale: that call is stopped and answers None.
 import json
 import os
 import pathlib
+import re
 import subprocess
 import threading
 
@@ -113,7 +114,12 @@ def file_diff(text, path):
 
 
 def code_excerpt(review, state, path, lines):
+    """The diff of the file the draft is about, near its lines; for a folder (a path ending with "/"), the changed
+    files in it."""
     kept = pathlib.Path(review) / "diff" / f"{state['head']}.diff"
+    if path.endswith("/"):
+        heads = re.findall(r"^diff --git a/\S+ b/(\S+)$", kept.read_text() if kept.is_file() else "", re.M)
+        return "\n".join(f"changed: {changed}" for changed in heads if changed.startswith(path)) or "(no change in this folder)"
     diff = file_diff(kept.read_text() if kept.is_file() else "", path)
     if lines:
         first, last = lines[0] - AROUND, lines[1] + AROUND
@@ -152,7 +158,8 @@ def how_to_write(style, severity):
 
 
 def prompt(review, state, path, text, lines, content, style=None, severity=None):
-    place = f"{path}, lines {lines[0]}–{lines[1]}" if lines else f"{path}, the whole file"
+    place = (f"{path}, the whole folder; the comment goes to the pull request's conversation" if path.endswith("/")
+             else f"{path}, lines {lines[0]}–{lines[1]}" if lines else f"{path}, the whole file")
     here = [f for f in state.get("findings", []) if f.get("status") not in ("deleted", "merged")
             and any(location["path"] == path for location in f.get("locations", []))]
     findings = "\n".join(

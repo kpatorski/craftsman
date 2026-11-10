@@ -664,6 +664,27 @@ class ReviewStateTest(unittest.TestCase):
 
         self.assertEqual(self.state()["threads"][0]["messages"][0]["by"], "agent")
 
+    def test_a_thread_is_about_a_folder_a_github_comment_or_a_directive_too(self):
+        self.opened()
+
+        self.run_state("open-thread", payload={"about": {"kind": "folder"}, "text": "?"}, expect_ok=False)
+        self.run_state("open-thread", payload={"about": {"kind": "github"}, "text": "?"}, expect_ok=False)
+        self.run_state("open-thread", payload={"about": {"kind": "directive"}, "text": "?"}, expect_ok=False)
+        for about in ({"kind": "folder", "path": "booking/desk/"}, {"kind": "github", "id": 1201},
+                      {"kind": "directive", "id": "naming"}):
+            self.run_state("open-thread", by="developer", payload={"about": about, "text": "What is this for?"})
+
+        self.assertEqual([t["about"]["kind"] for t in self.state()["threads"]], ["folder", "github", "directive"])
+
+    def test_a_draft_on_a_folder_becomes_a_finding_on_the_folder(self):
+        self.opened()
+        self.run_state("save-draft", by="developer", payload={"path": "booking/desk/", "text": "One aggregate here."})
+
+        self.run_state("draft-to-finding", by="developer", payload={"path": "booking/desk/", "severity": "nit"})
+
+        self.assertEqual(self.state()["findings"][-1]["locations"][0]["path"], "booking/desk/")
+        self.assertIsNone(self.state()["findings"][-1]["locations"][0]["line"])
+
     def test_use_cases_say_what_they_do_and_how_they_run(self):
         self.opened()
         use_case = {"id": "u1", "name": "Cancel a reservation", "says": "The owner cancels their reservation.",

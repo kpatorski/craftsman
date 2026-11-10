@@ -115,5 +115,43 @@ class FileIconTest(unittest.TestCase):
         self.assertEqual([run("testFile", p) for p in production], [False] * len(production))
 
 
+@unittest.skipUnless(NODE, "node is not installed")
+class PanelContextTest(unittest.TestCase):
+    FILE = {"kind": "file", "path": "a/Desk.java"}
+    LINES = {"kind": "file", "path": "a/Desk.java", "lines": [3, 5], "side": "RIGHT"}
+
+    def test_a_thread_belongs_to_the_context_it_is_about(self):
+        cases = [
+            ({"kind": "review"}, {"kind": "review"}, True),
+            ({"kind": "folder", "path": "a/"}, {"kind": "folder", "path": "a/"}, True),
+            ({"kind": "folder", "path": "a/"}, {"kind": "folder", "path": "b/"}, False),
+            ({"kind": "file", "path": "a/Desk.java"}, self.FILE, True),
+            ({"kind": "file", "path": "a/Desk.java", "lines": [3, 5]}, self.FILE, False),
+            ({"kind": "file", "path": "a/Desk.java", "lines": [3, 5]}, self.LINES, True),
+            ({"kind": "file", "path": "a/Desk.java", "lines": [3, 4]}, self.LINES, False),
+            ({"kind": "finding", "id": "f2"}, {"kind": "finding", "id": "f2"}, True),
+            ({"kind": "finding", "id": "f2"}, {"kind": "finding", "id": "f3"}, False),
+            ({"kind": "github", "id": 12}, {"kind": "github", "id": 12}, True),
+            ({"kind": "directive", "id": "naming"}, {"kind": "review"}, False)]
+        for about, ctx, belongs in cases:
+            with self.subTest(about=about, ctx=ctx):
+                self.assertEqual(run("aboutContext", about, ctx), belongs)
+
+    def test_the_finding_tab_is_there_only_where_a_finding_can_be_written_or_is_shown(self):
+        for ctx, tabs in [({"kind": "review"}, ["ask"]), ({"kind": "folder", "path": "a/"}, ["ask", "finding"]),
+                          (self.FILE, ["ask", "finding"]), (self.LINES, ["ask", "finding"]),
+                          ({"kind": "finding", "id": "f1"}, ["ask", "finding"]), ({"kind": "github", "id": 1}, ["ask"]),
+                          ({"kind": "directive", "id": "naming"}, ["ask"]), ({"kind": "use-case", "id": "u1"}, ["ask"])]:
+            with self.subTest(ctx=ctx):
+                self.assertEqual(run("panelTabs", ctx), tabs)
+
+    def test_a_draft_is_kept_by_the_file_or_the_folder_it_is_about(self):
+        self.assertEqual(run("draftKey", self.FILE), "a/Desk.java")
+        self.assertEqual(run("draftKey", self.LINES), "a/Desk.java")
+        self.assertEqual(run("draftKey", {"kind": "folder", "path": "a/b/"}), "a/b/")
+        self.assertIsNone(run("draftKey", {"kind": "finding", "id": "f1"}))
+        self.assertIsNone(run("draftKey", {"kind": "review"}))
+
+
 if __name__ == "__main__":
     unittest.main()

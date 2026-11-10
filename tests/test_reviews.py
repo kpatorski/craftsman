@@ -513,12 +513,15 @@ class ReviewEndpointsTest(ReviewsTest):
                 self.assertIn("directive-scope.md", served)
                 self.assertIn("data-unscoped", served)
 
-    def test_the_selection_popover_opens_where_the_selection_ends_inside_what_was_selected(self):
+    def test_selected_lines_become_the_panels_context_and_selected_words_of_a_finding_open_the_popover(self):
         served = self.page(f"/review?review={ID}")
-        for hook in ("function popAt(", "popAt(pop, e, diff)", "popAt(pop, e, about)", "e.clientX", "e.clientY"):
+        for hook in ('setCtx({ kind: "file", path: diff.dataset.diff, lines: [first, last], side })', "function popAt(",
+                     "popAt(pop, e, about)", "e.clientX", "e.clientY"):
             with self.subTest(hook=hook):
                 self.assertIn(hook, served)
-        self.assertNotIn("at.right - 200", served)
+        for gone in ('data-pop="comment"', "popAt(pop, e, diff)", "at.right - 200"):
+            with self.subTest(gone=gone):
+                self.assertNotIn(gone, served)
 
     def test_the_comment_panel_shows_the_finding_as_the_author_reads_it_without_the_reviewers_why(self):
         self.assertNotIn("draft-why", self.page(f"/review?review={ID}"))
@@ -586,7 +589,7 @@ class ReviewEndpointsTest(ReviewsTest):
             with self.subTest(hook=hook):
                 self.assertIn(hook, served)
 
-    def test_escape_leaves_a_text_box_first_then_closes_the_side_panel(self):
+    def test_escape_leaves_a_text_box_first_then_closes_the_sessions_log(self):
         served = self.page(f"/review?review={ID}")
         self.assertIn('if (e.key === "Escape") onEscape(e)', served)
         escape = served[served.index("function onEscape("):]
@@ -680,10 +683,16 @@ class ReviewEndpointsTest(ReviewsTest):
         self.assertIn("<strong>one</strong>", body["html"])
         self.assertIn("<pre>", body["html"])
 
-    def test_every_docked_side_panel_is_a_rounded_card(self):
+    def test_the_ai_agent_panel_stands_beside_every_tab_under_a_header_running_over_both(self):
         served = self.page(f"/review?review={ID}")
-
-        self.assertIn('el.classList.toggle("card", !!body && !over)', served)
+        for hook in ('grid-template-areas: "rail head head head" "rail main grip panel"', "#panel { grid-area: panel;",
+                     'main.classList.toggle("frames"', 'const REVIEW_TABS = ["overview", "structure", "code", "findings", "comments", "rules"]',
+                     "function askTab(", "data-pin", "Ask about it", "agentAsks(cp)", "data-sugg", 'data-ctx="'):
+            with self.subTest(hook=hook):
+                self.assertIn(hook, served)
+        for gone in ("panelAsk", "panelThread", "panelCheckpoint", "placePanel", 'id="compose"'):
+            with self.subTest(gone=gone):
+                self.assertNotIn(gone, served)
 
     def test_the_comment_panel_has_the_ai_agent_assistant(self):
         served = self.page(f"/review?review={ID}")
@@ -714,7 +723,7 @@ class ReviewEndpointsTest(ReviewsTest):
 
     def test_the_code_tabs_file_tree_scrolls_on_its_own_and_keeps_its_place(self):
         served = self.page(f"/review?review={ID}")
-        for hook in ('id="tree"', ".treebox { position: sticky", "keepCursorInView",
+        for hook in ('id="tree"', ".treebox { height: 100%", "keepCursorInView",
                      'const treeY = document.getElementById("tree")?.scrollTop'):
             with self.subTest(hook=hook):
                 self.assertIn(hook, served)
@@ -728,7 +737,7 @@ class ReviewEndpointsTest(ReviewsTest):
 
     def test_the_review_page_has_the_comment_panel(self):
         served = self.page(f"/review?review={ID}")
-        for hook in ("data-comment-file", 'data-pop="comment"', 'change("save-draft"', 'change("discard-draft"',
+        for hook in ("data-comment-file", "panelComment(c)", 'change("save-draft"', 'change("discard-draft"',
                      'change("draft-to-finding"', "/api/review/markdown", "draft-box", "panelComment", "data-md-tool"):
             with self.subTest(hook=hook):
                 self.assertIn(hook, served)

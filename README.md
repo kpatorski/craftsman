@@ -207,12 +207,11 @@ rail on the left; the open one has six tabs:
   the files the PR leaves as they are, to read and ask about. `↑`/`↓` open the file the cursor lands on, `←`/`→` close
   and open a folder, `Enter` goes into the diff and `Esc` back, `Space` marks the file viewed. The code is coloured by
   its language (Java, Kotlin, TypeScript, JavaScript, Python, Go, C#, SQL, shell, YAML, JSON, XML); findings are dots
-  beside the line numbers, opened under the line on a click, or all inline with a switch. "✎ Comment" over selected
-  lines, or "✎ Comment on file" in a file's header, opens the comment panel: a markdown editor with a rendered
-  preview, one draft per file that stays while you move between files, and "Make it a finding".
-- **Findings** — a table to filter, search and sort; a finding opens in a side panel to edit, ask about, drop, or mark
-  to send. "Fix prompts → comment" turns the findings marked to send into a comment for the author: one prompt per
-  category for their AI coding agent, each fixed as one commit. A finding's "In fix prompt" switch leaves it out.
+  beside the line numbers, opened under the line on a click, or all inline with a switch.
+- **Findings** — a table to filter, search and sort; a finding picked opens in the AI Agent panel to edit, ask about,
+  drop, or mark to send. "Fix prompts → comment" turns the findings marked to send into a comment for the author: one
+  prompt per category for their AI coding agent, each fixed as one commit. A finding's "In fix prompt" switch leaves it
+  out.
 - **Comments** — the PR's conversation on GitHub as it reads there: everyone's comments, reviews and threads on the
   code, read again after every Send and on request. Write a comment on the whole PR, quote one to answer it, or reply
   in a thread; yours wait for Send. A thread on a line of the diff also shows under that line in the code.
@@ -221,7 +220,14 @@ rail on the left; the open one has six tabs:
   every directive switched on here; the agent never picks among them. One review's set can become the default for
   every review.
 
-Select lines in any diff to ask the agent about them or to add your own finding. A progress strip under the tabs says
+The **AI Agent panel** stands beside every tab, under a header that runs over both. It is about what is picked in the
+tab — a folder, a file or lines selected in the diff on Code, a finding, a GitHub comment, a rule — or the whole PR
+when nothing is; on Code, 📌 keeps it while you move around the code. "Ask about it" holds the conversation about that
+and the box to ask in (`⌘ Enter` on a Mac, `Ctrl Enter` elsewhere), with suggested questions; the agent's own
+question, the one the run stopped on, waits there in the PR's conversation. "Finding" is there on a folder, a file or
+lines: a markdown editor with the finding as AI Agent writes it, one draft per file or folder that stays while you
+move around, and "Make it a finding"; a finding on a folder goes to the PR's conversation. On a finding, "Finding" is
+the finding itself. A progress strip under the tabs says
 which of the review's steps the agent is at and what it does there; the header says whether it is working, idle, or
 silent for longer than it should be, with a button to restart its session in the same conversation. The review's
 Claude session runs on the dashboard server, so its questions, its progress and your messages to it all stay on the

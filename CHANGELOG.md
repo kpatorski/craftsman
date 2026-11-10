@@ -3,6 +3,20 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.22.0
+
+- The AI Agent panel stands beside every tab of a review, in place of the "Ask AI" popover, the comment panel and the
+  side panels. It is about what is picked in the tab — a folder, a file or lines on Code, a finding, a GitHub comment,
+  a rule — or the whole PR when nothing is, and says so at its top. 📌 on the Code tab keeps it while you move around.
+- "Ask about it": the conversation about that, kept with the review, with suggested questions; a folder can be asked
+  about too. The agent's question the run stopped on waits in the PR's conversation, with its answers.
+- "Finding" on a folder, a file or lines: the comment editor and AI Agent's finding, one draft per file or folder. A
+  finding on a folder goes to the PR's conversation, naming the folder. On a finding, the finding itself.
+- The header runs over the page and the panel; on the Code tab the tree, the diff and the panel are frames that start
+  and end on the same lines, and the diff scrolls inside its frame.
+- Selected lines stay selected while the panel is about them; `Esc` in the diff lets go of them, then goes back to the
+  tree.
+
 ## 0.21.0
 
 - The Code tab shows the changed files as IntelliJ's project tree: folders open and close one by one (⊞/⊟ for all),
