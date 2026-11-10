@@ -207,9 +207,7 @@ rail on the left; the open one has five tabs:
   its language (Java, Kotlin, TypeScript, JavaScript, Python, Go, C#, SQL, shell, YAML, JSON, XML); findings are dots
   beside the line numbers, opened under the line on a click, or all inline with a switch.
 - **Findings** — a table to filter, search and sort; a finding picked opens in the AI Agent panel to edit, ask about,
-  drop, or mark to send. "Fix prompts → comment" turns the findings marked to send into a comment for the author: one
-  prompt per category for their AI coding agent, each fixed as one commit. A finding's "In fix prompt" switch leaves it
-  out.
+  drop, or mark to send. A finding's "In fix prompt" switch leaves it out of the fix prompt Send can post.
 - **Comments** — the PR's conversation on GitHub as it reads there: everyone's comments, reviews and threads on the
   code, read again after every Send and on request. Write a comment on the whole PR, quote one to answer it, or reply
   in a thread; yours wait for Send. A thread on a line of the diff also shows under that line in the code.
@@ -230,9 +228,12 @@ folder goes to the PR's conversation. On a finding, "Finding" is the finding its
 says which of the review's steps the agent is at and what it does there; the header says whether it is working, idle, or
 silent for longer than it should be, with a button to restart its session in the same conversation. The review's Claude
 session runs on the dashboard server, so its questions, its progress and your messages to it all stay on the page; once
-stopped, `claude --resume` continues the same conversation in the CLI. Send posts every marked finding as an inline
-comment on its first place, with a pointer from each further place, and every comment and reply of yours; a comment the
-PR already has is never posted twice.
+stopped, `claude --resume` continues the same conversation in the CLI. "Send… (N)" opens one dialog listing everything
+that goes: every marked finding as an inline comment on its first place, with a pointer from each further place, and
+every comment and reply of yours. "Also post a fix prompt" adds a comment for the author: one prompt per category for
+their AI coding agent, each fixed as one commit, previewed with its size and a Copy button; whether it starts ticked is
+set in ⚙. The dialog sends on a click or `⌘ Enter` (`Ctrl Enter`) only, never on a stray key; a comment the PR already
+has is never posted twice.
 
 Each review keeps its state in `~/.craftsman/reviews/<review-id>/`, outside the repository, and reads the code from its
 own `git worktree`, so your checkout is never touched and several reviews can run at once. A clone is deleted when its

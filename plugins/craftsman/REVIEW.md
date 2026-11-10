@@ -240,16 +240,19 @@ not write over it, and the panel offers to write it again from the draft instead
 
 ### Fix prompts
 
-The Findings tab's "Fix prompts → comment" writes one comment on the whole pull request for the author's own AI coding
-agent, made by `scripts/fix_prompts.py` from the findings marked to send or sent whose `in-prompt` is not `false`. It
-holds one prompt per category, each in a fenced block longer than any run of backticks inside it: what is reviewed and
-at which commit, every finding of the category — place, title, comment and its other places — and the ask to make these
-fixes and nothing else as one commit. The developer's findings with no category of their own go in one prompt headed
-"Other fixes". A prompt names no severity; its findings come worst first. The comment goes in word for word, so a
-finding whose comment says it holds for every place in the change ("please remove these everywhere you added them") is
-fixed everywhere: the prompt says such a fix covers every such place. Categories come worst severity first. The comment
-starts with `<!-- craftsman:fix-prompts -->`; while it waits for Send, writing the prompts again rewrites it, and once
-it is sent, the next one is a new comment.
+Send's "Also post a fix prompt" posts, with the findings, the fix prompt: comments on the whole pull request for the
+author's own AI coding agent, made by `scripts/fix_prompts.py` from the findings marked to send or sent whose
+`in-prompt` is not `false`. The fix prompt holds one prompt per category, each in a fenced block longer than any run of
+backticks inside it: what is reviewed and at which commit, every finding of the category — place, title, comment and its
+other places — and the ask to make these fixes and nothing else as one commit. The developer's findings with no category
+of their own go in one prompt headed "Other fixes". A prompt names no severity; its findings come worst first. The
+comment goes in word for word, so a finding whose comment says it holds for every place in the change ("please remove
+these everywhere you added them") is fixed everywhere: the prompt says such a fix covers every such place. Categories
+come worst severity first. It is one comment, or, when it is longer than the 65,536 characters GitHub takes in one
+comment, as few as hold it, each with whole prompts and named "part n of m". Each starts with `<!--
+craftsman:fix-prompts -->`. Right before Send the fix prompt is written from the findings as they are then; one still
+waiting from before is dropped. Whether the box starts ticked is `send-fix-prompt` in `~/.craftsman/settings.json`, true
+unless set, switched in ⚙ AI Agent tools; the dialog changes it for one send.
 
 ### Comments
 

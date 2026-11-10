@@ -20,6 +20,7 @@ SCRIPTS = pathlib.Path(__file__).resolve().parent.parent / "plugins" / "craftsma
 sys.path.insert(0, str(SCRIPTS))
 import _reviews as reviews  # noqa: E402
 import dashboard_server  # noqa: E402
+import fix_prompts  # noqa: E402
 import review_state  # noqa: E402
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from test_review_directives import workshop  # noqa: E402
@@ -570,30 +571,60 @@ class ReviewEndpointsTest(ReviewsTest):
         self.assertEqual(self.call(f"/api/review?id={ID}")[1]["state"]["context"], [])
         self.assertEqual([m["type"] for m in reviews.pending_messages(self.review)][-2:], ["context", "context"])
 
-    def test_the_page_writes_the_fix_prompts_as_one_comment_and_rewrites_it_until_it_is_sent(self):
-        status, body = self.call("/api/review/change", {"id": ID, "action": "fix-prompts"})
-        self.assertEqual(status, 409, body)
-        self.assertIn("to send", body["error"])
-        self.call("/api/review/change", {"id": ID, "action": "status", "finding": "f1", "status": "to-send"})
+    def fake_gh(self):
+        os.environ.update(CRAFTSMAN_GH=f"{sys.executable} {pathlib.Path(__file__).resolve().parent / 'fake_gh.py'}",
+                          FAKE_GH_LOG=str(self.tmp / "gh.log"), FAKE_GH_STATE=str(self.tmp / "gh.json"))
 
-        self.assertEqual(self.call("/api/review/change", {"id": ID, "action": "fix-prompts"})[0], 200)
-        self.call("/api/review/change", {"id": ID, "action": "edit", "finding": "f1", "fields": {"title": "Renamed"}})
-        self.assertEqual(self.call("/api/review/change", {"id": ID, "action": "fix-prompts"})[0], 200)
+    def test_send_posts_the_fix_prompt_too_when_it_is_asked_for(self):
+        review_state.change(self.review, "set-status", {"status": "to-send"}, "developer", "f1")
+        self.fake_gh()
+
+        status, body = self.call("/api/review/send", {"id": ID, "fix-prompt": True})
 
         comments = review_state.read(self.review)["comments"]
-        self.assertEqual([c["status"] for c in comments], ["to-send"])
-        self.assertIn("Renamed", comments[0]["body"])
-        self.assertIn("A.java:3", comments[0]["body"])
+        self.assertEqual(status, 200, body)
+        self.assertEqual([(fix_prompts.is_fix_prompts(c["body"]), c["status"]) for c in comments], [(True, "sent")])
+        self.assertIn(comments[0]["id"], body["sent"])
 
-        review_state.change(self.review, "comment-sent", {"url": "https://x/c1"}, "agent", "c1")
-        self.call("/api/review/change", {"id": ID, "action": "fix-prompts"})
-        self.assertEqual(len(review_state.read(self.review)["comments"]), 2)
+    def test_send_without_the_fix_prompt_posts_none_and_drops_one_still_waiting(self):
+        review_state.change(self.review, "set-status", {"status": "to-send"}, "developer", "f1")
+        review_state.change(self.review, "add-comment", {"body": fix_prompts.MARKER + "\n\nold prompts"}, "developer")
+        review_state.change(self.review, "add-comment", {"body": "Nice split."}, "developer")
+        self.fake_gh()
 
-    def test_the_review_page_has_the_fix_prompts(self):
+        status, body = self.call("/api/review/send", {"id": ID, "fix-prompt": False})
+
+        self.assertEqual(status, 200, body)
+        self.assertEqual([c["status"] for c in review_state.read(self.review)["comments"]], ["deleted", "sent"])
+
+    def test_the_page_previews_the_fix_prompt_before_send(self):
+        self.assertEqual(self.call("/api/review/fix-prompt", {"id": ID})[1], {"comments": [], "findings": 0})
+        review_state.change(self.review, "set-status", {"status": "to-send"}, "developer", "f1")
+
+        status, body = self.call("/api/review/fix-prompt", {"id": ID})
+
+        self.assertEqual((status, body["findings"], len(body["comments"])), (200, 1, 1))
+        self.assertIn("A.java:3", body["comments"][0])
+
+    def test_whether_send_posts_the_fix_prompt_starts_as_the_developer_set_it(self):
+        self.assertTrue(self.call(f"/api/review?id={ID}")[1]["send-fix-prompt"])
+
+        status, body = self.call("/api/review/send-fix-prompt", {"id": ID, "on": False})
+
+        self.assertEqual((status, body), (200, {"send-fix-prompt": False}))
+        self.assertFalse(self.call(f"/api/review?id={ID}")[1]["send-fix-prompt"])
+        self.assertEqual(json.loads((self.home / "settings.json").read_text())["send-fix-prompt"], False)
+
+    def test_the_review_page_sends_through_one_dialog_with_the_fix_prompt_in_it(self):
         served = self.page(f"/review?review={ID}")
-        for hook in ("data-fix-prompts", 'change("fix-prompts"', "data-in-prompt", 'change("in-prompt"'):
+        for hook in ("function openSend(", 'id="with-prompt"', "/api/review/fix-prompt", "data-copy-prompt",
+                     '"fix-prompt": ', 'role="dialog" aria-modal="true"', "data-in-prompt", 'change("in-prompt"',
+                     "/api/review/send-fix-prompt", "Send…"):
             with self.subTest(hook=hook):
                 self.assertIn(hook, served)
+        for gone in ("data-fix-prompts", 'change("fix-prompts"', "Fix prompts → comment"):
+            with self.subTest(gone=gone):
+                self.assertNotIn(gone, served)
 
     def test_escape_leaves_a_text_box_first_then_closes_the_sessions_log(self):
         served = self.page(f"/review?review={ID}")

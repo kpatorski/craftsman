@@ -14,6 +14,7 @@ from review_state import NO_CATEGORY
 MARKER = "<!-- craftsman:fix-prompts -->"
 SEVERITY = ("must-fix", "should-fix", "nit")
 SENT_TO_THE_AUTHOR = ("to-send", "sent")
+LIMIT = 65536  # the longest comment GitHub takes, in characters
 
 
 def in_prompts(found):
@@ -60,23 +61,31 @@ def fenced(text):
     return f"{fence}\n{text}\n{fence}"
 
 
-def comment(state):
-    """The fix prompts as a comment's markdown, or None when no finding goes in."""
+def comments(state, limit=None):
+    """The fix prompts as the markdown of comments on the whole pull request: one comment, or, when they are too long
+    for one GitHub comment, as few as hold them, each with whole prompts. Empty when no finding goes in."""
+    limit = limit or LIMIT
     chosen = [found for found in state.get("findings", []) if in_prompts(found)]
-    if not chosen:
-        return None
     by_category = {}
     for found in sorted(chosen, key=rank):
         by_category.setdefault(found["category"], []).append(found)
     order = sorted(by_category, key=lambda c: (rank(by_category[c][0])[0], -len(by_category[c]), c))
-    parts = [MARKER, "**Fix prompts** — one per kind of problem. Paste each into your AI coding agent; each one ends "
-                     "in one commit."]
+    sections = []
     for category in order:
         findings = by_category[category]
         heading = "Other fixes" if category == NO_CATEGORY else category
-        parts += [f"#### {heading} · {len(findings)} finding{'s' if len(findings) > 1 else ''}",
-                  fenced(prompt(state, category, findings))]
-    return "\n\n".join(parts) + "\n"
+        sections.append(f"#### {heading} · {len(findings)} finding{'s' if len(findings) > 1 else ''}\n\n"
+                        + fenced(prompt(state, category, findings)))
+    intro = "**Fix prompts** — one per kind of problem. Paste each into your AI coding agent; each one ends in one commit."
+    room = limit - len(MARKER) - len(intro) - 40  # the head of a part, "(part n of m)" included
+    groups = []
+    for section in sections:
+        if groups and len("\n\n".join(groups[-1] + [section])) <= room:
+            groups[-1].append(section)
+        else:
+            groups.append([section])
+    return [f"{MARKER}\n\n{intro}{f' (part {n} of {len(groups)})' if len(groups) > 1 else ''}\n\n"
+            + "\n\n".join(group) + "\n" for n, group in enumerate(groups, 1)]
 
 
 def is_fix_prompts(body):

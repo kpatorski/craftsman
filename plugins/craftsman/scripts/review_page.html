@@ -297,6 +297,16 @@
     border-top: 1px solid var(--line); font-size: .8438rem; }
   .modal .mrow .w { grid-column: 3; color: var(--dim); font-family: var(--mono); font-size: .75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .modal .foot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+  .send-d:focus { outline: none; }
+  .send-d .foot { position: sticky; bottom: -20px; margin: 16px -22px -20px; padding: 12px 22px; background: inherit; border-top: 1px solid var(--line); }
+  .opt { display: flex; gap: 10px; align-items: flex-start; padding: 12px; margin-top: 14px; border: 1px solid var(--line2); border-radius: 12px;
+    cursor: pointer; font-size: .8125rem; }
+  .opt.off { opacity: .6; cursor: default; } .opt input { margin-top: 3px; accent-color: var(--neon); }
+  .opt .note { display: block; color: var(--muted); font-size: .75rem; margin-top: 4px; }
+  #prompt-preview { margin-top: 10px; }
+  .prompt-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; cursor: pointer; font-size: .8125rem; }
+  pre.prompt { max-height: 38vh; overflow: auto; margin: 8px 0 0; padding: 10px 12px; background: var(--code-bg); border: 1px solid var(--line);
+    border-radius: 10px; font: .75rem/1.5 var(--mono); white-space: pre-wrap; }
   .gtip { position: fixed; display: none; z-index: 30; max-width: 520px; padding: 8px 12px; border-radius: 10px; background: var(--float);
     border: 1px solid var(--line2); box-shadow: 0 10px 30px var(--shadow); font-size: .7812rem; pointer-events: none; }
   .gtip div { display: flex; gap: 8px; align-items: center; padding: 2px 0; } .gtip .hint { color: var(--dim); font-size: .75rem; margin-top: 4px; }
@@ -552,7 +562,11 @@ const findingsAt = path => S().findings.filter(f => !["merged", "deleted"].inclu
 const threadsOf = (kind, id) => (S().threads || []).filter(t => t.about.kind === kind && (kind === "file" ? t.about.path === id : t.about.id === id));
 const waiting = () => S().checkpoint && !S().checkpoint.answer;
 const conversation = () => (R.github && R.github.comments) || [];
-const myComments = status => (S().comments || []).filter(c => c.status === status);
+// the developer's comments; a fix prompt waiting from before is Send's, not one of them
+const myComments = status => (S().comments || []).filter(c => c.status === status && !isFixPrompt(c.body));
+function isFixPrompt(body) {
+  return String(body || "").startsWith("<!-- craftsman:fix-prompts -->");
+}
 // GitHub's threads on the code, by the id of each thread's first comment
 function ghThreads() {
   const threads = new Map();
@@ -716,7 +730,7 @@ function showHover(i, tile) {
 function renderHead() {
   const s = S(), pr = pull(s.source), files = R.files || [];
   const added = files.reduce((a, f) => a + f.added, 0), removed = files.reduce((a, f) => a + f.removed, 0);
-  const toSend = s.findings.filter(f => f.status === "to-send").length + myComments("to-send").length, now = useCases().find(u => u.status === "reviewing");
+  const toSend = sendTotal(s.findings.filter(f => f.status === "to-send").length, myComments("to-send").length, 0, false), now = useCases().find(u => u.status === "reviewing");
   const bg = R.background ? ` · ${plural(R.background, "reviewer")} in the background` : "";
   const status = R.restoring ? ["", "Restoring the repository…"] : asking() ? ["wait", "AI Agent waits for your permission"] : waiting() ? ["wait", "AI Agent waits for your answer"] : stuck() ? ["wait", `AI Agent silent for ${ago(quietFor())}`]
     : idle() ? ["idle", "AI Agent is idle · ask it anything"]
@@ -736,7 +750,7 @@ function renderHead() {
     <div class="actions">
       <button class="live ${status[0]}" data-live title="Click for the session's log"><span class="pulse"></span>${esc(status[1])}</button>
       <button class="btn ghost" data-refresh>⟳ Refresh PR</button>
-      <button class="btn go" data-send ${toSend && pr && !ui.sending ? "" : "disabled"} title="${pr ? "" : "No pull request to send to"}">${ui.sending ? "Sending…" : `Send ${plural(toSend, "comment")}`}</button>
+      <button class="btn go" data-send ${toSend && pr && !ui.sending ? "" : "disabled"} title="${pr ? "" : "No pull request to send to"}">${ui.sending ? "Sending…" : `Send… (${toSend})`}</button>
       <button class="btn ghost" data-power title="${R.running ? "Stop the session" : "Start the session"}">⏻</button>
     </div></div>
     <div class="tabs">${tabs.map(([id, name, n]) => `<a class="tab${id === ui.tab ? " on" : ""}" data-tab="${id}">${id === "story" && waiting() ? '<span class="qdot" title="The AI agent waits for your answer"></span>' : ""}${name}${n !== "" ? `<span class="n">${n}</span>` : ""}</a>`).join("")}</div>`;
@@ -820,8 +834,7 @@ function viewFindings() {
       ${chip("Open questions", base.filter(openQ).length, ui.fquestions, "data-fquestions")}
       <span class="fsep"></span>${[["open", "Open"], ["to-send", "To send"], ["sent", "Sent"], ["deleted", "Dropped"]].map(([k, l]) =>
         chip(l, all.filter(STATUS[k]).length, ui.fstatus === k, `data-fstatus="${k}"`)).join("")}
-      <input class="search" id="fsearch" placeholder="Search findings…">
-      <button class="btn sm" data-fix-prompts title="One prompt per category, from the findings marked to send that are in the fix prompts, as a comment on the whole PR">Fix prompts → comment</button></div>
+      <input class="search" id="fsearch" placeholder="Search findings…"></div>
     <div class="card" style="padding:6px 10px">${list.length ? findingTable(sorted(list), true) : '<div class="muted" style="padding:14px">No finding matches.</div>'}</div>`;
 }
 
@@ -1340,6 +1353,73 @@ function ask(title, body, yes) {
     el.onclick = e => { e.stopPropagation(); const m = e.target.closest("[data-m]"); if (m || e.target === el) close(!!m && m.dataset.m === "yes"); };
   });
 }
+// ================================================================ send
+// How many comments Send posts: the findings, the developer's comments and replies, and the fix prompt's comments when
+// it goes too.
+function sendTotal(findings, comments, prompts, withPrompt) {
+  return findings + comments + (withPrompt ? prompts : 0);
+}
+// One dialog lists everything Send posts. It opens with the focus on itself, so no stray Space or Enter sends: only a
+// click on Send or Ctrl/⌘ Enter does. "Also post a fix prompt" starts as ⚙ says and holds for this send only.
+const sendBox = { withPrompt: null, preview: null, open: false };
+async function openSend() {
+  sendBox.withPrompt = R["send-fix-prompt"] !== false; sendBox.open = false;
+  sendBox.preview = await api("/api/review/fix-prompt", K()) || { comments: [], findings: 0 };
+  drawSend();
+  const el = document.getElementById("modal");
+  el.classList.add("shown"); el.querySelector(".send-d").focus();
+  el.onclick = e => {
+    if (e.target === el || e.target.closest("[data-send-cancel]")) return closeSend();
+    if (e.target.closest("[data-send-go]")) return sendNow();
+    if (e.target.closest("[data-copy-prompt]")) { e.preventDefault(); navigator.clipboard?.writeText(promptText(sendBox.preview.comments)); return toast("fix prompt copied"); }
+    if (e.target.closest(".prompt-h")) setTimeout(() => { sendBox.open = !!document.getElementById("prompt-preview")?.open; });
+  };
+  el.onchange = e => { if (e.target.id === "with-prompt") { sendBox.withPrompt = e.target.checked; drawSend(); document.getElementById("with-prompt").focus(); } };
+  el.onkeydown = e => {
+    if (e.key === "Escape") { e.stopPropagation(); return closeSend(); }
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); return sendNow(); }
+  };
+}
+function drawSend() {
+  const marked = S().findings.filter(f => f.status === "to-send"), mine = myComments("to-send"), pv = sendBox.preview;
+  const can = pv.findings > 0, withPrompt = can && sendBox.withPrompt, text = promptText(pv.comments);
+  const total = sendTotal(marked.length, mine.length, pv.comments.length, withPrompt);
+  const words = text.split(/\s+/).filter(Boolean).length;
+  document.getElementById("modal").innerHTML = `<div class="box send-d" role="dialog" aria-modal="true" aria-labelledby="send-t" tabindex="-1">
+    <h2 id="send-t">Send to ${esc(sourceLabel(S().source))}</h2>
+    <div class="muted" style="font-size:.8125rem;margin-bottom:10px">Everything below is posted now; comments on GitHub cannot be taken back from here.
+      Each finding goes as a comment on its first place; further places point back to it.</div>
+    ${marked.map(f => `<div class="mrow">${sev(f.severity)}<span class="mono dim">${esc(f.id)}</span><span>${inline(f.title)}</span>` +
+      `<span class="w">${(f.locations || []).map(l => esc(l.path.split("/").pop()) + (l.line == null ? "" : ":" + l.line)).join(", ")}</span></div>`).join("")}
+    ${mine.map(c => `<div class="mrow"><span class="tag">${c["reply-to"] ? "reply" : "comment"}</span><span class="mono dim">${esc(c.id)}</span><span>${esc(c.body.split("\n")[0].slice(0, 100))}</span><span class="w"></span></div>`).join("")}
+    <label class="opt${can ? "" : " off"}"><input type="checkbox" id="with-prompt" ${withPrompt ? "checked" : ""} ${can ? "" : "disabled"}>
+      <span><b>Also post a fix prompt</b> — ${can ? `one more comment on the conversation: the ${plural(pv.findings, "finding")} in the fix prompt, written as
+        prompts the author pastes into their AI coding agent, one commit per kind of problem.` : "none of the findings to send is in the fix prompt."}
+        <span class="note">Starts as set in ⚙ AI Agent tools.</span></span></label>
+    ${withPrompt ? `<details id="prompt-preview"${sendBox.open ? " open" : ""}><summary class="prompt-h"><span>Preview the fix prompt
+        <span class="muted">· ${plural(pv.findings, "finding")}, ${words} words${pv.comments.length > 1 ? ` · ${pv.comments.length} comments: GitHub takes at most 65,536 characters in one` : ""}</span></span>
+      <button class="btn ghost sm" data-copy-prompt>Copy</button></summary><pre class="prompt">${esc(text)}</pre></details>` : ""}
+    <div class="foot"><button class="btn ghost" data-send-cancel>Cancel <kbd>Esc</kbd></button>
+      <button class="btn go" data-send-go ${total ? "" : "disabled"}>Send ${plural(total, "comment")} <kbd>${MOD} Enter</kbd></button></div></div>`;
+}
+// the fix prompt as the author reads it: GitHub hides the marker that names the comment
+const promptText = comments => comments.map(c => c.replace(/^<!-- craftsman:fix-prompts -->\s*/, "")).join("\n\n");
+function closeSend() {
+  const el = document.getElementById("modal");
+  el.classList.remove("shown"); el.onclick = el.onchange = el.onkeydown = null;
+  document.querySelector("[data-send]")?.focus();
+}
+async function sendNow() {
+  const button = document.querySelector("[data-send-go]");
+  if (!button || button.disabled || ui.sending) return;
+  const withPrompt = sendBox.preview.findings > 0 && sendBox.withPrompt;
+  closeSend();
+  // one send at a time: the button stays disabled, through every re-render, until GitHub has answered
+  ui.sending = true; render(); toast("sending…");
+  const out = await api("/api/review/send", { ...K(), "fix-prompt": withPrompt }).finally(() => { ui.sending = false; });
+  if (out) toast(`sent ${out.sent.length}` + (out.errors.length ? ` · problems: ${out.errors.join("; ")}` : ""));
+  return readGithub();
+}
 // A line's findings as dots beside its number, worst first; the list behind them shows on hover, and a click opens it.
 function gutter(here, key) {
   if (!here.length) return `<span class="gd"></span>`;
@@ -1766,9 +1846,18 @@ function viewTools() {
       every review, or deny it. Allow the MCP server Jira is read through and the AI Agent reads the PR's tickets; allowing a server
       allows every tool it has, writing ones too. What is allowed here applies to every review; it is kept as <code>review-tools</code>
       in <code>~/.craftsman/settings.json</code>.</div>
-    ${tools.map(row).join("") || `<span class="muted">${R ? "This review's session has connected to no MCP server. The servers are the ones <code>claude mcp list</code> shows, in the review's checkout." : "Open a review: the servers are the ones its session connected to."}</span>`}</div>` + commentStyleCard();
+    ${tools.map(row).join("") || `<span class="muted">${R ? "This review's session has connected to no MCP server. The servers are the ones <code>claude mcp list</code> shows, in the review's checkout." : "Open a review: the servers are the ones its session connected to."}</span>`}</div>` + sendCard() + commentStyleCard();
 }
 // The default shape of the comment AI Agent writes of a draft, for every review; each draft may ask for another.
+function sendCard() {
+  if (!R) return "";
+  const on = R["send-fix-prompt"] !== false;
+  return `<div class="card" style="max-width:820px;margin-top:16px"><h3><span>Send</span></h3>
+    <div class="muted" style="margin-bottom:12px">Whether Send's "Also post a fix prompt" starts ticked: one more comment on the conversation, the findings
+      written as prompts for the author's AI coding agent. Changed in the Send dialog for one send; this is the default for every
+      review, kept as <code>send-fix-prompt</code> in <code>~/.craftsman/settings.json</code>.</div>
+    <label class="switch${on ? " on" : ""}" data-send-default="${on ? 0 : 1}"><i></i>Also post a fix prompt</label></div>`;
+}
 function commentStyleCard() {
   if (!R || !R["comment-style"]) return "";
   return `<div class="card" style="max-width:820px;margin-top:16px"><h3><span>Comment style</span></h3>
@@ -1857,8 +1946,8 @@ const CLICKABLE = ["tab", "sort", "restart", "inline", "gutter", "goto", "findin
   "close-review", "open-review", "archive", "new", "archived", "unarchive", "start", "pop", "nr-kind", "nr-how", "nr-browse",
   "comment-file", "draft-whole", "draft-sev", "draft-make", "draft-discard", "md-tool", "assistant-switch", "answer-here", "agent-tools", "allow-tool", "tool-toggle", "nr-existing", "permit",
   "gh-read", "gh-quote", "gh-reply-open", "gh-reply", "gh-thread", "comment-add", "cedit", "csave", "cdrop",
-  "directive-switch", "directive-check", "directive-default", "rfilter", "context-add", "context-remove", "fix-prompts", "in-prompt",
-  "ai-edit", "ai-save", "ai-cancel", "ai-again", "style-reset", "row", "chev", "tree-all", "unchanged", "ctx", "ptab", "pin", "sugg", "ask", "chapter"].map(name => `[data-${name}]`).join(",");
+  "directive-switch", "directive-check", "directive-default", "rfilter", "context-add", "context-remove", "in-prompt",
+  "ai-edit", "ai-save", "ai-cancel", "ai-again", "style-reset", "row", "chev", "tree-all", "unchanged", "ctx", "ptab", "pin", "sugg", "ask", "chapter", "send-default"].map(name => `[data-${name}]`).join(",");
 document.addEventListener("click", async e => {
   if (!e.target.closest("#pop")) hidePop();
   const t = e.target.closest(CLICKABLE); if (!t) return;
@@ -1948,9 +2037,6 @@ document.addEventListener("click", async e => {
   }
   if (d.directiveDefault !== undefined) return change("default-directives", {})
     .then(o => o && (toast("this set of directives is now the default for every review"), reload()));
-  if (d.fixPrompts !== undefined) return change("fix-prompts", {}).then(o => {
-    if (o) { toast("fix prompts written as a comment; it goes with Send"); go({ ui: { tab: "comments" } }); }
-  });
   if (d.inPrompt) {
     const f = S().findings.find(x => x.id === d.inPrompt);
     return change("in-prompt", { finding: d.inPrompt, included: f["in-prompt"] === false }).then(o => o && reload());
@@ -1978,22 +2064,8 @@ document.addEventListener("click", async e => {
     if (!confirm("Close this review? The session ends; the review and its findings stay.")) return;
     return api("/api/review/message", { ...K(), type: "close" }).then(o => o && toast("closing the review"));
   }
-  if (d.send !== undefined) {
-    const marked = S().findings.filter(f => f.status === "to-send"), mine = myComments("to-send");
-    const ok = await ask(`Send ${plural(marked.length + mine.length, "comment")} to ${esc(sourceLabel(S().source))}?`,
-      `<div class="muted" style="font-size:.8125rem;margin-bottom:10px">Each finding goes as an inline comment on its first place; further places point back to it.
-        Comments on GitHub cannot be taken back from here.</div>` +
-      marked.map(f => `<div class="mrow">${sev(f.severity)}<span class="mono dim">${esc(f.id)}</span><span>${inline(f.title)}</span>` +
-        `<span class="w">${(f.locations || []).map(l => esc(l.path.split("/").pop()) + (l.line == null ? "" : ":" + l.line)).join(", ")}</span></div>`).join("") +
-      mine.map(c => `<div class="mrow"><span class="tag">${c["reply-to"] ? "reply" : "comment"}</span><span class="mono dim">${esc(c.id)}</span><span>${esc(c.body.split("\n")[0].slice(0, 100))}</span><span class="w"></span></div>`).join(""),
-      `Send ${plural(marked.length + mine.length, "comment")}`);
-    if (!ok) return;
-    // one send at a time: the button stays disabled, through every re-render, until GitHub has answered
-    ui.sending = true; render(); toast("sending…");
-    const out = await api("/api/review/send", K()).finally(() => { ui.sending = false; });
-    if (out) toast(`sent ${out.sent.length}` + (out.errors.length ? ` · problems: ${out.errors.join("; ")}` : ""));
-    return readGithub();
-  }
+  if (d.send !== undefined) return openSend();
+  if (d.sendDefault !== undefined) return api("/api/review/send-fix-prompt", { ...K(), on: d.sendDefault === "1" }).then(() => reload());
   if (d.chapter !== undefined) {
     setCtx(d.chapter ? { kind: "chapter", id: d.chapter } : PR, "ask"); render();
     if (t.closest(".toc")) document.getElementById(d.chapter ? "ch-" + d.chapter : "ch-pr")?.scrollIntoView({ block: "start", behavior: "smooth" });

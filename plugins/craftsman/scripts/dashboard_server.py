@@ -310,7 +310,12 @@ class Handler(BaseHTTPRequestHandler):
                                            quiet=runner.quiet(), restoring=runner.restoring,
                                            problem=runner.problem, tools=_review_session.agent_tools(review),
                                            permissions=runner.permission_requests(),
-                                           **{"comment-style": _settings.comment_style()}))
+                                           **{"comment-style": _settings.comment_style(),
+                                              "send-fix-prompt": _settings.send_fix_prompt()}))
+            if path == "/api/review/send-fix-prompt":
+                return self.send(200, {"send-fix-prompt": _settings.set_send_fix_prompt(body.get("on"))})
+            if path == "/api/review/fix-prompt":
+                return self.send(200, reviews.fix_prompt(review_id))
             if path == "/api/review/comment-style":
                 return self.send(200, {"comment-style": _settings.set_comment_style(body.get("style"))})
             if path == "/api/review/permission":
@@ -339,6 +344,7 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/review/references":
                 return self.send(200, dict(references=reviews.references(review_id, body.get("path", ""))))
             if path == "/api/review/send":
+                reviews.ready_to_send(review_id, body.get("fix-prompt") is True)
                 return self.send(200, send_review.send(review))
             if path == "/api/review/github":
                 return self.send(200, github_conversation.fetch(review))

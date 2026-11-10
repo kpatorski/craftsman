@@ -187,5 +187,17 @@ class StoryTest(unittest.TestCase):
         self.assertNotIn("dends", html)
 
 
+@unittest.skipUnless(NODE, "node is not installed")
+class SendTest(unittest.TestCase):
+    def test_send_counts_the_findings_the_comments_and_the_fix_prompt_only_when_it_goes(self):
+        self.assertEqual(run("sendTotal", 3, 1, 2, True), 6)
+        self.assertEqual(run("sendTotal", 3, 1, 2, False), 4)
+        self.assertEqual(run("sendTotal", 0, 0, 1, True), 1)
+
+    def test_a_fix_prompt_waiting_from_before_is_not_one_of_the_developers_comments(self):
+        self.assertTrue(run("isFixPrompt", "<!-- craftsman:fix-prompts -->\n\n**Fix prompts**"))
+        self.assertFalse(run("isFixPrompt", "Nice split. <!-- craftsman:fix-prompts -->"))
+
+
 if __name__ == "__main__":
     unittest.main()

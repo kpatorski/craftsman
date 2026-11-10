@@ -284,17 +284,6 @@ def developer_change(review_id, action, body, content=None):
     if action == "in-prompt":
         return review_state.change(review, "in-prompt", {"included": body.get("included")}, "developer",
                                    body.get("finding"))
-    if action == "fix-prompts":
-        # one comment of fix prompts at a time: rewritten from the findings until it is sent
-        state = review_state.read(review)
-        text = fix_prompts.comment(state)
-        if text is None:
-            raise review_state.Refused("no finding marked to send is in the fix prompts")
-        waiting = [c for c in state.get("comments", []) if c["status"] == "to-send" and c.get("reply-to") is None
-                   and fix_prompts.is_fix_prompts(c["body"])]
-        if waiting:
-            return review_state.change(review, "update-comment", {"body": text}, "developer", waiting[0]["id"])
-        return review_state.change(review, "add-comment", {"body": text}, "developer")
     if action == "add-context":
         review_state.change(review, "add-context", {"text": body.get("text")}, "developer")
         return add_message(review_id, {"type": "context"})
@@ -309,6 +298,24 @@ def developer_change(review_id, action, body, content=None):
         return add_message(review_id, {"type": "answer", "checkpoint": checkpoint.get("id"),
                                                 "option": body.get("option"), "note": body.get("note")})
     raise review_state.Refused(f"unknown change {action!r}")
+
+
+def fix_prompt(review_id):
+    """What Send would post as the fix prompt: its comments, and how many findings they hold."""
+    state = review_state.read(review_dir(review_id))
+    return {"comments": fix_prompts.comments(state),
+            "findings": sum(1 for found in state.get("findings", []) if fix_prompts.in_prompts(found))}
+
+
+def ready_to_send(review_id, with_fix_prompt):
+    """Right before Send: the fix prompt waits to be sent as it reads now, or not at all. A fix prompt waiting from
+    before is dropped either way, so only the one written now goes."""
+    review = review_dir(review_id)
+    for comment in review_state.read(review).get("comments", []):
+        if comment["status"] == "to-send" and comment.get("reply-to") is None and fix_prompts.is_fix_prompts(comment["body"]):
+            review_state.change(review, "comment-status", {"status": "deleted"}, "developer", comment["id"])
+    for body in fix_prompts.comments(review_state.read(review)) if with_fix_prompt else []:
+        review_state.change(review, "add-comment", {"body": body}, "developer")
 
 
 def add_message(review_id, message):

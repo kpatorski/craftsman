@@ -3,6 +3,16 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.24.0
+
+- One "Send… (N)" button opens a dialog listing everything that goes. "Also post a fix prompt" in it adds the fix
+  prompt for the author's AI coding agent, with a preview, its size and Copy; ⚙ AI Agent tools sets whether it starts
+  ticked (`send-fix-prompt`, ticked unless set). The Findings tab's "Fix prompts → comment" is gone: after Send nothing
+  marked is left to send.
+- A fix prompt longer than the 65,536 characters GitHub takes in one comment goes as several, each with whole prompts.
+- The dialog sends on a click or `⌘ Enter` (`Ctrl Enter`) only; it opens with the focus on itself, so a stray `Space`
+  or `Enter` presses nothing.
+
 ## 0.23.0
 
 - The Story tab replaces Overview and Structure, and a review opens on it: what the PR does, its ticket, what it leaves

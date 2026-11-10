@@ -5,6 +5,7 @@
   example `mcp__jira` for every tool of the MCP server `jira` (see REVIEW.md, "The review's session");
 - `review-directives`: the developer's default set of directives for every review, `{<directive id>: true | false}`,
   where it differs from the workshop (see REVIEW.md, "Directives");
+- `send-fix-prompt`: whether Send also posts the fix prompt at first, true unless set (see REVIEW.md, "Fix prompts");
 - `comment-style`: the default shape of a comment the AI Agent writes of a draft, some of `review_state.COMMENT_STYLE`
   (see REVIEW.md, "Drafts")."""
 import json
@@ -51,6 +52,16 @@ def review_directives():
     if not isinstance(chosen, dict):
         return {}
     return {str(key): value for key, value in chosen.items() if isinstance(value, bool)}
+
+
+def send_fix_prompt():
+    """Whether Send's "Also post a fix prompt" starts ticked."""
+    return read().get("send-fix-prompt") is not False
+
+
+def set_send_fix_prompt(on):
+    update("send-fix-prompt", bool(on))
+    return send_fix_prompt()
 
 
 def comment_style():
