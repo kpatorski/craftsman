@@ -3,6 +3,18 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.25.1
+
+- Story: without a story yet, one line says at which step it comes; once the step is past, "Ask AI Agent to tell the
+  story" asks for it. The progress of the review stays in the header only. The numbers of the opening are smaller.
+- The header: "Send (N)", Refresh PR as an icon with its name on hover, and the lines added and removed in green and
+  red.
+- The diff's header: the path, then the file's findings on the left and Show all inline, Viewed and Comment on file
+  on the right; no change tag and no `Esc` hint.
+- Lines selected in the diff open the panel's "Finding". Buttons carry no key hints; their titles name the keys, and
+  `?` lists them all. The list of conversations about other places is gone from "Ask about it".
+- A text box's focus ring stays inside its frame.
+
 ## 0.25.0
 
 - The review page works from the keyboard; `?` lists every key. `1`…`5` open the tabs, `a`/`f` the panel's tabs, `/`

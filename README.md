@@ -222,18 +222,18 @@ rule — or the whole PR when nothing is; on Code, 📌 keeps it while you move 
 conversation about that and the box to ask in (`⌘ Enter` on a Mac, `Ctrl Enter` elsewhere), with suggested questions;
 the agent's own question, the one the run stopped on, waits there in the PR's conversation. On the whole PR, "Add as
 context" keeps what you write as a note for the agent: what it should know that the PR does not say; the new-review
-wizard asks for the first one. "Finding" is there on a folder, a file or lines: a markdown editor with the finding as AI
-Agent writes it, one draft per file or folder that stays while you move around, and "Make it a finding"; a finding on a
-folder goes to the PR's conversation. On a finding, "Finding" is the finding itself. A progress strip under the tabs
-says which of the review's steps the agent is at and what it does there; the header says whether it is working, idle, or
-silent for longer than it should be, with a button to restart its session in the same conversation. The review's Claude
-session runs on the dashboard server, so its questions, its progress and your messages to it all stay on the page; once
-stopped, `claude --resume` continues the same conversation in the CLI. "Send… (N)" opens one dialog listing everything
-that goes: every marked finding as an inline comment on its first place, with a pointer from each further place, and
-every comment and reply of yours. "Also post a fix prompt" adds a comment for the author: one prompt per category for
-their AI coding agent, each fixed as one commit, previewed with its size and a Copy button; whether it starts ticked is
-set in ⚙. The dialog sends on a click or `⌘ Enter` (`Ctrl Enter`) only, never on a stray key; a comment the PR already
-has is never posted twice.
+wizard asks for the first one. Lines selected in the diff open "Finding". "Finding" is there on a folder, a file or
+lines: a markdown editor with the finding as AI Agent writes it, one draft per file or folder that stays while you move
+around, and "Make it a finding"; a finding on a folder goes to the PR's conversation. On a finding, "Finding" is the
+finding itself. A progress strip under the tabs says which of the review's steps the agent is at and what it does there;
+the header says whether it is working, idle, or silent for longer than it should be, with a button to restart its
+session in the same conversation. The review's Claude session runs on the dashboard server, so its questions, its
+progress and your messages to it all stay on the page; once stopped, `claude --resume` continues the same conversation
+in the CLI. "Send (N)" opens one dialog listing everything that goes: every marked finding as an inline comment on its
+first place, with a pointer from each further place, and every comment and reply of yours. "Also post a fix prompt" adds
+a comment for the author: one prompt per category for their AI coding agent, each fixed as one commit, previewed with
+its size and a Copy button; whether it starts ticked is set in ⚙. The dialog sends on a click or `⌘ Enter` (`Ctrl
+Enter`) only, never on a stray key; a comment the PR already has is never posted twice.
 
 The page works from the keyboard; `?` lists every key. `1`…`5` open the tabs, `a` and `f` the panel's "Ask about it" and
 "Finding", `/` finds a file by the letters of its name in order, as IntelliJ's speed search does (`resd` finds

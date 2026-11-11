@@ -527,7 +527,7 @@ class ReviewEndpointsTest(ReviewsTest):
 
     def test_selected_lines_become_the_panels_context_and_selected_words_of_a_finding_open_the_popover(self):
         served = self.page(f"/review?review={ID}")
-        for hook in ('setCtx({ kind: "file", path: diff.dataset.diff, lines: [first, last], side })', "function popAt(",
+        for hook in ('setCtx({ kind: "file", path: diff.dataset.diff, lines: [first, last], side }, "finding")', "function popAt(",
                      "popAt(pop, e, about)", "e.clientX", "e.clientY"):
             with self.subTest(hook=hook):
                 self.assertIn(hook, served)
@@ -619,7 +619,7 @@ class ReviewEndpointsTest(ReviewsTest):
         served = self.page(f"/review?review={ID}")
         for hook in ("function openSend(", 'id="with-prompt"', "/api/review/fix-prompt", "data-copy-prompt",
                      '"fix-prompt": ', 'role="dialog" aria-modal="true"', "data-in-prompt", 'change("in-prompt"',
-                     "/api/review/send-fix-prompt", "Send…"):
+                     "/api/review/send-fix-prompt", "Send ("):
             with self.subTest(hook=hook):
                 self.assertIn(hook, served)
         for gone in ("data-fix-prompts", 'change("fix-prompts"', "Fix prompts → comment"):
@@ -633,6 +633,17 @@ class ReviewEndpointsTest(ReviewsTest):
                      'tabindex="0" data-finding'):
             with self.subTest(hook=hook):
                 self.assertIn(hook, served)
+
+    def test_the_review_page_keeps_its_controls_plain(self):
+        served = self.page(f"/review?review={ID}")
+        for hook in ("Send (${toSend})", 'data-refresh title="Refresh PR', 'class="plus"', 'class="minus"', "data-tell-story",
+                     'setCtx({ kind: "file", path: diff.dataset.diff, lines: [first, last], side }, "finding")'):
+            with self.subTest(hook=hook):
+                self.assertIn(hook, served)
+        for gone in ("Send… (", "<button class=\"btn ghost\" data-refresh>", "<kbd>Esc</kbd> tree", "open conversation\")} about other places",
+                     "Ask <kbd>", "The story comes next", "${info.change}${counts"):
+            with self.subTest(gone=gone):
+                self.assertNotIn(gone, served)
 
     def test_the_review_page_fits_smaller_screens_with_drawers(self):
         served = self.page(f"/review?review={ID}")

@@ -126,6 +126,8 @@
   .btn.ghost { background: none; } .btn.sm { padding: 5px 10px; font-size: .7812rem; }
   .btn.danger { color: var(--must); background: none; }
   .btn[disabled] { opacity: .45; cursor: default; }
+  .sub .plus { color: var(--neon); } .sub .minus { color: var(--must); }
+  .btn.icon { padding-left: 11px; padding-right: 11px; display: inline-flex; align-items: center; }
   .field { width: 100%; background: var(--card2); border: 1px solid var(--line2); border-radius: 10px; color: var(--text);
     padding: 8px 10px; font: inherit; font-weight: 300; }
   textarea.field { min-height: 90px; resize: vertical; }
@@ -243,8 +245,6 @@
   .sugg { font: inherit; font-size: .75rem; padding: 3px 10px; border-radius: var(--pill); border: 1px solid var(--line); color: var(--muted);
     cursor: pointer; background: none; }
   .sugg:hover { color: var(--text); border-color: var(--line2); }
-  .elsewhere { font-size: .75rem; color: var(--muted); flex: none; } .elsewhere summary { cursor: pointer; }
-  .elsewhere a { display: block; padding: 3px 0 3px 12px; cursor: pointer; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .agent-asks { border: 1px solid var(--should); border-left-width: 3px; border-radius: 12px; padding: 10px 12px; margin-top: 12px; background: var(--should-bg); }
   .agent-asks .who { font-size: .75rem; color: var(--should); margin-bottom: 4px; }
   .ctx-notes .who { font-size: .75rem; color: var(--muted); margin-bottom: 6px; } .ctx-notes .ctx-note { font-size: .8125rem; }
@@ -267,8 +267,8 @@
   .kd { display: inline-block; width: 12px; text-align: center; font-family: var(--mono); font-weight: 600; }
   .kd.added { color: var(--neon); } .kd.modified, .kd.renamed { color: var(--change); } .kd.deleted { color: var(--must); }
   .diffcard { background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; min-width: 0; }
-  .diffhead { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 16px;
-    border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .diffhead { display: flex; flex-direction: column; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+  .dtools .grow { flex: 1; }
   .diffbody { overflow-x: auto; padding: 6px 0; }
   .hunk { font-family: var(--mono); font-size: .75rem; color: var(--muted); background: var(--change-bg); padding: 4px 16px; }
   .ln { display: grid; grid-template-columns: 44px 44px 44px 18px max-content; line-height: 1.9; white-space: pre; font-family: var(--mono);
@@ -390,7 +390,8 @@
   .ba { display: grid; grid-template-columns: 70px 1fr; gap: 6px 12px; margin: 14px 0 0; font-size: .875rem; }
   .ba dt { color: var(--muted); } .ba dd { margin: 0; } .ba dd p { margin: 0; }
   .mini { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: .8125rem; color: var(--muted); align-items: baseline; margin-top: 16px; }
-  .mini b { font-size: 1.25rem; font-weight: 300; margin-right: 4px; }
+  .mini b { font-size: .9375rem; font-weight: 500; margin-right: 4px; }
+  .story-wait { font-size: .875rem; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .fchips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
   .fchip { font: .75rem var(--mono); padding: 3px 9px; border-radius: 8px; background: var(--card2); border: 1px solid var(--line); cursor: pointer; color: var(--text); }
   .fchip:hover { border-color: var(--neon-dim); color: var(--neon); }
@@ -420,10 +421,11 @@
   .toast .undo { margin-left: 12px; } .toast.show { pointer-events: auto; }
   /* the keyboard: a visible ring on what has the focus, the diff's line cursor, the tree search */
   :focus-visible { outline: 2px solid var(--select); outline-offset: 2px; }
+  input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offset: -2px; }
   #tree:focus-visible, .diffbody:focus-visible, .send-d:focus-visible { outline-offset: -2px; }
   .ln.cur { box-shadow: inset 3px 0 0 var(--select); }
   tr[data-finding]:focus-visible { outline-offset: -2px; }
-  .tsearch { padding: 0 0 8px; } .tsearch input { width: 100%; }
+  .tsearch { padding: 8px 14px 6px; } .tsearch input { width: 100%; }
   .trow.hit .nm { color: var(--neon); }
   .keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: .8125rem; align-items: baseline; }
   .keys h4 { grid-column: 1 / -1; margin: 10px 0 0; font-size: .75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
@@ -796,11 +798,11 @@ function renderHead() {
       <div class="title"><h1>${esc((s.source && s.source.title) || sourceLabel(s.source))}</h1>
         ${pr ? `<span class="tag">PR #${pr.number}</span>` : '<span class="tag">no PR</span>'}
         ${(s.tickets || []).map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div>
-      <div class="sub">${esc([pr && pr.repository, branches, `${plural(files.length, "file")}, +${added} −${removed}`].filter(Boolean).join(" · "))}</div></div>
+      <div class="sub">${esc([pr && pr.repository, branches, plural(files.length, "file")].filter(Boolean).join(" · "))}, <span class="plus">+${added}</span> <span class="minus">−${removed}</span></div></div>
     <div class="actions">
       <button class="live ${status[0]}" data-live title="Click for the session's log"><span class="pulse"></span>${esc(status[1])}</button>
-      <button class="btn ghost" data-refresh>⟳ Refresh PR</button>
-      <button class="btn go" data-send ${toSend && pr && !ui.sending ? "" : "disabled"} title="${pr ? "" : "No pull request to send to"}">${ui.sending ? "Sending…" : `Send… (${toSend})`}</button>
+      <button class="btn ghost icon" data-refresh title="Refresh PR: read it again from GitHub" aria-label="Refresh PR"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12.5 1.5v3h-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button class="btn go" data-send ${toSend && pr && !ui.sending ? "" : "disabled"} title="${pr ? "" : "No pull request to send to"}">${ui.sending ? "Sending…" : `Send (${toSend})`}</button>
       <button class="btn ghost" data-power title="${R.running ? "Stop the session" : "Start the session"}">⏻</button>
     </div></div>
     <div class="tabs" role="tablist" aria-label="The review">${tabs.map(([id, name, n], i) => `<a class="tab${id === ui.tab ? " on" : ""}" data-tab="${id}" role="tab" tabindex="0" aria-selected="${id === ui.tab}" title="${i + 1}">${id === "story" && waiting() ? '<span class="qdot" title="The AI agent waits for your answer"></span>' : ""}${name}${n !== "" ? `<span class="n">${n}</span>` : ""}</a>`).join("")}</div>`;
@@ -830,7 +832,10 @@ function viewStory() {
       ${(ch.files || []).length ? `<div class="fchips">${ch.files.map(p => `<button class="fchip" data-open-file="${esc(p)}" title="${esc(p)}">${esc(p.split("/").pop())}</button>`).join("")}</div>` : ""}</section>`).join("");
   const toc = `<nav class="toc" aria-label="Chapters"><a data-chapter="" class="${on(null) ? "on" : ""}">What this PR does</a>${chapters.map((ch, i) =>
     `<a data-chapter="${esc(ch.id)}" class="${on(ch.id) ? "on" : ""}">${i + 1}. ${esc(ch.title)}</a>`).join("")}</nav>`;
-  const pending = st ? "" : pendingCard(stepAt("tell-the-story"), "The story comes next");
+  const step = stepAt("tell-the-story");
+  const pending = st ? "" : reviewStep() <= step
+    ? `<div class="muted story-wait">The story comes at step ${step + 1} of ${STEPS.length}, once the AI Agent has mapped the use cases.</div>`
+    : `<div class="story-wait"><span class="muted">The AI Agent has told no story of this PR.</span> <button class="btn sm" data-tell-story>Ask AI Agent to tell the story</button></div>`;
   return `<div class="storybox">${toc}<div>${opening}${told || pending}</div></div>`;
 }
 // A chapter's diagram: the flow through its boxes, in order, and how it ends.
@@ -1076,19 +1081,16 @@ function askTab(c) {
   const threads = (S().threads || []).filter(t => aboutContext(t.about, c));
   const cp = c.kind === "review" && waiting() ? S().checkpoint : null;
   const gh = c.kind === "github" ? ghContext(c.id) : "";
-  const elsewhere = (S().threads || []).filter(t => t.status === "open" && !aboutContext(t.about, c));
   const quote = c.kind === "file" && c.lines && ui.selection && ui.selection.path === c.path ? ui.selection.quote : null;
   const empty = threads.length || cp || gh || (c.kind === "review" && contextNotes(S()).length) ? "" : `<div class="muted" style="padding-top:12px;font-size:.8125rem">No conversation about ${nounOf(c)} yet. It stays with the review and never goes to GitHub.</div>`;
   const notes = c.kind === "review" ? contextNotes(S()) : [];
   const context = notes.length ? `<div class="ctx-notes"><div class="who">Context you gave the AI Agent</div>${notes.map(n => `<div class="ctx-note"><div class="ctx-text">${esc(n.text)}</div>
         <span class="muted ctx-at">${when(n.at)}</span><button class="btn ghost ctx-x" data-context-remove="${esc(n.id)}" title="Take this note back; AI Agent is told">×</button></div>`).join("")}</div>` : "";
   return `<div class="ask-out">${gh}${context}${cp ? agentAsks(cp) : ""}${threadsBlock(threads)}${empty}</div>
-    ${elsewhere.length ? `<details class="elsewhere"><summary>${plural(elsewhere.length, "open conversation")} about other places</summary>${elsewhere.map(t =>
-      `<a data-thread="${esc(t.id)}" title="${esc(placeOf(t.about))}">${esc(placeOf(t.about))} · ${noteTitle(t.messages[0].text)}</a>`).join("")}</details>` : ""}
     <div class="ask-in">${quote ? `<div class="quote">${esc(quote)}</div>` : ""}<textarea id="ask-in" placeholder="Ask AI Agent about ${nounOf(c)}…${cp ? " Or write a note for your answer above." : ""}"></textarea></div>
     <div class="ask-foot">${(SUGGESTIONS[c.kind === "file" && c.lines ? "lines" : c.kind] || []).map(q => `<button class="sugg" data-sugg="${esc(q)}">${esc(q)}</button>`).join("")}
       <span class="grow"></span>${c.kind === "review" ? `<button class="btn ghost sm" data-context-add title="What the PR does not say: the AI Agent takes it into account from its next step on">Add as context</button>` : ""}
-      <button class="btn go sm" data-ask title="${MOD} Enter">Ask <kbd>${MOD} Enter</kbd></button></div>`;
+      <button class="btn go sm" data-ask title="${MOD} Enter">Ask</button></div>`;
 }
 async function askNow() {
   const box = document.getElementById("ask-in"), text = box && box.value.trim(); if (!text) return;
@@ -1350,13 +1352,13 @@ function snippetAt(path, line, side) {
 // every line of it changed alike, so the colour would say nothing.
 function diffView(path, position) {
   const same = !changed(path), info = same ? { ...fileInfo(path), change: "unchanged" } : fileInfo(path), hunks = diffs[path];
-  const counts = [info.added ? "+" + info.added : "", info.removed ? "−" + info.removed : ""].filter(Boolean).join(" ");
-  const code = ui.tab === "code", back = code ? `<button class="btn ghost sm tree-drawer" data-tree-drawer title="The files (t)">☰ Files</button><span class="muted" title="Back to the tree"><kbd>Esc</kbd> tree</span>` : "";
-  const head = `<div class="diffhead"><span>${position ? `<span class="muted" style="font-size:.7812rem">${position}</span><br>` : ""}<b class="mono">${esc(path)}</b>
-      <span class="tag ${{ added: "green", deleted: "red", unchanged: "" }[info.change] ?? "blue"}" style="margin-left:6px">${info.change}${counts ? " · " + counts : ""}</span></span>
-    <span class="dtools">${same ? (code ? back : `<span class="muted">select lines to ask AI Agent about them</span>`) : `${code ? back : `<span class="muted">select lines to ask AI Agent or comment on them</span>`}<button class="btn ghost sm" data-comment-file="${esc(path)}">✎ Comment on file</button>${sevCounts(findingsAt(path))}
+  const code = ui.tab === "code", files = code ? `<button class="btn ghost sm tree-drawer" data-tree-drawer title="The files (t)">☰ Files</button>` : "";
+  const hint = code ? "" : `<span class="muted">select lines to ask AI Agent about them${same ? "" : " or comment on them"}</span>`;
+  const head = `<div class="diffhead"><div class="dpath">${position ? `<span class="muted" style="font-size:.7812rem">${position}</span><br>` : ""}<b class="mono">${esc(path)}</b></div>
+    <div class="dtools">${files}${hint}${same ? "" : sevCounts(findingsAt(path))}<span class="grow"></span>${same ? "" : `
       <span class="switch${ui.inline ? " on" : ""}" data-inline title="Every finding under its line, or dots beside the line number"><i></i>Show all inline</span>
-      <span style="display:inline-flex;gap:6px;align-items:center;cursor:pointer" data-view="${esc(path)}"><span class="vbox${info.viewed ? " on" : ""}">${info.viewed ? "✓" : ""}</span>Viewed</span>`}</span></div>`;
+      <span style="display:inline-flex;gap:6px;align-items:center;cursor:pointer" data-view="${esc(path)}"><span class="vbox${info.viewed ? " on" : ""}">${info.viewed ? "✓" : ""}</span>Viewed</span>
+      <button class="btn ghost sm" data-comment-file="${esc(path)}">✎ Comment on file</button>`}</div></div>`;
   if (!hunks) { fileDiff(path); return `<div class="diffcard">${head}<div class="banner">Loading…</div></div>`; }
   let banner = "";
   if (info.change === "added") banner = `<div class="banner"><span class="kd added">+</span> <b>New file</b> · all ${info.added} lines are added, so they carry no colour.</div>`;
@@ -1451,8 +1453,8 @@ function drawSend() {
     ${withPrompt ? `<details id="prompt-preview"${sendBox.open ? " open" : ""}><summary class="prompt-h"><span>Preview the fix prompt
         <span class="muted">· ${plural(pv.findings, "finding")}, ${words} words${pv.comments.length > 1 ? ` · ${pv.comments.length} comments: GitHub takes at most 65,536 characters in one` : ""}</span></span>
       <button class="btn ghost sm" data-copy-prompt>Copy</button></summary><pre class="prompt">${esc(text)}</pre></details>` : ""}
-    <div class="foot"><button class="btn ghost" data-send-cancel>Cancel <kbd>Esc</kbd></button>
-      <button class="btn go" data-send-go ${total ? "" : "disabled"}>Send ${plural(total, "comment")} <kbd>${MOD} Enter</kbd></button></div></div>`;
+    <div class="foot"><button class="btn ghost" data-send-cancel title="Esc">Cancel</button>
+      <button class="btn go" data-send-go ${total ? "" : "disabled"} title="${MOD} Enter">Send ${plural(total, "comment")}</button></div></div>`;
 }
 // the fix prompt as the author reads it: GitHub hides the marker that names the comment
 const promptText = comments => comments.map(c => c.replace(/^<!-- craftsman:fix-prompts -->\s*/, "")).join("\n\n");
@@ -1692,7 +1694,7 @@ function treeKey(e) {
 function viewCode() {
   if (R["missing-diff"]) return `<div class="card"><b>The diff of ${esc(R["missing-diff"].slice(0, 7))} is missing.</b>
     <div class="muted">The review moved to this commit without it. Refresh the PR and the AI Agent stores it again.</div>
-    <div style="margin-top:10px"><button class="btn ghost" data-refresh>⟳ Refresh PR</button></div></div>`;
+    <div style="margin-top:10px"><button class="btn ghost" data-refresh title="Refresh PR: read it again from GitHub">⟳ Refresh PR</button></div></div>`;
   if (ui.unchanged) readUnchanged();
   const files = R.files || [], order = treeFiles();
   if (!ui.file || !(changed(ui.file) || (ui.unchanged && (unchangedFiles || []).some(f => f.path === ui.file))))
@@ -1706,7 +1708,7 @@ function viewCode() {
       <div class="progress"><i style="width:${files.length ? 100 * viewed / files.length : 0}%"></i></div>
       <div class="filters">${chip("all", "All", files.length)}${chip("unviewed", "Not viewed", files.length - viewed)}${chip("findings", "With findings", files.filter(f => openFindings(f.path).length).length)}
         <span class="switch${ui.unchanged ? " on" : ""}" data-unchanged title="Also the files the PR leaves as they are"><i></i>Unchanged files</span></div></div>
-      ${ui.tsearch !== null ? `<div class="tsearch"><input class="field" id="tree-search" placeholder="Find a file: the letters of its name in order (resd → ReserveDesk)" autocomplete="off" aria-label="Find a file"></div>` : ""}
+      ${ui.tsearch !== null ? `<div class="tsearch"><input class="field" id="tree-search" placeholder="Find a file (resd → ReserveDesk)" autocomplete="off" aria-label="Find a file"></div>` : ""}
       <div id="tree" tabindex="0" role="tree" aria-label="Files">${treeHtml()}</div>
       <div class="legend"><span>${changeIcon("added")}added</span><span>${changeIcon("modified")}modified</span><span>${changeIcon("deleted")}removed</span><span>${changeIcon("renamed")}moved</span><span>${seenIcon(true)}viewed</span></div></div>
     <div id="tree-grip" title="Drag to resize the tree"></div>
@@ -2019,7 +2021,7 @@ const CLICKABLE = ["tab", "sort", "restart", "inline", "gutter", "goto", "findin
   "comment-file", "draft-whole", "draft-sev", "draft-make", "draft-discard", "md-tool", "assistant-switch", "answer-here", "agent-tools", "allow-tool", "tool-toggle", "nr-existing", "permit",
   "gh-read", "gh-quote", "gh-reply-open", "gh-reply", "gh-thread", "comment-add", "cedit", "csave", "cdrop",
   "directive-switch", "directive-check", "directive-default", "rfilter", "context-add", "context-remove", "in-prompt",
-  "ai-edit", "ai-save", "ai-cancel", "ai-again", "style-reset", "row", "chev", "tree-all", "unchanged", "ctx", "ptab", "pin", "sugg", "ask", "chapter", "send-default", "undo", "edge", "tree-drawer", "style-fold"].map(name => `[data-${name}]`).join(",");
+  "ai-edit", "ai-save", "ai-cancel", "ai-again", "style-reset", "row", "chev", "tree-all", "unchanged", "ctx", "ptab", "pin", "sugg", "ask", "chapter", "send-default", "undo", "edge", "tree-drawer", "style-fold", "tell-story"].map(name => `[data-${name}]`).join(",");
 document.addEventListener("click", async e => {
   if (!e.target.closest("#pop")) hidePop();
   const t = e.target.closest(CLICKABLE); if (!t) return;
@@ -2137,6 +2139,10 @@ document.addEventListener("click", async e => {
     return api("/api/review/message", { ...K(), type: "close" }).then(o => o && toast("closing the review"));
   }
   if (d.send !== undefined) return openSend();
+  if (d.tellStory !== undefined) {
+    setCtx(PR, "ask");
+    return change("ask", { about: PR, text: "Tell the PR's story, the way the tell-the-story step does." }).then(o => o && reload());
+  }
   if (d.undo !== undefined) return runUndo();
   if (d.edge !== undefined) return drawer("panel", !document.body.classList.contains("panel-open"));
   if (d.treeDrawer !== undefined) return drawer("tree", true);
@@ -2383,7 +2389,7 @@ function diffKey(e) {
     const a = picked.indexOf(anchor), b = picked.indexOf(next.dataset.side === side ? next : anchor);
     const span = picked.slice(Math.min(a, b), Math.max(a, b) + 1), lines = span.map(r => +r.dataset.line);
     ui.selection = { path, lines: [Math.min(...lines), Math.max(...lines)], side, quote: span.map(r => r.querySelector(".c").textContent).join("\n") };
-    setCtx({ kind: "file", path, lines: ui.selection.lines, side });
+    setCtx({ kind: "file", path, lines: ui.selection.lines, side }, "finding");
   } else ui.danchor = null;
   ui.dline = keyOf(next); render();
   document.querySelector(`.diffbody[data-diff="${CSS.escape(path)}"]`)?.focus({ preventScroll: true });
@@ -2484,7 +2490,7 @@ document.addEventListener("mouseup", e => {
       // the lines become the panel's context, to ask about or to write a finding on
       if (ui.tab === "code" && ui.pinned) return;
       ui.selection = { path: diff.dataset.diff, lines: [first, last], side, quote: text };
-      setCtx({ kind: "file", path: diff.dataset.diff, lines: [first, last], side });
+      setCtx({ kind: "file", path: diff.dataset.diff, lines: [first, last], side }, "finding");
       sel.removeAllRanges();
       return render();
     } else if (about) {
