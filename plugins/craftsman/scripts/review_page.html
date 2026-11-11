@@ -339,14 +339,16 @@
   .draft-h a { cursor: pointer; color: var(--text); margin-left: 8px; }
   .ai-edit { display: flex; flex-direction: column; gap: 8px; height: 100%; }
   .ai-edit textarea { flex: 1; min-height: 120px; resize: none; }
-  .style-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto auto; gap: 14px; align-items: end;
+  .style-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: end;
     font-size: .75rem; color: var(--muted); }
-  .style-row label { display: flex; flex-direction: column; gap: 4px; }
+  .style-row label { display: flex; flex-direction: column; gap: 4px; } .style-row label > span { font-size: .8125rem; }
+  .style-row label > b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: -4px; }
+  .style-row .style-note { grid-column: 1 / -1; font-size: .8125rem; margin-top: -8px; }
   .style-row label b { font-weight: 400; color: var(--text); } .style-row label.own b { color: var(--neon); }
   .style-row label.off { opacity: .45; }
   .style-row input[type=range] { width: 100%; accent-color: var(--neon-strong); }
   .style-row .code { flex-direction: row; align-items: center; gap: 6px; white-space: nowrap; padding-bottom: 3px; }
-  .style-row a { cursor: pointer; color: var(--text); padding-bottom: 3px; }
+  .style-row [data-style-reset] { grid-column: 3; justify-self: end; }
   .draft-preview .banner a { cursor: pointer; color: var(--neon); }
   .switch { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; color: var(--muted); }
   .switch i { width: 28px; height: 16px; border-radius: 999px; background: var(--switch-off); position: relative; }
@@ -1134,7 +1136,7 @@ function panelComment(c) {
     ${folder ? `<div class="banner" style="margin:0">A finding on a folder goes to the PR's conversation, naming the folder: GitHub has no comment on a folder.</div>` : ""}
     <section class="draft-out" id="draft-out">${draftOut(path, d)}</section>
     ${ui.assistant ? `<button class="style-sum" data-style-fold><span>Style · <b>${esc(Object.values(shapeOf(d)).map(v => v === true ? "code" : v === false ? "no code" : v).join(", "))}</b></span><span>${ui.styleOpen ? "▲" : "▼"}</span></button>
-    <div class="style-row${ui.styleOpen ? " open" : ""}" id="style-row">${styleControls(shapeOf(d), "data-style", d.style)}${Object.keys(d.style).length ? `<a data-style-reset title="Back to the default shape, set in AI Agent tools">default</a>` : ""}</div>` : ""}
+    <div class="style-row${ui.styleOpen ? " open" : ""}" id="style-row">${styleControls(shapeOf(d), "data-style", d.style)}${Object.keys(d.style).length ? `<button class="btn ghost sm" data-style-reset title="Back to the default shape, set in AI Agent tools">Reset</button>` : ""}${styleNote(shapeOf(d))}</div>` : ""}
     <section class="draft-in"><div class="md-tools">${MD_TOOLS.map(([k, label, title]) => `<button data-md-tool="${k}" title="${title}">${label}</button>`).join("")}</div>
       <textarea id="draft-box" placeholder="${ui.assistant ? "Tell AI Agent what you would change here, and why, in your own words. Enter is a new line." : "What would you change here, and why? Markdown works; Enter is a new line."}">${esc(d.text)}</textarea></section>
     <div class="row-actions draft-actions"><button class="btn go sm" data-draft-make title="${esc(makeBlocked(d) || MOD + " Enter")}" ${makeBlocked(d) ? "disabled" : ""}>Make it a finding</button><button class="btn ghost sm" data-draft-discard>Discard</button></div>`;
@@ -1173,20 +1175,23 @@ function makeBlocked(d) {
   return "";
 }
 // The shape of a comment: three sliders and a box, for the panel (one draft) and for the default (AI Agent tools).
-const SHAPE = [["fidelity", "Your words", ["verbatim", "close", "balanced", "loose", "free"]], ["tone", "Tone", ["casual", "teammate", "formal"]],
+const SHAPE = [["fidelity", "Wording", ["verbatim", "close", "balanced", "loose", "free"]], ["tone", "Tone", ["casual", "teammate", "formal"]],
   ["detail", "Detail", ["brief", "normal", "detailed"]]];
 // with these, AI Agent keeps the draft's words, so the tone and the length follow the draft
 const FOLLOWS_THE_DRAFT = ["verbatim", "close"];
 const shapeOf = d => ({ ...((R && R["comment-style"]) || {}), ...d.style });
 function styleControls(shape, attr, own) {
   const follows = FOLLOWS_THE_DRAFT.includes(shape.fidelity), hint = "With your words kept, the tone and the length follow the draft";
+  const titles = { fidelity: "How closely AI Agent keeps your words: verbatim keeps them, free writes its own comment" };
   return SHAPE.map(([key, label, steps]) => {
-    const off = follows && key !== "fidelity", at = Math.max(0, steps.indexOf(shape[key]));
-    return `<label class="${own && key in own ? "own" : ""}${off ? " off" : ""}" ${off ? `title="${hint}"` : ""}><span>${label} · <b>${off ? "as the draft" : steps[at]}</b></span>
+    const off = follows && key !== "fidelity", at = Math.max(0, steps.indexOf(shape[key])), title = off ? hint : titles[key];
+    return `<label class="${own && key in own ? "own" : ""}${off ? " off" : ""}" ${title ? `title="${title}"` : ""}><span>${label}</span><b>${off ? "as the draft" : steps[at]}</b>
       <input type="range" min="0" max="${steps.length - 1}" step="1" value="${at}" ${attr}="${key}" ${off && attr === "data-style" ? "disabled" : ""}></label>`;
   }).join("") +
     `<label class="code${own && "code" in own ? " own" : ""}"><input type="checkbox" ${attr}="code" ${shape.code ? "checked" : ""}> code sample</label>`;
 }
+const styleNote = shape => FOLLOWS_THE_DRAFT.includes(shape.fidelity)
+  ? `<div class="style-note muted">Tone and detail follow your draft while your words are kept. Move Wording to balanced to set them.</div>` : "";
 const styleValue = el => el.type === "checkbox" ? el.checked : SHAPE.find(([key]) => key === (el.dataset.style || el.dataset.styleDefault))[2][+el.value];
 function paintDraftOut(path) {
   const el = document.getElementById("draft-out");

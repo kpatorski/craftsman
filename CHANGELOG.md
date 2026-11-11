@@ -3,6 +3,12 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.25.2
+
+- The comment's shape: the first slider is "Wording"; each slider shows its name over its value. While Wording keeps
+  your words, a line under the sliders says that tone and detail follow the draft and how to set them. "Reset" is a
+  button, next to "code sample".
+
 ## 0.25.1
 
 - Story: without a story yet, one line says at which step it comes; once the step is past, "Ask AI Agent to tell the

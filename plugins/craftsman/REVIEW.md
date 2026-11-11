@@ -227,13 +227,13 @@ The shape of the comment asked for wins where it differs from the directives:
 | `detail`   | `brief`, `normal`, `detailed`                    | `normal`   | one or two sentences; as long as the draft calls for; a paragraph or two                                                                                                                |
 | `code`     | `false`, `true`                                  | `false`    | a code sample of the fix at the end; a code block in the draft is kept either way                                                                                                       |
 
-With `verbatim` or `close` the comment keeps the draft's words, so `tone` and `detail` are not asked for: the tone and
-the length are the draft's, and the panel greys their sliders. The default shape is `comment-style` in
-`~/.craftsman/settings.json`, set on the page's AI Agent tools tab; the panel's sliders and box ask for another shape
-for one draft, kept in its `style`. The severity sets how firmly the comment says it: `must-fix` as a change required
-before the merge, `should-fix` as a clear recommendation, `nit` as minor and optional. A severity the developer picks
-goes to the call; without one, the call picks it and writes the comment that firmly. Picking a severity, or moving a
-slider, writes the comment again.
+With `verbatim` or `close` the comment keeps the draft's words, so `tone` and `detail` are not asked for (`fidelity` is
+the panel's "Wording" slider): the tone and the length are the draft's, and the panel greys their sliders and says so
+under them. The default shape is `comment-style` in `~/.craftsman/settings.json`, set on the page's AI Agent tools tab;
+the panel's sliders and box ask for another shape for one draft, kept in its `style`. The severity sets how firmly the
+comment says it: `must-fix` as a change required before the merge, `should-fix` as a clear recommendation, `nit` as
+minor and optional. A severity the developer picks goes to the call; without one, the call picks it and writes the
+comment that firmly. Picking a severity, or moving a slider, writes the comment again.
 
 The developer corrects AI Agent's comment and title by hand with "Edit". The correction is pinned: a newer draft does
 not write over it, and the panel offers to write it again from the draft instead.

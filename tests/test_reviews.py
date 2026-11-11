@@ -645,6 +645,16 @@ class ReviewEndpointsTest(ReviewsTest):
             with self.subTest(gone=gone):
                 self.assertNotIn(gone, served)
 
+    def test_the_comment_shape_says_why_tone_and_detail_follow_the_draft(self):
+        served = self.page(f"/review?review={ID}")
+        for hook in ('"Wording"', 'class="style-note ', "Move Wording to balanced to set them",
+                     '<button class="btn ghost sm" data-style-reset'):
+            with self.subTest(hook=hook):
+                self.assertIn(hook, served)
+        for gone in ('"Your words"', '<a data-style-reset'):
+            with self.subTest(gone=gone):
+                self.assertNotIn(gone, served)
+
     def test_the_review_page_fits_smaller_screens_with_drawers(self):
         served = self.page(f"/review?review={ID}")
         for hook in ("@media (max-width: 1599px)", "@media (max-width: 1199px)", "@media (max-width: 899px)",
