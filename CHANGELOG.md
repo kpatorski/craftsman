@@ -3,6 +3,19 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.25.0
+
+- The review page works from the keyboard; `?` lists every key. `1`…`5` open the tabs, `a`/`f` the panel's tabs, `/`
+  finds a file by the letters of its name in order; on Code `t`/`d` go to the tree and the diff, `[`/`]` to the
+  previous and next file, `v` viewed, `u` unchanged files, `p` the pin, `n`/`N` the file's findings; the tree adds `+`/`-`
+  to expand and collapse all; the diff gets a line cursor, and `shift` with `↑`/`↓` selects lines; on Findings `↑`/`↓`,
+  `Enter` and `x`. What a key changes shows a toast with Undo (`⌘ Z`, `Ctrl Z`).
+- A tab opens with the focus where its keys work, and a redraw keeps the focus on the tree, the diff or a row of
+  Findings. The tabs are an ARIA `tablist`; every control shows a focus ring.
+- Smaller screens: under 1600px the tree and the panel start narrower; under 1200px the panel is a drawer, opened from
+  a strip on the right edge with the count of the AI Agent's waiting questions; under 900px the tree is a drawer too
+  ("☰ Files" or `t`); on a screen lower than 900px the header is compact and the comment style folds to one line.
+
 ## 0.24.0
 
 - One "Send… (N)" button opens a dialog listing everything that goes. "Also post a fix prompt" in it adds the fix

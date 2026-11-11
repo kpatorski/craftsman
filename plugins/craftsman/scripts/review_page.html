@@ -417,6 +417,55 @@
   .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--float); border: 1px solid var(--neon-dim);
     border-radius: 10px; padding: 8px 14px; font-size: .8125rem; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 50; }
   .toast.show { opacity: 1; }
+  .toast .undo { margin-left: 12px; } .toast.show { pointer-events: auto; }
+  /* the keyboard: a visible ring on what has the focus, the diff's line cursor, the tree search */
+  :focus-visible { outline: 2px solid var(--select); outline-offset: 2px; }
+  #tree:focus-visible, .diffbody:focus-visible, .send-d:focus-visible { outline-offset: -2px; }
+  .ln.cur { box-shadow: inset 3px 0 0 var(--select); }
+  tr[data-finding]:focus-visible { outline-offset: -2px; }
+  .tsearch { padding: 0 0 8px; } .tsearch input { width: 100%; }
+  .trow.hit .nm { color: var(--neon); }
+  .keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: .8125rem; align-items: baseline; }
+  .keys h4 { grid-column: 1 / -1; margin: 10px 0 0; font-size: .75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .keys span:nth-child(odd) { white-space: nowrap; }
+
+  /* ---- smaller screens ---- */
+  #edge, .tree-drawer, .style-sum { display: none; }
+  /* 1200–1599px: narrower least widths, so the diff keeps room */
+  @media (max-width: 1599px) {
+    .app.with-panel { grid-template-columns: 64px minmax(0, 1fr) 10px var(--panel-w, clamp(360px, 27vw, 640px)); }
+    .codegrid { grid-template-columns: var(--tree-w, clamp(260px, 22vw, 520px)) 8px minmax(0, 1fr); }
+  }
+  /* under 1200px: the AI Agent panel is a drawer over the page, from the right; a strip on the edge opens it */
+  @media (max-width: 1199px) {
+    .app.with-panel { grid-template-columns: 64px minmax(0, 1fr); grid-template-areas: "rail head" "rail main"; }
+    .app.with-panel #grip { display: none; }
+    #panel { position: fixed; top: 0; right: 0; bottom: 0; width: min(480px, 92vw); margin: 0; border-radius: 14px 0 0 14px; z-index: 30;
+      box-shadow: -18px 0 40px var(--shadow); transform: translateX(105%); transition: transform .18s ease; }
+    body.panel-open #panel { transform: none; }
+    .app.with-panel ~ #edge { display: flex; position: fixed; right: 0; top: 50%; transform: translateY(-50%); z-index: 20; writing-mode: vertical-rl;
+      gap: 8px; align-items: center; padding: 14px 7px; border: 1px solid var(--line2); border-right: 0; border-radius: 10px 0 0 10px;
+      background: var(--card); color: var(--neon); font: inherit; font-size: .8125rem; cursor: pointer; }
+    #edge .q { writing-mode: horizontal-tb; background: var(--should-bg); color: var(--should); border-radius: 8px; padding: 0 6px; font-size: .75rem; }
+    #edge .q:empty { display: none; }
+    .app.with-panel main, .app.with-panel #head { padding-right: 48px; }
+  }
+  /* under 900px: the tree is a drawer too, from the left */
+  @media (max-width: 899px) {
+    .codegrid { grid-template-columns: minmax(0, 1fr); } #tree-grip { display: none; }
+    .treebox { position: fixed; left: 64px; top: 0; bottom: 0; width: min(360px, 80vw); z-index: 25; border-radius: 0 14px 14px 0;
+      box-shadow: 18px 0 40px var(--shadow); transform: translateX(calc(-100% - 90px)); transition: transform .18s ease; }
+    body.tree-open .treebox { transform: none; }
+    .tree-drawer { display: inline-flex; }
+  }
+  /* a low screen: a compact header, and the style sliders folded to one line */
+  @media (max-height: 899px) {
+    #head { padding-top: 12px; } .head h1 { font-size: 1.3rem; } .head .sub { display: none; } .tabs { margin: 8px 0 12px; }
+    .style-sum { display: flex; justify-content: space-between; gap: 10px; font: inherit; font-size: .75rem; color: var(--muted); background: none;
+      border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; cursor: pointer; }
+    .style-sum b { color: var(--text); font-weight: 400; }
+    .style-row:not(.open) { display: none; }
+  }
   /*MD_CSS*/
 </style>
 </head>
@@ -428,6 +477,7 @@
   <div id="grip" title="Drag to make the AI Agent panel wider or narrower"></div>
   <aside class="panel" id="panel" style="display:none"></aside>
 </div>
+<button id="edge" data-edge title="The AI Agent panel (a)">✦ AI Agent<span class="q" id="edge-q"></span></button>
 <div class="hover" id="hover"></div>
 <div class="pop" id="pop"></div>
 <div class="gtip" id="gtip"></div>
@@ -445,7 +495,7 @@ const ui = { assistant: localStorage.getItem("craftsman-assistant") !== "off", t
   fsev: null, fby: null, fstatus: "open", fcat: "", fquestions: false, search: "", codeFilter: "all", editing: null,
   selection: null, sort: { key: "severity", dir: 1 }, inline: localStorage.getItem("craftsman-review-inline") === "1", open: new Set(),
   ghRead: new Set(), ghReading: false, replyTo: null, editComment: null, rfilter: "all", unchanged: false, cursor: null,
-  ctxBy: {}, ptab: "ask", pinned: false, log: false };
+  ctxBy: {}, ptab: "ask", pinned: false, log: false, tsearch: null, dline: null, danchor: null, styleOpen: false };
 ui.nr = newReview();
 if (params.has("new")) {
   // opened by /craftsman:pr-review <source>: the wizard, with the source filled in
@@ -753,7 +803,7 @@ function renderHead() {
       <button class="btn go" data-send ${toSend && pr && !ui.sending ? "" : "disabled"} title="${pr ? "" : "No pull request to send to"}">${ui.sending ? "Sending…" : `Send… (${toSend})`}</button>
       <button class="btn ghost" data-power title="${R.running ? "Stop the session" : "Start the session"}">⏻</button>
     </div></div>
-    <div class="tabs">${tabs.map(([id, name, n]) => `<a class="tab${id === ui.tab ? " on" : ""}" data-tab="${id}">${id === "story" && waiting() ? '<span class="qdot" title="The AI agent waits for your answer"></span>' : ""}${name}${n !== "" ? `<span class="n">${n}</span>` : ""}</a>`).join("")}</div>`;
+    <div class="tabs" role="tablist" aria-label="The review">${tabs.map(([id, name, n], i) => `<a class="tab${id === ui.tab ? " on" : ""}" data-tab="${id}" role="tab" tabindex="0" aria-selected="${id === ui.tab}" title="${i + 1}">${id === "story" && waiting() ? '<span class="qdot" title="The AI agent waits for your answer"></span>' : ""}${name}${n !== "" ? `<span class="n">${n}</span>` : ""}</a>`).join("")}</div>`;
 }
 
 // ================================================================ overview
@@ -813,7 +863,7 @@ function findingTable(list, sortable) {
       const loc = (f.locations || [])[0] || {}, threads = threadsOf("finding", f.id);
       const st = { "to-send": '<span class="tag green">to send</span>', sent: '<span class="tag blue">sent</span>',
         "maybe-resolved": '<span class="tag amber">maybe resolved</span>', deleted: '<span class="tag">dropped</span>' }[f.status] || '<span class="tag">not yet</span>';
-      return `<tr data-finding="${esc(f.id)}"${ctx().kind === "finding" && ctx().id === f.id ? ' class="sel"' : ""}><td>${sev(f.severity)}</td>
+      return `<tr tabindex="0" data-finding="${esc(f.id)}"${ctx().kind === "finding" && ctx().id === f.id ? ' class="sel"' : ""}><td>${sev(f.severity)}</td>
         <td><div class="t">${inline(f.title)}</div><div class="w mono" title="${esc(loc.path || "")}">${esc(shortPath(loc.path || ""))}${loc.line ? ":" + loc.line : ""}</div></td>
         <td>${who(f.by)}</td><td class="muted">${esc(f.category)}</td>
         <td class="muted">${threads.length ? `💬 ${threads.reduce((a, t) => a + t.messages.length, 0)}` : '<span class="dim">—</span>'}</td><td>${st}</td></tr>`;
@@ -1081,7 +1131,8 @@ function panelComment(c) {
       <span class="switch${ui.assistant ? " on" : ""}" data-assistant-switch title="AI Agent writes your draft up as a finding by the review's rules"><i></i>✦ AI Agent assistant</span></div>
     ${folder ? `<div class="banner" style="margin:0">A finding on a folder goes to the PR's conversation, naming the folder: GitHub has no comment on a folder.</div>` : ""}
     <section class="draft-out" id="draft-out">${draftOut(path, d)}</section>
-    ${ui.assistant ? `<div class="style-row" id="style-row">${styleControls(shapeOf(d), "data-style", d.style)}${Object.keys(d.style).length ? `<a data-style-reset title="Back to the default shape, set in AI Agent tools">default</a>` : ""}</div>` : ""}
+    ${ui.assistant ? `<button class="style-sum" data-style-fold><span>Style · <b>${esc(Object.values(shapeOf(d)).map(v => v === true ? "code" : v === false ? "no code" : v).join(", "))}</b></span><span>${ui.styleOpen ? "▲" : "▼"}</span></button>
+    <div class="style-row${ui.styleOpen ? " open" : ""}" id="style-row">${styleControls(shapeOf(d), "data-style", d.style)}${Object.keys(d.style).length ? `<a data-style-reset title="Back to the default shape, set in AI Agent tools">default</a>` : ""}</div>` : ""}
     <section class="draft-in"><div class="md-tools">${MD_TOOLS.map(([k, label, title]) => `<button data-md-tool="${k}" title="${title}">${label}</button>`).join("")}</div>
       <textarea id="draft-box" placeholder="${ui.assistant ? "Tell AI Agent what you would change here, and why, in your own words. Enter is a new line." : "What would you change here, and why? Markdown works; Enter is a new line."}">${esc(d.text)}</textarea></section>
     <div class="row-actions draft-actions"><button class="btn go sm" data-draft-make title="${esc(makeBlocked(d) || MOD + " Enter")}" ${makeBlocked(d) ? "disabled" : ""}>Make it a finding</button><button class="btn ghost sm" data-draft-discard>Discard</button></div>`;
@@ -1300,7 +1351,7 @@ function snippetAt(path, line, side) {
 function diffView(path, position) {
   const same = !changed(path), info = same ? { ...fileInfo(path), change: "unchanged" } : fileInfo(path), hunks = diffs[path];
   const counts = [info.added ? "+" + info.added : "", info.removed ? "−" + info.removed : ""].filter(Boolean).join(" ");
-  const code = ui.tab === "code", back = code ? `<span class="muted" title="Back to the tree"><kbd>Esc</kbd> tree</span>` : "";
+  const code = ui.tab === "code", back = code ? `<button class="btn ghost sm tree-drawer" data-tree-drawer title="The files (t)">☰ Files</button><span class="muted" title="Back to the tree"><kbd>Esc</kbd> tree</span>` : "";
   const head = `<div class="diffhead"><span>${position ? `<span class="muted" style="font-size:.7812rem">${position}</span><br>` : ""}<b class="mono">${esc(path)}</b>
       <span class="tag ${{ added: "green", deleted: "red", unchanged: "" }[info.change] ?? "blue"}" style="margin-left:6px">${info.change}${counts ? " · " + counts : ""}</span></span>
     <span class="dtools">${same ? (code ? back : `<span class="muted">select lines to ask AI Agent about them</span>`) : `${code ? back : `<span class="muted">select lines to ask AI Agent or comment on them</span>`}<button class="btn ghost sm" data-comment-file="${esc(path)}">✎ Comment on file</button>${sevCounts(findingsAt(path))}
@@ -1329,7 +1380,8 @@ function diffView(path, position) {
     const talk = notes.filter(t => t.about.lines && t.about.lines[1] === n && (side === "RIGHT" || info.change === "deleted"));
     const inSel = sel && side === (c.side || "RIGHT") && n >= sel[0] && n <= sel[1], key = `${path}|${side}|${n}`;
     const shown = here.length && (ui.inline || ui.open.has(key)), lit = opened && here.includes(opened) ? " lf-" + opened.severity : "";
-    return `<div class="ln ${l.kind}${whole ? " whole" : ""}${inSel ? " sel" : ""}${shown && !ui.inline ? " open" : ""}${lit}" data-line="${n}" data-side="${side}">` +
+    const cur = ui.dline === `${path}|${side}|${n}` ? " cur" : "";
+    return `<div class="ln ${l.kind}${whole ? " whole" : ""}${inSel ? " sel" : ""}${cur}${shown && !ui.inline ? " open" : ""}${lit}" data-line="${n}" data-side="${side}">` +
       `<span class="no">${l.old ?? ""}</span><span class="no">${l.now ?? ""}</span>${gutter(here, key)}<span class="sg">${l.kind === "add" ? "+" : l.kind === "del" ? "−" : ""}</span><span class="c">${l.html}</span></div>` +
       (shown ? here.map(f => `<div class="ann${f === opened ? " on" : ""}" data-finding="${esc(f.id)}">${sev(f.severity)}<span>${who(f.by)} · ${esc(f.id)} · ${inline(f.title)}</span></div>`).join("") : "") +
       talk.map(t => `<div class="ann" data-thread="${esc(t.id)}"><span class="tag">${t.messages[0].by === "agent" ? "✦" : "💬"} ${t.messages.length}</span><span>${noteTitle(t.messages[0].text)}</span></div>`).join("") +
@@ -1563,13 +1615,14 @@ function treePaths() {
 }
 const treeFiles = () => treeRows(treePaths(), []).filter(r => r.type === "file").map(r => r.path);
 function treeHtml() {
+  const hits = new Set(searchHits(treePaths(), ui.tsearch || ""));
   const rows = treeRows(treePaths(), [...closedFolders()]);
   // a cursor inside a closed folder moves to the closed folder, or to the first row
   if (!rows.some(r => r.path === ui.cursor)) ui.cursor = rows.some(r => r.path === ui.file) ? ui.file
     : (rows.filter(r => r.type === "dir" && (ui.file || "").startsWith(r.path + "/")).pop() || rows[0] || {}).path;
   if (!rows.length) return `<div class="muted" style="padding:8px 14px">No file matches the filter.</div>`;
   return rows.map(r => {
-    const pad = `style="padding-left:${6 + r.depth * 14}px"`, base = ["trow", r.path === ui.cursor ? "cursor" : ""];
+    const pad = `style="padding-left:${6 + r.depth * 14}px"`, base = ["trow", r.path === ui.cursor ? "cursor" : "", hits.has(r.path) ? "hit" : ""];
     if (r.type === "dir") {
       const closed = closedFolders().has(r.path);
       return `<div class="${base.join(" ")}" ${pad} data-row="${esc(r.path)}" data-type="dir" role="treeitem" aria-level="${r.depth + 1}" aria-expanded="${!closed}" title="${esc(r.path)}">` +
@@ -1621,11 +1674,16 @@ function treeKey(e) {
     }
     case "Enter":
       if (dir) return fold(), true;
+      if (narrow(899)) drawer("tree", false);
       document.querySelector(`.diffbody[data-diff="${CSS.escape(ui.file)}"]`)?.focus();
       return true;
     case " ":
-      if (row && !dir && changed(ui.cursor)) row.querySelector("[data-view]")?.click();
+      if (row && !dir && changed(ui.cursor)) toggleViewed(ui.cursor);
       return true;
+    case "+":
+      keepClosed(new Set()); render(); focusTree(); return true;
+    case "-":
+      keepClosed(new Set(treeRows(treePaths(), []).filter(r => r.type === "dir").map(r => r.path))); render(); focusTree(); return true;
   }
   return false;
 }
@@ -1648,6 +1706,7 @@ function viewCode() {
       <div class="progress"><i style="width:${files.length ? 100 * viewed / files.length : 0}%"></i></div>
       <div class="filters">${chip("all", "All", files.length)}${chip("unviewed", "Not viewed", files.length - viewed)}${chip("findings", "With findings", files.filter(f => openFindings(f.path).length).length)}
         <span class="switch${ui.unchanged ? " on" : ""}" data-unchanged title="Also the files the PR leaves as they are"><i></i>Unchanged files</span></div></div>
+      ${ui.tsearch !== null ? `<div class="tsearch"><input class="field" id="tree-search" placeholder="Find a file: the letters of its name in order (resd → ReserveDesk)" autocomplete="off" aria-label="Find a file"></div>` : ""}
       <div id="tree" tabindex="0" role="tree" aria-label="Files">${treeHtml()}</div>
       <div class="legend"><span>${changeIcon("added")}added</span><span>${changeIcon("modified")}modified</span><span>${changeIcon("deleted")}removed</span><span>${changeIcon("renamed")}moved</span><span>${seenIcon(true)}viewed</span></div></div>
     <div id="tree-grip" title="Drag to resize the tree"></div>
@@ -1893,6 +1952,7 @@ function render() {
   // the conversation in the panel keeps its place, or stays at its end to show what comes next
   const out = document.querySelector(".ask-out"), outY = out && (out.scrollHeight - out.scrollTop - out.clientHeight < 8 ? Infinity : out.scrollTop);
   const treeY = document.getElementById("tree")?.scrollTop, inTree = focused === "tree", inDiff = document.activeElement?.dataset?.diff;
+  const inRow = document.activeElement?.matches?.("tr[data-finding]") ? document.activeElement.dataset.finding : null;
   renderRail();
   if (ui.tab === "new" || (!current.id && !R && !["archived", "tools"].includes(ui.tab))) main.innerHTML = viewNew();
   else if (ui.tab === "archived") main.innerHTML = viewArchived();
@@ -1915,6 +1975,9 @@ function render() {
   // a redraw keeps the focus where the keys were working: on the tree, or in the diff of the same file
   if (inTree && tree) tree.focus({ preventScroll: true });
   else if (inDiff) document.querySelector(`.diffbody[data-diff="${CSS.escape(inDiff)}"]`)?.focus({ preventScroll: true });
+  else if (inRow) document.querySelector(`tr[data-finding="${CSS.escape(inRow)}"]`)?.focus({ preventScroll: true });
+  const asks = R && current.id && waiting() ? 1 : 0;
+  document.getElementById("edge-q").textContent = asks ? asks + " ?" : "";
   document.title = (R && (waiting() || asking()) ? "● " : "") + "craftsman review";
   renderPanel();
   panel.scrollTop = py;
@@ -1931,9 +1994,18 @@ function render() {
 
 // ================================================================ actions
 let toastTimer;
-function toast(msg) {
+function toast(msg, undo) {
   const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show");
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 3200);
+  ui.undo = undo || null;
+  if (undo) t.insertAdjacentHTML("beforeend", `<button class="btn ghost sm undo" data-undo>Undo <kbd>${MOD} Z</kbd></button>`);
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.classList.remove("show"); ui.undo = null; }, undo ? 5000 : 3200);
+}
+// What a single key changed says so, and can be taken back for five seconds.
+function undoable(msg, undo) { toast(msg, undo); }
+function runUndo() {
+  const undo = ui.undo; ui.undo = null;
+  document.getElementById("toast").classList.remove("show");
+  if (undo) Promise.resolve(undo()).then(() => toast("undone"));
 }
 function hidePop() {
   document.getElementById("pop").style.display = "none";
@@ -1947,7 +2019,7 @@ const CLICKABLE = ["tab", "sort", "restart", "inline", "gutter", "goto", "findin
   "comment-file", "draft-whole", "draft-sev", "draft-make", "draft-discard", "md-tool", "assistant-switch", "answer-here", "agent-tools", "allow-tool", "tool-toggle", "nr-existing", "permit",
   "gh-read", "gh-quote", "gh-reply-open", "gh-reply", "gh-thread", "comment-add", "cedit", "csave", "cdrop",
   "directive-switch", "directive-check", "directive-default", "rfilter", "context-add", "context-remove", "in-prompt",
-  "ai-edit", "ai-save", "ai-cancel", "ai-again", "style-reset", "row", "chev", "tree-all", "unchanged", "ctx", "ptab", "pin", "sugg", "ask", "chapter", "send-default"].map(name => `[data-${name}]`).join(",");
+  "ai-edit", "ai-save", "ai-cancel", "ai-again", "style-reset", "row", "chev", "tree-all", "unchanged", "ctx", "ptab", "pin", "sugg", "ask", "chapter", "send-default", "undo", "edge", "tree-drawer", "style-fold"].map(name => `[data-${name}]`).join(",");
 document.addEventListener("click", async e => {
   if (!e.target.closest("#pop")) hidePop();
   const t = e.target.closest(CLICKABLE); if (!t) return;
@@ -1966,13 +2038,13 @@ document.addEventListener("click", async e => {
     if (d.fcat !== undefined) Object.assign(extra, { fcat: d.fcat, fsev: null, fstatus: "open" });
     if (d.fstatus) Object.assign(extra, { fstatus: d.fstatus, fsev: null });
     // the Code tab opens with the focus on the tree, where its keys work
-    return Promise.resolve(go({ ui: extra })).then(() => d.tab === "code" && focusTree());
+    return Promise.resolve(go({ ui: extra })).then(() => focusTab());
   }
   if (d.fsev !== undefined) { ui.fsev = d.fsev || null; return render(); }
   if (d.fby) { ui.fby = ui.fby === d.fby ? null : d.fby; return render(); }
   if (d.fquestions !== undefined) { ui.fquestions = !ui.fquestions; return render(); }
   if (d.fstatus) { ui.fstatus = d.fstatus; return render(); }
-  if (d.finding) { setCtx({ kind: "finding", id: d.finding }, "finding"); ui.editing = null; return render(); }
+  if (d.finding) { setCtx({ kind: "finding", id: d.finding }, "finding"); ui.editing = null; render(); if (narrow(1199)) drawer("panel", true); return; }
   if (d.sort) { ui.sort = ui.sort.key === d.sort ? { key: d.sort, dir: -ui.sort.dir } : { key: d.sort, dir: 1 }; return render(); }
   if (d.inline !== undefined) { ui.inline = !ui.inline; localStorage.setItem("craftsman-review-inline", ui.inline ? "1" : "0"); return render(); }
   if (d.gutter) { ui.open.has(d.gutter) ? ui.open.delete(d.gutter) : ui.open.add(d.gutter); document.getElementById("gtip").style.display = "none"; return render(); }
@@ -2065,6 +2137,10 @@ document.addEventListener("click", async e => {
     return api("/api/review/message", { ...K(), type: "close" }).then(o => o && toast("closing the review"));
   }
   if (d.send !== undefined) return openSend();
+  if (d.undo !== undefined) return runUndo();
+  if (d.edge !== undefined) return drawer("panel", !document.body.classList.contains("panel-open"));
+  if (d.treeDrawer !== undefined) return drawer("tree", true);
+  if (d.styleFold !== undefined) { ui.styleOpen = !ui.styleOpen; return renderPanel(); }
   if (d.sendDefault !== undefined) return api("/api/review/send-fix-prompt", { ...K(), on: d.sendDefault === "1" }).then(() => reload());
   if (d.chapter !== undefined) {
     setCtx(d.chapter ? { kind: "chapter", id: d.chapter } : PR, "ask"); render();
@@ -2189,6 +2265,7 @@ document.addEventListener("change", e => { if (e.target.id === "fcat") { ui.fcat
     api("/api/review/comment-style", { ...K(), style: { [e.target.dataset.styleDefault]: styleValue(e.target) } }).then(() => reload());
 });
 document.addEventListener("input", e => { if (e.target.id === "fsearch") { ui.search = e.target.value; render(); }
+  if (e.target.id === "tree-search") { ui.tsearch = e.target.value; showHit(0); }
   if ((e.target.id === "ai-title" || e.target.id === "ai-comment") && draftAt && drafts[draftAt]?.aiEdit)
     drafts[draftAt].aiEdit[e.target.id === "ai-title" ? "title" : "comment"] = e.target.value;
   if (e.target.id === "draft-box" && draftAt) { draftOf(draftAt).text = e.target.value; saveDraft(draftAt); ui.assistant ? assistantLater(draftAt) : previewDraft(draftAt); }
@@ -2196,11 +2273,165 @@ document.addEventListener("input", e => { if (e.target.id === "fsearch") { ui.se
   const field = { "nr-url": "url", "nr-target": "target", "nr-source": "source", "nr-path": "path", "nr-context": "context" }[e.target.id];
   if (field) { ui.nr[field] = e.target.value; if (field !== "context") nrCheck(); } } });
 document.addEventListener("keydown", e => {
-  if (e.target.id === "ask-in" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); askNow(); }
-  if (e.target.id === "draft-box" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); makeFinding(); }
-  if (e.target.id === "tree" && !e.metaKey && !e.ctrlKey && !e.altKey && treeKey(e)) e.preventDefault();
-  if (e.key === "Escape") onEscape(e);
+  if (document.getElementById("modal").classList.contains("shown")) return;  // a dialog takes its own keys
+  if (e.target.id === "ask-in" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); return askNow(); }
+  if (e.target.id === "draft-box" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); return makeFinding(); }
+  if (e.target.id === "tree-search" && searchKey(e)) return e.preventDefault();
+  if (e.key === "Escape") return onEscape(e);
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z" && ui.undo && !typingIn(e)) { e.preventDefault(); return runUndo(); }
+  if (e.metaKey || e.ctrlKey || e.altKey || typingIn(e)) return;
+  if (e.target.id === "tree" && treeKey(e)) return e.preventDefault();
+  if (e.target.closest?.(".diffbody") && diffKey(e)) return e.preventDefault();
+  if (e.target.matches?.("tr[data-finding]") && findingsKey(e)) return e.preventDefault();
+  if (e.target.matches?.("[role=tab]") && e.key === "Enter") { e.preventDefault(); return e.target.click(); }
+  if (R && current.id && REVIEW_TABS.includes(ui.tab) && pageKey(e)) e.preventDefault();
 });
+// single letters are keys only outside the boxes the developer writes in
+const typingIn = e => !!e.target.closest?.("textarea, select, [contenteditable], input:not([type=checkbox]):not([type=range])");
+const narrow = width => matchMedia(`(max-width: ${width}px)`).matches;
+// The keys that work anywhere on a review, and those of the Code tab. Each changes what it says; what changes the
+// review (viewed, unchanged files, the pin) says so in a toast with Undo.
+function pageKey(e) {
+  const k = e.key, code = ui.tab === "code";
+  const toCode = () => ui.tab === "code" ? Promise.resolve() : Promise.resolve(go({ ui: { tab: "code" } }));
+  if (/^[1-5]$/.test(k)) { document.querySelector(`[data-tab="${REVIEW_TABS[+k - 1]}"]`)?.click(); return true; }
+  if (k === "?") return openKeys(), true;
+  if (k === "/") { toCode().then(() => { ui.tsearch = ""; render(); if (narrow(899)) drawer("tree", true); document.getElementById("tree-search")?.focus(); }); return true; }
+  if (k === "a" || (k === "f" && panelTabs(ctx()).includes("finding"))) {
+    ui.ptab = k === "a" ? "ask" : "finding"; ui.log = false; renderPanel(); if (narrow(1199)) drawer("panel", true);
+    document.getElementById(k === "a" ? "ask-in" : "draft-box")?.focus(); return true;
+  }
+  if (k === "t") { toCode().then(() => { if (narrow(899)) drawer("tree", true); focusTree(); }); return true; }
+  if (k === "d") { toCode().then(() => document.querySelector(".codediff .diffbody")?.focus()); return true; }
+  if (!code) return false;
+  if (k === "[" || k === "]") { openFile(fileStep(treeFiles(), ui.file, k === "]" ? 1 : -1)); return true; }
+  if (k === "v" && ui.file && changed(ui.file)) return toggleViewed(ui.file), true;
+  if (k === "u") { const flip = () => { ui.unchanged = !ui.unchanged; render(); }; flip(); undoable(`unchanged files ${ui.unchanged ? "shown" : "hidden"}`, flip); return true; }
+  if (k === "p") { const flip = () => document.querySelector("[data-pin]")?.click(); flip(); undoable(ui.pinned ? "panel pinned" : "panel unpinned", flip); return true; }
+  if (k === "n" || k === "N") return nextFinding(k === "n" ? 1 : -1), true;
+  return false;
+}
+// The tab a key or a click opens gets the focus where its keys work: Code on the tree, Findings on the row picked.
+function focusTab() {
+  if (ui.tab === "code") return focusTree();
+  if (ui.tab === "findings") {
+    const c = ctx(), row = (c.kind === "finding" && document.querySelector(`tr[data-finding="${CSS.escape(c.id)}"]`)) || document.querySelector("tr[data-finding]");
+    row?.focus();
+  }
+}
+function openFile(path) {
+  if (!path) return;
+  ui.cursor = ui.file = path; ui.dline = ui.danchor = null; ui.selection = null;
+  setCtx({ kind: "file", path }); go({}); focusTree();
+}
+// Previous and next file go round the files the tree shows, in its order.
+function fileStep(files, current, by) {
+  const at = files.indexOf(current);
+  return at < 0 ? files[0] : files[(at + by + files.length) % files.length];
+}
+function toggleViewed(path) {
+  const flip = () => change(fileInfo(path).viewed ? "unview" : "view", { path }).then(o => o && reload());
+  const was = fileInfo(path).viewed;
+  flip().then(() => undoable(`${path.split("/").pop()} ${was ? "not viewed" : "viewed"}`, flip));
+}
+function nextFinding(by) {
+  const here = findingsAt(ui.file).filter(f => !["deleted", "merged"].includes(f.status))
+    .sort((a, b) => (a.locations.find(l => l.path === ui.file).line || 0) - (b.locations.find(l => l.path === ui.file).line || 0));
+  if (!here.length) return;
+  const c = ctx(), at = c.kind === "finding" ? here.findIndex(f => f.id === c.id) : -1, f = here[(at + by + here.length) % here.length];
+  setCtx({ kind: "finding", id: f.id }, "finding"); render();
+  const line = f.locations.find(l => l.path === ui.file).line;
+  if (line) showLine(ui.file, line);
+}
+// "/" finds a file by the letters of its name in order, as IntelliJ's speed search does (resd → ReserveDesk): names
+// starting with them first, then names holding them, then the rest; the folders are not searched.
+function searchHits(paths, typed) {
+  const q = String(typed || "").toLowerCase(); if (!q) return [];
+  const name = p => p.split("/").pop().toLowerCase();
+  const fits = n => { let i = 0; for (const ch of n) if (ch === q[i]) i++; return i === q.length; };
+  const rank = n => n.startsWith(q) ? 0 : n.includes(q) ? 1 : 2;
+  return paths.filter(p => fits(name(p))).sort((a, b) => rank(name(a)) - rank(name(b)));
+}
+// In the search box: the letters find, ↑/↓ step through the matches, Enter goes into the match's diff, Esc back to the tree.
+function searchKey(e) {
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") { showHit(e.key === "ArrowDown" ? 1 : -1); return true; }
+  if (e.key === "Enter") { closeSearch(); document.querySelector(".codediff .diffbody")?.focus(); if (narrow(899)) drawer("tree", false); return true; }
+  if (e.key === "Escape") { closeSearch(); focusTree(); return true; }
+  return false;
+}
+function showHit(by) {
+  const hits = searchHits(treePaths(), ui.tsearch); if (!hits.length) return render();
+  const closed = closedFolders();
+  hits.forEach(p => p.split("/").slice(0, -1).forEach((_, i, parts) => closed.delete(parts.slice(0, i + 1).join("/"))));
+  keepClosed(closed);
+  const at = hits.indexOf(ui.file), path = by ? hits[(at + by + hits.length) % hits.length] : hits[0];
+  ui.cursor = ui.file = path; ui.dline = ui.danchor = null; setCtx({ kind: "file", path }); render();
+  keepCursorInView(document.getElementById("tree"));
+}
+function closeSearch() { ui.tsearch = null; render(); }
+// The diff's keys: ↑/↓ move a line cursor, shift with them selects lines, which the panel is then about.
+function diffKey(e) {
+  if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return false;
+  const body = e.target.closest(".diffbody"), path = body.dataset.diff, rows = [...body.querySelectorAll(".ln[data-line]")];
+  const keyOf = r => `${path}|${r.dataset.side}|${r.dataset.line}`, at = rows.findIndex(r => keyOf(r) === ui.dline);
+  const next = rows[Math.max(0, Math.min(rows.length - 1, at < 0 ? 0 : at + (e.key === "ArrowDown" ? 1 : -1)))];
+  if (!next) return true;
+  if (e.shiftKey && !(ui.tab === "code" && ui.pinned)) {
+    const anchor = rows.find(r => keyOf(r) === ui.danchor) || rows[at] || next;
+    ui.danchor = keyOf(anchor);
+    const side = anchor.dataset.side, picked = rows.filter(r => r.dataset.side === side);
+    const a = picked.indexOf(anchor), b = picked.indexOf(next.dataset.side === side ? next : anchor);
+    const span = picked.slice(Math.min(a, b), Math.max(a, b) + 1), lines = span.map(r => +r.dataset.line);
+    ui.selection = { path, lines: [Math.min(...lines), Math.max(...lines)], side, quote: span.map(r => r.querySelector(".c").textContent).join("\n") };
+    setCtx({ kind: "file", path, lines: ui.selection.lines, side });
+  } else ui.danchor = null;
+  ui.dline = keyOf(next); render();
+  document.querySelector(`.diffbody[data-diff="${CSS.escape(path)}"]`)?.focus({ preventScroll: true });
+  document.querySelector(".ln.cur")?.scrollIntoView({ block: "nearest" });
+  return true;
+}
+// The Findings tab's keys: ↑/↓ move, Enter opens the finding in the panel, x marks it to send or takes the mark back.
+function findingsKey(e) {
+  const rows = [...document.querySelectorAll("tr[data-finding]")], at = rows.indexOf(e.target), id = e.target.dataset.finding;
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") { rows[at + (e.key === "ArrowDown" ? 1 : -1)]?.focus(); return true; }
+  if (e.key === "Enter") { setCtx({ kind: "finding", id }, "finding"); render(); if (narrow(1199)) drawer("panel", true); return true; }
+  if (e.key === "x") {
+    const f = S().findings.find(x => x.id === id); if (!f || !["proposed", "to-send"].includes(f.status)) return true;
+    const set = status => change("status", { finding: id, status }).then(o => o && reload()), was = f.status;
+    set(was === "to-send" ? "proposed" : "to-send").then(() => undoable(`${id} ${was === "to-send" ? "not to send" : "marked to send"}`, () => set(was)));
+    return true;
+  }
+  return false;
+}
+// Under 1200px the panel, and under 900px the tree, are drawers; one closing gives the focus back where it was.
+let focusBefore = null;
+function drawer(which, open) {
+  const cls = which === "panel" ? "panel-open" : "tree-open", was = document.body.classList.contains(cls);
+  if (open && !was) focusBefore = document.activeElement;
+  document.body.classList.toggle(cls, open);
+  if (!open && was && focusBefore && document.contains(focusBefore)) focusBefore.focus();
+  if (open && which === "tree") focusTree();
+}
+// "?": every key, by where it works.
+function openKeys() {
+  const k = (keys, what) => `<span>${keys.map(x => `<kbd>${x}</kbd>`).join(" ")}</span><span>${what}</span>`;
+  const el = document.getElementById("modal");
+  el.innerHTML = `<div class="box" role="dialog" aria-modal="true" aria-labelledby="keys-t" tabindex="-1"><h2 id="keys-t">Keyboard</h2><div class="keys">
+    <h4>Anywhere</h4>${k(["1", "…", "5"], "the tabs")}${k(["a"], "the panel's Ask about it")}${k(["f"], "the panel's Finding")}${k(["/"], "find a file")}
+    ${k(["Esc"], "leave a text box, close a dialog or a drawer, drop a selection")}${k(["?"], "this list")}${k([MOD, "Z"], "undo what a key just changed")}
+    <h4>Code tab</h4>${k(["t"], "the tree")}${k(["d"], "the diff")}${k(["[", "]"], "previous / next file")}${k(["v"], "viewed / not viewed")}
+    ${k(["u"], "unchanged files on / off")}${k(["p"], "pin the panel's context")}${k(["n", "N"], "next / previous finding in the file")}
+    <h4>Tree</h4>${k(["↑", "↓"], "move; the file opens")}${k(["→", "←"], "open / go in, close / go to the parent")}${k(["Enter"], "into the diff; open or close a folder")}
+    ${k(["Space"], "viewed")}${k(["+", "-"], "expand / collapse all")}
+    <h4>Diff</h4>${k(["↑", "↓"], "move the line cursor")}${k(["shift", "↑", "↓"], "select lines")}${k(["Esc"], "drop the selection; with none, back to the tree")}
+    <h4>Findings tab</h4>${k(["↑", "↓"], "move")}${k(["Enter"], "edit in the panel")}${k(["x"], "send / don't send")}
+    <h4>Text boxes</h4>${k([MOD, "Enter"], "Ask, Make it a finding, Send")}</div>
+    <div class="foot"><button class="btn ghost" data-m="close">Close <kbd>Esc</kbd></button></div></div>`;
+  el.classList.add("shown"); el.querySelector("[data-m]").focus();
+  const close = () => { el.classList.remove("shown"); el.onclick = el.onkeydown = null; };
+  el.onclick = e => { if (e.target === el || e.target.closest("[data-m]")) close(); };
+  el.onkeydown = e => { if (e.key === "Escape" || e.key === "?") { e.stopPropagation(); e.preventDefault(); close(); } };
+}
 function closePanel() {
   ui.log = false;
   renderPanel();
@@ -2208,6 +2439,8 @@ function closePanel() {
 // Esc steps back one layer: out of a text box first, so a half-written text stays; then the popover, the session's
 // log, and the use case.
 function onEscape(e) {
+  if (document.body.classList.contains("tree-open") && narrow(899)) return drawer("tree", false);
+  if (document.body.classList.contains("panel-open") && narrow(1199) && (!typingIn(e) || e.target.closest("#panel"))) return drawer("panel", false);
   const box = e.target.closest && e.target.closest("textarea, input, select, [contenteditable]");
   if (box) return box.blur();
   if (document.getElementById("pop").style.display === "flex") return hidePop();
@@ -2215,8 +2448,8 @@ function onEscape(e) {
   // in the Code tab's diff: the selected lines go first (the panel goes back to the file), then the focus goes back to
   // the tree, on the open file
   const diff = ui.tab === "code" && e.target.closest && e.target.closest(".diffbody"), c = ctx();
-  if (diff && c.kind === "file" && c.lines && !ui.pinned) { ui.selection = null; setCtx({ kind: "file", path: c.path }); return render(); }
-  if (diff) { ui.cursor = ui.file; render(); return focusTree(); }
+  if (diff && c.kind === "file" && c.lines && !ui.pinned) { ui.selection = null; ui.danchor = null; setCtx({ kind: "file", path: c.path }); render(); return document.querySelector(".codediff .diffbody")?.focus(); }
+  if (diff) { ui.cursor = ui.file; render(); if (narrow(899)) drawer("tree", true); return focusTree(); }
 }
 document.addEventListener("selectionchange", () => { if (deferred && !busy()) render(); });
 setInterval(() => { if (R && R.working) render(); }, 30000);

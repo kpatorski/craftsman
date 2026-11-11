@@ -626,9 +626,24 @@ class ReviewEndpointsTest(ReviewsTest):
             with self.subTest(gone=gone):
                 self.assertNotIn(gone, served)
 
+    def test_the_review_page_is_driven_by_the_keyboard(self):
+        served = self.page(f"/review?review={ID}")
+        for hook in ("function pageKey(", "function diffKey(", "function findingsKey(", "function openKeys(", "function undoable(",
+                     'id="tree-search"', 'role="tablist"', 'role="tab"', "aria-selected", ":focus-visible", "data-undo",
+                     'tabindex="0" data-finding'):
+            with self.subTest(hook=hook):
+                self.assertIn(hook, served)
+
+    def test_the_review_page_fits_smaller_screens_with_drawers(self):
+        served = self.page(f"/review?review={ID}")
+        for hook in ("@media (max-width: 1599px)", "@media (max-width: 1199px)", "@media (max-width: 899px)",
+                     "@media (max-height: 899px)", "panel-open", "tree-open", 'id="edge"', "data-tree-drawer", "function drawer("):
+            with self.subTest(hook=hook):
+                self.assertIn(hook, served)
+
     def test_escape_leaves_a_text_box_first_then_closes_the_sessions_log(self):
         served = self.page(f"/review?review={ID}")
-        self.assertIn('if (e.key === "Escape") onEscape(e)', served)
+        self.assertIn('if (e.key === "Escape") return onEscape(e)', served)
         escape = served[served.index("function onEscape("):]
         escape = escape[:escape.index("\n}\n")]
         self.assertIn("blur()", escape)

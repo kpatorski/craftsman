@@ -235,6 +235,17 @@ their AI coding agent, each fixed as one commit, previewed with its size and a C
 set in ⚙. The dialog sends on a click or `⌘ Enter` (`Ctrl Enter`) only, never on a stray key; a comment the PR already
 has is never posted twice.
 
+The page works from the keyboard; `?` lists every key. `1`…`5` open the tabs, `a` and `f` the panel's "Ask about it" and
+"Finding", `/` finds a file by the letters of its name in order, as IntelliJ's speed search does (`resd` finds
+`ReserveDesk.java`). On Code, `t` and `d` go to the tree and the diff, `[` and `]` to the previous and next file, `v`
+marks it viewed, `u` shows the unchanged files, `p` pins the panel and `n`/`N` step through the file's findings; in the
+diff `↑`/`↓` move a line cursor and `shift` with them selects lines. On Findings, `↑`/`↓` move, `Enter` opens the
+finding in the panel and `x` marks it to send. Single letters work outside text boxes only; what a key changes says so
+in a toast with Undo (`⌘ Z`, `Ctrl Z`) for five seconds. A tab opens with the focus where its keys work. Under 1200px
+wide the panel is a drawer, opened from a strip on the right edge that shows the AI Agent's waiting questions; under
+900px the tree is one too, opened with "☰ Files" or `t`; on a screen lower than 900px the header is compact and the
+comment style folds to one line.
+
 Each review keeps its state in `~/.craftsman/reviews/<review-id>/`, outside the repository, and reads the code from its
 own `git worktree`, so your checkout is never touched and several reviews can run at once. A clone is deleted when its
 review is closed or archived, and made again, with the page saying so, when the review resumes. A review needs the

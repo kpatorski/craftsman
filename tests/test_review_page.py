@@ -199,5 +199,32 @@ class SendTest(unittest.TestCase):
         self.assertFalse(run("isFixPrompt", "Nice split. <!-- craftsman:fix-prompts -->"))
 
 
+@unittest.skipUnless(NODE, "node is not installed")
+class KeyboardTest(unittest.TestCase):
+    PATHS = ["a/desk/ReserveDesk.java", "a/desk/Desk.java", "a/reservation/Reservation.java", "web/desk.service.ts"]
+
+    def test_tree_search_matches_the_letters_in_order_names_starting_with_them_first(self):
+        self.assertEqual(run("searchHits", self.PATHS, "resd"), ["a/desk/ReserveDesk.java"])
+        self.assertEqual(run("searchHits", self.PATHS, "desk"),
+                         ["a/desk/Desk.java", "web/desk.service.ts", "a/desk/ReserveDesk.java"])
+        self.assertEqual(run("searchHits", self.PATHS, "RES"),
+                         ["a/desk/ReserveDesk.java", "a/reservation/Reservation.java", "web/desk.service.ts"])
+        self.assertEqual(run("searchHits", self.PATHS, ""), [])
+
+    def test_a_name_holding_the_letters_together_comes_before_one_holding_them_apart(self):
+        self.assertEqual(run("searchHits", ["x/DxExSxK.java", "y/MyDesk.java"], "desk"), ["y/MyDesk.java", "x/DxExSxK.java"])
+
+    def test_the_folder_is_not_searched_only_the_name(self):
+        self.assertEqual(run("searchHits", self.PATHS, "web"), [])
+
+    def test_previous_and_next_file_go_round(self):
+        files = ["A.java", "B.java", "C.java"]
+        self.assertEqual(run("fileStep", files, "B.java", 1), "C.java")
+        self.assertEqual(run("fileStep", files, "C.java", 1), "A.java")
+        self.assertEqual(run("fileStep", files, "A.java", -1), "C.java")
+        self.assertEqual(run("fileStep", files, "gone.java", 1), "A.java")
+        self.assertEqual(run("fileStep", files, "gone.java", -1), "A.java")
+
+
 if __name__ == "__main__":
     unittest.main()
