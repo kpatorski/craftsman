@@ -9,6 +9,9 @@ not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets s
   English or Polish. The text goes in at the caret; nothing is sent with it. The speech engine is Whisper on this
   machine, and nothing is installed until `/craftsman:dictation setup` or the page's "Set up…" asks for it (about
   0.7 GB). `/craftsman:dictation list | add | remove | use` manage the models. See `REVIEW.md`, "Dictation".
+- Code: lines selected in the diff stay selected, so they can be copied, while the panel opens "Finding" on them. ⧉
+  next to the file's path copies the path. A finding's panel has "Show in code →", which opens the code at its line
+  and keeps the panel on the finding.
 
 ## 0.25.2
 

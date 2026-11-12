@@ -645,6 +645,29 @@ class ReviewEndpointsTest(ReviewsTest):
             with self.subTest(gone=gone):
                 self.assertNotIn(gone, served)
 
+    def test_lines_selected_in_the_code_stay_selected_so_they_can_be_copied(self):
+        served = self.page(f"/review?review={ID}")
+        selecting = served[served.index('setCtx({ kind: "file", path: diff.dataset.diff, lines: [first, last], side }, "finding");'):]
+        selecting = selecting[:selecting.index("} else if (about)")]
+        self.assertNotIn("removeAllRanges", selecting)
+        self.assertIn("renderPanel()", selecting)
+        self.assertNotIn("render()", selecting.replace("renderPanel()", ""))
+
+    def test_the_shown_files_path_can_be_copied(self):
+        served = self.page(f"/review?review={ID}")
+        self.assertIn('data-copy-path="${esc(path)}"', served)
+        self.assertIn("navigator.clipboard.writeText(d.copyPath)", served)
+        self.assertIn('"copy-path"', served)
+
+    def test_a_finding_opens_its_place_in_the_code_and_the_panel_stays_on_it(self):
+        served = self.page(f"/review?review={ID}")
+        self.assertIn('data-goto-finding="${esc(f.id)}"', served)
+        jump = served[served.index("if (d.gotoFinding) {"):]
+        jump = jump[:jump.index("\n  }\n")]
+        self.assertIn('ui.ctxBy.code = { kind: "finding", id: f.id }', jump)
+        self.assertIn("showLine(", jump)
+        self.assertIn('"goto-finding"', served)
+
     def test_the_comment_shape_says_why_tone_and_detail_follow_the_draft(self):
         served = self.page(f"/review?review={ID}")
         for hook in ('"Wording"', 'class="style-note ', "Move Wording to balanced to set them",

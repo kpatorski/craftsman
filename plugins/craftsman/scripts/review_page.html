@@ -270,6 +270,7 @@
   .diffcard { background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; min-width: 0; }
   .diffhead { display: flex; flex-direction: column; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
   .dtools .grow { flex: 1; }
+  .dpath .copy-path { margin-left: 6px; vertical-align: -2px; padding: 2px 5px; }
   .diffbody { overflow-x: auto; padding: 6px 0; }
   .hunk { font-family: var(--mono); font-size: .75rem; color: var(--muted); background: var(--change-bg); padding: 4px 16px; }
   .ln { display: grid; grid-template-columns: 44px 44px 44px 18px max-content; line-height: 1.9; white-space: pre; font-family: var(--mono);
@@ -986,7 +987,8 @@ function panelFinding(id) {
   const byFile = new Map(); (f.locations || []).forEach(l => byFile.set(l.path, [...(byFile.get(l.path) || []), l.line]));
   const places = [...byFile].map(([path, lines]) => `<span title="${esc(path)}">${esc(path.split("/").pop())}</span> ` +
     lines.map(n => n == null ? `<a data-open-file="${esc(path)}" style="color:var(--neon)">whole file</a>` : `<a data-goto="${esc(path)}|${n}" style="color:var(--neon)">${n}</a>`).join(", ")).join(" · ");
-  return `<div class="crumb"><span>Finding ${esc(f.id)} · ${esc(f.category)} · ${who(f.by)}${places ? " · " + places : ""}</span></div>
+  const inCode = (f.locations || []).some(l => l.path && l.line != null && (R.files || []).some(x => x.path === l.path));
+  return `<div class="crumb"><span>Finding ${esc(f.id)} · ${esc(f.category)} · ${who(f.by)}${places ? " · " + places : ""}</span>${inCode && ui.tab !== "code" ? `<button class="btn sm" data-goto-finding="${esc(f.id)}" title="Open the code at this finding">Show in code →</button>` : ""}</div>
     ${editing ? `<input class="field" id="edit-title" value="${esc(f.title)}" style="margin-top:8px">` : `<h2>${inline(f.title)}</h2>`}
     <div class="filters" style="margin:6px 0 0">${SEVS.map(k => `<button class="chip${f.severity === k ? " on" : ""}" data-set-sev="${k}" ${sent ? "disabled" : ""}>${SEV[k]}</button>`).join("")}</div>
     ${f.status === "maybe-resolved" ? `<div class="banner" style="margin:12px 0 0">AI Agent no longer sees this problem at the PR's head. Drop it, or keep it.</div>` : ""}
@@ -1377,7 +1379,7 @@ function diffView(path, position) {
   const same = !changed(path), info = same ? { ...fileInfo(path), change: "unchanged" } : fileInfo(path), hunks = diffs[path];
   const code = ui.tab === "code", files = code ? `<button class="btn ghost sm tree-drawer" data-tree-drawer title="The files (t)">☰ Files</button>` : "";
   const hint = code ? "" : `<span class="muted">select lines to ask AI Agent about them${same ? "" : " or comment on them"}</span>`;
-  const head = `<div class="diffhead"><div class="dpath">${position ? `<span class="muted" style="font-size:.7812rem">${position}</span><br>` : ""}<b class="mono">${esc(path)}</b></div>
+  const head = `<div class="diffhead"><div class="dpath">${position ? `<span class="muted" style="font-size:.7812rem">${position}</span><br>` : ""}<b class="mono">${esc(path)}</b><button class="btn ghost sm icon copy-path" data-copy-path="${esc(path)}" title="Copy the path, to find the file in your IDE" aria-label="Copy the file's path"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button></div>
     <div class="dtools">${files}${hint}${same ? "" : sevCounts(findingsAt(path))}<span class="grow"></span>${same ? "" : `
       <span class="switch${ui.inline ? " on" : ""}" data-inline title="Every finding under its line, or dots beside the line number"><i></i>Show all inline</span>
       <span style="display:inline-flex;gap:6px;align-items:center;cursor:pointer" data-view="${esc(path)}"><span class="vbox${info.viewed ? " on" : ""}">${info.viewed ? "✓" : ""}</span>Viewed</span>
@@ -2046,7 +2048,7 @@ const CLICKABLE = ["tab", "sort", "restart", "inline", "gutter", "goto", "findin
   "comment-file", "draft-whole", "draft-sev", "draft-make", "draft-discard", "md-tool", "assistant-switch", "answer-here", "agent-tools", "allow-tool", "tool-toggle", "nr-existing", "permit",
   "gh-read", "gh-quote", "gh-reply-open", "gh-reply", "gh-thread", "comment-add", "cedit", "csave", "cdrop",
   "directive-switch", "directive-check", "directive-default", "rfilter", "context-add", "context-remove", "in-prompt",
-  "ai-edit", "ai-save", "ai-cancel", "ai-again", "style-reset", "row", "chev", "tree-all", "unchanged", "ctx", "ptab", "pin", "sugg", "ask", "chapter", "send-default", "undo", "edge", "tree-drawer", "style-fold", "tell-story"].map(name => `[data-${name}]`).join(",");
+  "ai-edit", "ai-save", "ai-cancel", "ai-again", "style-reset", "row", "chev", "tree-all", "unchanged", "ctx", "ptab", "pin", "sugg", "ask", "chapter", "send-default", "undo", "edge", "tree-drawer", "style-fold", "tell-story", "copy-path", "goto-finding"].map(name => `[data-${name}]`).join(",");
 document.addEventListener("click", async e => {
   if (!e.target.closest("#pop")) hidePop();
   const t = e.target.closest(CLICKABLE); if (!t) return;
@@ -2075,6 +2077,16 @@ document.addEventListener("click", async e => {
   if (d.sort) { ui.sort = ui.sort.key === d.sort ? { key: d.sort, dir: -ui.sort.dir } : { key: d.sort, dir: 1 }; return render(); }
   if (d.inline !== undefined) { ui.inline = !ui.inline; localStorage.setItem("craftsman-review-inline", ui.inline ? "1" : "0"); return render(); }
   if (d.gutter) { ui.open.has(d.gutter) ? ui.open.delete(d.gutter) : ui.open.add(d.gutter); document.getElementById("gtip").style.display = "none"; return render(); }
+  if (d.copyPath !== undefined) return navigator.clipboard.writeText(d.copyPath).then(() => toast(`Copied ${d.copyPath}`), () => toast("The path could not be copied"));
+  if (d.gotoFinding) {
+    const f = S().findings.find(x => x.id === d.gotoFinding), at = f && (f.locations || []).find(l => l.path && l.line != null);
+    if (!at) return;
+    // the code opens at the finding's line, and the panel stays on the finding
+    ui.pinned = false;
+    ui.ctxBy.code = { kind: "finding", id: f.id };
+    if (!(ui.tab === "code" && ui.file === at.path)) go({ ui: { tab: "code", file: at.path, codeFilter: "all" } }); else render();
+    return showLine(at.path, at.line);
+  }
   if (d.goto) {
     const [path, line] = [d.goto.slice(0, d.goto.lastIndexOf("|")), +d.goto.slice(d.goto.lastIndexOf("|") + 1)];
     if (!(ui.tab === "code" && ui.file === path)) go({ ui: { tab: "code", file: path, codeFilter: "all" } });
@@ -2520,8 +2532,10 @@ document.addEventListener("mouseup", e => {
       if (ui.tab === "code" && ui.pinned) return;
       ui.selection = { path: diff.dataset.diff, lines: [first, last], side, quote: text };
       setCtx({ kind: "file", path: diff.dataset.diff, lines: [first, last], side }, "finding");
-      sel.removeAllRanges();
-      return render();
+      // the browser's selection stays, so the lines can be copied: only their marks and the panel are drawn again,
+      // and the rest of the page once the selection is gone
+      diff.querySelectorAll(".ln").forEach(r => r.classList.toggle("sel", r.dataset.side === side && +r.dataset.line >= first && +r.dataset.line <= last));
+      return renderPanel();
     } else if (about) {
       const [kind, id] = about.dataset.quoteAbout.split(":");
       ui.selection = { quote: text, about: { kind, id } };
