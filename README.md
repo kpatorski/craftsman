@@ -109,6 +109,7 @@ default everyone must adopt: install it, fork it, or write your own from scratch
 | `/craftsman:merge`                                   | Find single-use entries and offer to fold them into their one parent.                                                                                 |
 | `/craftsman:statusline-setup`                        | Wire the command → batch → protocol → directive indicator into Claude Code's status line (one-time setup).                                            |
 | `/craftsman:dashboard [on\|off\|status\|remove]`     | Live dashboard in the browser, served locally — session stacks, artifacts and specs as they change, installed content with enable/disable switches.   |
+| `/craftsman:dictation [setup\|list\|add\|use]`       | Voice dictation in the review page's text boxes, by Whisper on this machine: sets it up and manages its models.                                       |
 | `/craftsman:report [project dir]`                    | Analysis artifacts and session(s) of a project as one searchable HTML report. Also generated when a run finishes.                                     |
 | `/craftsman:help`                                    | This table, from inside a session.                                                                                                                    |
 
@@ -132,6 +133,15 @@ page: nine dark palettes and a light one.
 Nothing needs installing beyond `python3`, which craftsman's scripts already use. On WSL 2 the address opens as is
 in a Windows browser. The server is optional: without it, every file a run writes is still announced with its full
 `md:` path and an `html:` link to the static report; with it running, only the `md:` path is printed.
+
+### Dictation
+
+The review page's text boxes take dictation, in English or Polish: a microphone button stands in the corner of the box
+being written in, and the spoken text goes in at the caret, for you to read before anything is sent. The speech engine
+is Whisper, running on this machine; your recordings never leave it and are never stored. Nothing is installed until
+you ask: `/craftsman:dictation setup`, or "Set up…" on the page, downloads the engine and its default model, about
+0.7 GB, into `~/.craftsman/dictation/`. `/craftsman:dictation list` shows the models, `add`, `remove` and `use` manage
+them. See `REVIEW.md`, "Dictation".
 
 ### Guard rails
 

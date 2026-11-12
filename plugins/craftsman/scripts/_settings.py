@@ -7,7 +7,9 @@
   where it differs from the workshop (see REVIEW.md, "Directives");
 - `send-fix-prompt`: whether Send also posts the fix prompt at first, true unless set (see REVIEW.md, "Fix prompts");
 - `comment-style`: the default shape of a comment the AI Agent writes of a draft, some of `review_state.COMMENT_STYLE`
-  (see REVIEW.md, "Drafts")."""
+  (see REVIEW.md, "Drafts");
+- `dictation-model`: the dictation engine's active model, set by `dictation.py` (see REVIEW.md, "Dictation");
+- `dictation-server`: an external speech server, {"url", "token"}, used instead of the built-in engine."""
 import json
 
 import _reviews

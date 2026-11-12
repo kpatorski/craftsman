@@ -420,3 +420,40 @@ Every event of the review's Claude session (`--output-format stream-json`), appe
 page shows what the session is doing in its header, and the whole log on request: the agent's text, the tools it
 calls, refused tools, and the end of each turn. A subagent's result arrives in a later turn than the one that started
 it, so the log never waits for one answer per message.
+
+## Dictation
+
+Every text box the developer writes prose in -- comments, replies, findings, "Ask AI Agent", the draft, a new review's
+context -- takes dictation: a microphone button and a PL/EN switch stand in its corner while it has the focus. A click,
+or ⌥M (Alt+M), starts recording; another stops it, and the text goes in at the caret, nothing sent or submitted with
+it; Esc cancels. A recording stops by itself just under a minute, and is dropped unheard when the tab is hidden or the
+page is left. Boxes where speech is the wrong tool -- searches, paths, URLs, branch names, permission rules -- carry
+`data-no-dictation`; a new box takes dictation unless it carries it too. The language is kept in the browser.
+
+The speech engine runs on this machine: Whisper, through faster-whisper, on the CPU. Nothing is installed until the
+developer asks, with `/craftsman:dictation setup` or the page's "Set up…" (which says the size first): it builds
+`~/.craftsman/dictation/venv/` from the hash-locked `scripts/dictation_requirements.txt` and fetches the default model,
+`small`, about 0.7 GB in all. Each model is pinned to a revision and every file to its SHA-256; a part is usable only
+once its `ready` marker is written, last, so a run cut short leaves nothing half-usable and the next run continues.
+`/craftsman:dictation list | add | remove | use` manage the models (`base`, `small`, `medium`); the active one is
+`dictation-model` in `settings.json`, and it cannot be removed. The network is used by these commands only, through
+the usual proxy and CA settings (HTTPS_PROXY; REQUESTS_CA_BUNDLE, SSL_CERT_FILE or PIP_CERT; HF_ENDPOINT for a
+mirror).
+
+The page posts a recording to the dashboard server, `POST /api/dictate?language=pl|en`, with the same Host and
+`X-Craftsman` checks as every other write. The server starts the engine, `scripts/speech_service.py` in its venv, on
+the first dictation, and stops it after ten minutes without one, when the active model changes, and when the
+dashboard stops; `GET /api/dictate` tells the page whether it is `unavailable` (and why, with the command that fixes
+it), `installing`, `off`, `starting` or `ready`. The engine listens on 127.0.0.1 only, wants a secret the server makes
+for each start and passes in its environment -- never to the page, a URL or a log -- and refuses any browser
+`Origin`. Its contract is OpenAI's `POST /v1/audio/transcriptions` (`file`, `language`, optional `model`), at most
+60 s of audio and 2 MB, one recording at a time (a second one gets 429, which the page tries once more). Audio stays
+in memory: it is never written to disk and never logged.
+
+An engine the developer runs elsewhere can stand in for the built-in one: `dictation-server` in `settings.json`,
+`{"url": "http://…", "token": "…"}`, any server with the same contract. The dashboard then starts nothing, and there
+are no models to manage.
+
+On an Apple M1 with `small`: the engine starts and loads the model in about 1 s and holds about 0.8–0.9 GB of memory;
+a 7 s sentence takes about 1.5 s, in English or Polish, and 53 s of speech about 8 s. The venv takes 219 MB of disk
+and the model 468 MB.

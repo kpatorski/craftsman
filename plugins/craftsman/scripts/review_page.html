@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="connect-src 'self'">
 <title>craftsman review</title>
 <style id="theme">/*THEME_CSS*/</style>
 <style>
@@ -420,6 +421,20 @@
   .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--float); border: 1px solid var(--neon-dim);
     border-radius: 10px; padding: 8px 14px; font-size: .8125rem; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 50; }
   .toast.show { opacity: 1; }
+  .mic-dock { position: fixed; z-index: 60; display: flex; align-items: center; gap: 4px; flex-direction: row; }
+  .mic-dock[hidden] { display: none; }
+  .mic-dock .mic-btn, .mic-dock .mic-lang { border: 1px solid var(--border); background: var(--float); color: var(--muted);
+    border-radius: 6px; height: 24px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+  .mic-dock .mic-btn { width: 26px; } .mic-dock .mic-lang { font-size: .6875rem; padding: 0 6px; letter-spacing: .04em; }
+  .mic-dock .mic-btn:hover, .mic-dock .mic-lang:hover { color: var(--text); border-color: var(--neon-dim); }
+  .mic-dock.off .mic-btn { opacity: .5; }
+  .mic-dock[data-state=recording] .mic-btn { background: var(--must); border-color: var(--must); color: var(--on-strong); animation: p 1.6s infinite; }
+  .mic-dock[data-state=transcribing] .mic-btn { border-color: var(--neon); color: var(--neon); }
+  .mic-dock .mic-say:empty { display: none; }
+  .mic-dock .mic-say { background: var(--float); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: .75rem;
+    color: var(--text); max-width: 420px; }
+  .mic-dock[data-state=error] .mic-say { border-color: var(--must); }
+  .mic-dock .mic-say b { color: var(--must); font-weight: 600; }
   .toast .undo { margin-left: 12px; } .toast.show { pointer-events: auto; }
   /* the keyboard: a visible ring on what has the focus, the diff's line cursor, the tree search */
   :focus-visible { outline: 2px solid var(--select); outline-offset: 2px; }
@@ -487,6 +502,9 @@
 <div class="gtip" id="gtip"></div>
 <div class="modal" id="modal"></div>
 <div class="toast" id="toast"></div>
+<div class="mic-dock" id="mic" hidden data-state="idle"><span class="mic-say" id="mic-say" role="status" aria-live="polite"></span>
+  <button class="mic-lang" id="mic-lang" type="button">EN</button>
+  <button class="mic-btn" id="mic-btn" type="button" aria-label="Dictate" aria-pressed="false" title="Dictate (⌥M / Alt+M)"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5"/></svg></button></div>
 <script src="/theme_picker.js"></script>
 <script src="/syntax.js"></script>
 <script>
@@ -717,7 +735,7 @@ function permitCard(p) {
   return `<div class="asks permit"><span class="pulse"></span><span class="grow" style="white-space:normal">
       <b>AI Agent asks to use ${esc(p.tool)}</b>${p.description ? ` · ${esc(p.description)}` : ""}
       <code class="permit-what">${esc(permitWhat(p))}</code>
-      <span class="permit-fields"><label class="muted">Always allow<input class="field" id="perm-rule-${id}" value="${esc(p.rule)}"></label>
+      <span class="permit-fields"><label class="muted">Always allow<input class="field" id="perm-rule-${id}" data-no-dictation value="${esc(p.rule)}"></label>
         <label class="muted">Reason, when you deny<input class="field" id="perm-reason-${id}" placeholder="e.g. use the script in the repository"></label></span></span>
     <span class="permit-buttons"><button class="btn go sm" data-permit="${id}" data-permit-answer="allow">Allow once</button>
       <button class="btn sm" data-permit="${id}" data-permit-answer="always" title="Kept as review-tools in ~/.craftsman/settings.json">Always in reviews</button>
@@ -1713,7 +1731,7 @@ function viewCode() {
       <div class="progress"><i style="width:${files.length ? 100 * viewed / files.length : 0}%"></i></div>
       <div class="filters">${chip("all", "All", files.length)}${chip("unviewed", "Not viewed", files.length - viewed)}${chip("findings", "With findings", files.filter(f => openFindings(f.path).length).length)}
         <span class="switch${ui.unchanged ? " on" : ""}" data-unchanged title="Also the files the PR leaves as they are"><i></i>Unchanged files</span></div></div>
-      ${ui.tsearch !== null ? `<div class="tsearch"><input class="field" id="tree-search" placeholder="Find a file (resd → ReserveDesk)" autocomplete="off" aria-label="Find a file"></div>` : ""}
+      ${ui.tsearch !== null ? `<div class="tsearch"><input class="field" id="tree-search" data-no-dictation placeholder="Find a file (resd → ReserveDesk)" autocomplete="off" aria-label="Find a file"></div>` : ""}
       <div id="tree" tabindex="0" role="tree" aria-label="Files">${treeHtml()}</div>
       <div class="legend"><span>${changeIcon("added")}added</span><span>${changeIcon("modified")}modified</span><span>${changeIcon("deleted")}removed</span><span>${changeIcon("renamed")}moved</span><span>${seenIcon(true)}viewed</span></div></div>
     <div id="tree-grip" title="Drag to resize the tree"></div>
@@ -1812,18 +1830,18 @@ function viewNew() {
   const chip = (attr, value, on, label) => `<a class="chip${on ? " on" : ""}" data-${attr}="${value}">${label}</a>`;
   const known = [...new Set(reviewsList.map(r => r.checkout).filter(c => c && !c.startsWith("/tmp/craftsman/")))];
   const pathField = `<div style="display:flex;gap:8px;margin-top:10px">
-      <input class="field" id="nr-path" list="nr-paths" value="${esc(n.path)}" placeholder="/path/to/the/repository" style="flex:1">
+      <input class="field" id="nr-path" data-no-dictation list="nr-paths" value="${esc(n.path)}" placeholder="/path/to/the/repository" style="flex:1">
       <button class="btn" data-nr-browse>Browse…</button></div>
     <datalist id="nr-paths">${known.map(c => `<option value="${esc(c)}">`).join("")}</datalist>
     <div class="nr-status" id="nr-status"></div>`;
   return `<div class="card wiz" style="max-width:720px"><h3><span>New review</span></h3>
     <div class="wstep"><div class="wn">1</div><div class="grow"><div class="wl">What is reviewed</div>
       <div class="chips">${chip("nr-kind", "pr", n.kind === "pr", "A pull request")}${chip("nr-kind", "branches", n.kind === "branches", "Two branches of a local repository")}</div>
-      ${n.kind === "pr" ? `<input class="field" id="nr-url" value="${esc(n.url)}" placeholder="https://github.com/org/repo/pull/123" style="margin-top:10px">
+      ${n.kind === "pr" ? `<input class="field" id="nr-url" data-no-dictation value="${esc(n.url)}" placeholder="https://github.com/org/repo/pull/123" style="margin-top:10px">
         <div class="nr-status" id="nr-url-status"></div>`
         : `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
-          <label class="muted wsub">Target, merged into<input class="field" id="nr-target" value="${esc(n.target)}" placeholder="main"></label>
-          <label class="muted wsub">Source, under review<input class="field" id="nr-source" value="${esc(n.source)}" placeholder="feature/cancel-reservation"></label></div>`}
+          <label class="muted wsub">Target, merged into<input class="field" id="nr-target" data-no-dictation value="${esc(n.target)}" placeholder="main"></label>
+          <label class="muted wsub">Source, under review<input class="field" id="nr-source" data-no-dictation value="${esc(n.source)}" placeholder="feature/cancel-reservation"></label></div>`}
     </div></div>
     <div class="wstep"><div class="wn">2</div><div class="grow"><div class="wl">Where its code is read from</div>
       ${n.kind === "pr" ? `<div class="chips">${chip("nr-how", "clone", n.how === "clone", "Clone it for this review")}${chip("nr-how", "mine", n.how === "mine", "My checkout")}</div>
@@ -1937,7 +1955,8 @@ function commentStyleCard() {
 // ================================================================ render
 function busy() {
   // nor does it close the list of checkouts while the developer picks one from it
-  return dragging !== null || document.getElementById("pop").style.display === "flex" || (document.activeElement?.id || "").startsWith("nr-") ||
+  // nor does it redraw a text box while it is being dictated into
+  return dragging !== null || (dictation && dictation.active()) || document.getElementById("pop").style.display === "flex" || (document.activeElement?.id || "").startsWith("nr-") ||
     (getSelection().toString() !== "" && !["TEXTAREA", "INPUT"].includes(document.activeElement?.tagName));
 }
 // the file the Code tab showed last: opening another one starts at its top, while a refresh keeps the place
@@ -1997,6 +2016,7 @@ function render() {
   });
   const search = document.getElementById("fsearch"); if (search && search.value !== ui.search) search.value = ui.search;
   paintNew();
+  placeMic();
 }
 
 // ================================================================ actions
@@ -2289,6 +2309,9 @@ document.addEventListener("keydown", e => {
   if (e.target.id === "draft-box" && e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); return makeFinding(); }
   if (e.target.id === "tree-search" && searchKey(e)) return e.preventDefault();
   if (e.key === "Escape") return onEscape(e);
+  if (e.altKey && e.code === "KeyM" && !e.metaKey && !e.ctrlKey && (e.target.closest?.(DICTABLE) || (dictation && dictation.active()))) {
+    e.preventDefault(); return micToggle(e.target.closest?.(DICTABLE) || null);
+  }
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z" && ui.undo && !typingIn(e)) { e.preventDefault(); return runUndo(); }
   if (e.metaKey || e.ctrlKey || e.altKey || typingIn(e)) return;
   if (e.target.id === "tree" && treeKey(e)) return e.preventDefault();
@@ -2450,6 +2473,7 @@ function closePanel() {
 // Esc steps back one layer: out of a text box first, so a half-written text stays; then the popover, the session's
 // log, and the use case.
 function onEscape(e) {
+  if (dictation && dictation.active()) return dictation.cancel();
   if (document.body.classList.contains("tree-open") && narrow(899)) return drawer("tree", false);
   if (document.body.classList.contains("panel-open") && narrow(1199) && (!typingIn(e) || e.target.closest("#panel"))) return drawer("panel", false);
   const box = e.target.closest && e.target.closest("textarea, input, select, [contenteditable]");
@@ -2567,6 +2591,218 @@ document.addEventListener("mousedown", e => {
   const up = () => { grip.classList.remove("drag"); removeEventListener("mousemove", move); removeEventListener("mouseup", up); };
   addEventListener("mousemove", move); addEventListener("mouseup", up);
 });
+// ================================================================ dictation
+// A microphone button next to the text box being written in: the recording goes to the dashboard, which has the speech
+// engine on this machine transcribe it, and the text goes in at the caret -- see REVIEW.md, "Dictation". Nothing is
+// sent anywhere else, and nothing is ever sent or submitted for the developer: they read the text first.
+const DICTABLE = "textarea[id]:not([data-no-dictation]), input.field[id]:not([type]):not([data-no-dictation])";
+const DICTATION_LANG_KEY = "craftsman.review.dictation-language";
+// Recording and upload, on their own so the tests can run them with fakes: `env` gives the microphone (`media`), the
+// recorder (`Recorder`, `Blob`), the clock (`now`, `setTimeout`, `clearTimeout`), the loudness so far (`meter`), the
+// upload (`post`), the engine's warm-up (`warm`), and where states (`onState`) and the text (`onText`) go.
+function makeDictation(env) {
+  const MAX = env.maxMs || 59000, MIN = env.minMs || 600, QUIET = env.silence || 0.02;
+  let type = null;
+  let state = "idle", stream = null, rec = null, chunks = [], started = 0, stopTimer = null, peak = null, discard = false, job = null;
+  const set = (next, info) => { state = next; env.onState(next, info || {}); };
+  const release = () => {
+    if (stopTimer) env.clearTimeout(stopTimer);
+    stopTimer = null;
+    if (stream) stream.getTracks().forEach(track => track.stop());
+    stream = null;
+  };
+  async function start(target, language) {
+    if (state !== "idle" && state !== "error") return false;
+    job = { target, language }; discard = false; chunks = [];
+    // Opus in WebM (Chrome, Edge), else in Ogg (Firefox may only have that)
+    type = env.Recorder && ["audio/webm;codecs=opus", "audio/ogg;codecs=opus"].find(t => env.Recorder.isTypeSupported(t));
+    if (!type) {
+      set("error", { kind: "format", message: "This browser cannot record Opus audio; dictation needs Chrome, Edge or Firefox." });
+      return false;
+    }
+    set("asking");
+    try { stream = await env.media.getUserMedia({ audio: true }); }
+    catch (err) {
+      set("error", { kind: "permission", message: err && err.name === "NotAllowedError"
+        ? "The microphone is blocked for this page: allow it in the browser's site settings, then try again."
+        : "No microphone could be opened." });
+      return false;
+    }
+    if (discard) { release(); set("idle", { note: "Dictation cancelled." }); return false; }
+    peak = env.meter ? env.meter(stream) : null;
+    rec = new env.Recorder(stream, { mimeType: type });
+    rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+    rec.onstop = () => finish();
+    started = env.now();
+    rec.start(250);
+    stopTimer = env.setTimeout(stop, MAX);
+    set("recording", { started });
+    if (env.warm) env.warm();
+    return true;
+  }
+  function stop() { if (state === "recording" && rec && rec.state !== "inactive") rec.stop(); }
+  function cancel() {
+    if (state === "asking") discard = true;
+    else if (state === "recording") { discard = true; stop(); }
+  }
+  async function finish() {
+    const took = env.now() - started, heard = peak ? peak() : 1;
+    release(); rec = null;
+    if (discard) return set("idle", { note: "Dictation cancelled; nothing was transcribed." });
+    if (took < MIN) return set("idle", { note: "Too short to transcribe." });
+    if (heard < QUIET) return set("idle", { note: "Nothing was heard: is the right microphone selected?" });
+    const audio = new env.Blob(chunks, { type: type.split(";")[0] }); chunks = [];
+    set("transcribing");
+    for (let attempt = 0; ; attempt++) {
+      let answer;
+      try { answer = await env.post(`/api/dictate?language=${encodeURIComponent(job.language)}`, audio); }
+      catch (err) { return set("error", { kind: "unreachable", message: "The dashboard did not answer; is it still running?" }); }
+      const body = answer.body || {};
+      if (answer.status === 429 && attempt === 0) { await new Promise(done => env.setTimeout(done, 1500)); continue; }
+      if (answer.status !== 200) return set("error", { kind: body.kind || "failed", message: body.error || `Dictation failed (${answer.status}).` });
+      if (!body.text) return set("idle", { note: "Nothing was recognised." });
+      set("idle");
+      return env.onText(body.text, job.target);
+    }
+  }
+  return { start, stop, cancel, state: () => state, active: () => ["asking", "recording", "transcribing"].includes(state) };
+}
+// What goes in at the caret: the text as spoken, with a space from the words around it, none before punctuation.
+function joinDictated(before, text, after) {
+  let out = text.trim();
+  if (before && !/\s$/.test(before)) out = " " + out;
+  if (after && !/^[\s.,;:!?)]/.test(after)) out = out + " ";
+  return out;
+}
+// The loudest sample heard so far, so a silent recording is not sent (Whisper makes words up from silence).
+function micMeter(stream) {
+  try {
+    const audio = new AudioContext(), analyser = audio.createAnalyser(), buf = new Float32Array(2048);
+    analyser.fftSize = 2048;
+    audio.createMediaStreamSource(stream).connect(analyser);
+    let loudest = 0;
+    const every = setInterval(() => { analyser.getFloatTimeDomainData(buf); for (const v of buf) loudest = Math.max(loudest, Math.abs(v)); }, 100);
+    return () => { clearInterval(every); audio.close(); return loudest; };
+  } catch (_) { return null; }
+}
+// `var`: render() may ask about dictation before this part of the script has run
+var micStatus = null, micField = null, micSaid = null, micClock = null, micLost = null, micLang = localStorage.getItem(DICTATION_LANG_KEY) || (/^pl/i.test(navigator.language) ? "pl" : "en");
+var dictation = makeDictation({
+  media: navigator.mediaDevices, Recorder: window.MediaRecorder, Blob, now: () => Date.now(), meter: micMeter,
+  setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: t => clearTimeout(t),
+  post: async (url, audio) => {
+    const r = await fetch(url, { method: "POST", headers: { "X-Craftsman": "1", "Content-Type": audio.type }, body: audio,
+      signal: AbortSignal.timeout(150000) });  // longer than the dashboard waits for the engine
+    return { status: r.status, body: await r.json().catch(() => ({})) };
+  },
+  warm: () => api("/api/dictate/start", {}).then(s => { if (s) micStatus = s; }).catch(() => {}),
+  onState: (state, info) => micShow(state, info),
+  onText: (text, target) => micInsert(text, target),
+});
+// the field the button stands by: the one being dictated into, else the one with the focus
+function micTarget() {
+  if (dictation.active() && micField) return document.getElementById(micField.id);
+  const el = document.activeElement;
+  return el && el.matches && el.matches(DICTABLE) ? el : null;
+}
+function placeMic() {
+  if (!dictation) return;
+  const dock = document.getElementById("mic"), field = micTarget();
+  const keep = dictation.active() || micSaid;
+  if (!field && !keep) { dock.hidden = true; return; }
+  if (field) micField = { id: field.id, start: field.selectionStart, end: field.selectionEnd };
+  if (!micStatus) { micStatus = { state: "loading" }; fetch("/api/dictate").then(r => r.json()).then(s => { micStatus = s; placeMic(); }).catch(() => {}); }
+  dock.hidden = false;
+  dock.classList.toggle("off", micStatus.state === "unavailable" || micStatus.state === "installing");
+  document.getElementById("mic-lang").textContent = micLang.toUpperCase();
+  document.getElementById("mic-lang").setAttribute("aria-label", `Dictation language: ${micLang === "pl" ? "Polish" : "English"}; click to switch`);
+  const anchor = field || document.getElementById(micField && micField.id);
+  if (!anchor) return;
+  const box = anchor.getBoundingClientRect(), h = dock.offsetHeight;
+  dock.style.right = Math.max(4, innerWidth - box.right + 4) + "px";
+  dock.style.top = Math.max(4, Math.min(box.bottom - h - 4, innerHeight - h - 4)) + "px";
+}
+function micSay(html, ms) {
+  const say = document.getElementById("mic-say");
+  say.innerHTML = html || "";
+  micSaid = html || null;
+  clearTimeout(say.timer);
+  if (html && ms) say.timer = setTimeout(() => { micSaid = null; say.innerHTML = ""; placeMic(); }, ms);
+  placeMic();
+}
+function micShow(state, info) {
+  const dock = document.getElementById("mic"), button = document.getElementById("mic-btn");
+  dock.dataset.state = state;
+  clearInterval(micClock);
+  button.setAttribute("aria-pressed", state === "recording" ? "true" : "false");
+  button.setAttribute("aria-label", state === "recording" ? "Stop dictating and transcribe" : "Dictate");
+  if (state === "recording") {
+    const tick = () => micSay(`<b>● REC</b> ${Math.floor((Date.now() - info.started) / 1000)} s · ${MOD === "⌘" ? "⌥" : "Alt+"}M stops · Esc cancels`);
+    tick(); micClock = setInterval(tick, 500);
+  } else if (state === "asking") micSay("Waiting for the microphone…");
+  else if (state === "transcribing") micSay(micStatus && micStatus.state !== "ready" && !micStatus.external ? "Starting the speech engine…" : "Transcribing…");
+  else if (state === "error") micSay(esc(info.message), 9000);
+  else micSay(info.note ? esc(info.note) : "", 4000);
+  if (!dictation.active() && deferred) setTimeout(render, 0);
+}
+function micInsert(text, target) {
+  const el = document.getElementById(target);
+  if (!el || !el.isConnected) {
+    micLost = text;
+    return micSay(`The text box is gone. <button class="btn sm" data-mic-copy>Copy the text</button>`, 30000);
+  }
+  const live = document.activeElement === el, start = live ? el.selectionStart : micField.start, end = live ? el.selectionEnd : micField.end;
+  el.focus();
+  el.setSelectionRange(start, end);
+  const words = joinDictated(el.value.slice(0, start), text, el.value.slice(end));
+  // the browser's own insertion keeps Undo (Cmd/Ctrl+Z) working
+  if (!document.execCommand("insertText", false, words)) {
+    el.setRangeText(words, start, end, "end");
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+}
+function micToggle(field) {
+  if (dictation.state() === "recording") return dictation.stop();
+  if (dictation.state() === "asking") return dictation.cancel();
+  if (dictation.active()) return;
+  if (micStatus && micStatus.state === "installing") return micSay("The dictation engine is being set up…", 4000);
+  if (micStatus && micStatus.state === "unavailable") return micSay(esc(micStatus.problem) +
+    (micStatus.setup ? ` <button class="btn sm" data-mic-setup>Set up…</button>` : ""), 20000);
+  const target = field || document.getElementById(micField && micField.id);
+  if (!target) return;
+  micField = { id: target.id, start: target.selectionStart, end: target.selectionEnd };
+  dictation.start(target.id, micLang);
+}
+async function micSetup() {
+  if (!confirm("Set up dictation on this machine?\n\nIt downloads the speech engine and the Whisper small model, about 0.7 GB, into ~/.craftsman/dictation. Your recordings never leave this machine and are never stored.")) return;
+  const started = await api("/api/dictate/setup", {}).catch(() => null);
+  if (!started) return;
+  micStatus = started;
+  micSay("Setting up dictation… this takes a few minutes.");
+  const poll = setInterval(async () => {
+    micStatus = await fetch("/api/dictate").then(r => r.json()).catch(() => micStatus);
+    if (micStatus.state === "installing") return;
+    clearInterval(poll);
+    micSay(micStatus.state === "unavailable" ? esc(micStatus.problem) : "Dictation is ready.", 8000);
+  }, 3000);
+}
+document.getElementById("mic").addEventListener("mousedown", e => e.preventDefault());  // the caret stays in the field
+document.getElementById("mic").addEventListener("click", e => {
+  if (e.target.closest("#mic-btn")) return micToggle(null);
+  if (e.target.closest("#mic-lang")) {
+    if (dictation.active()) return;
+    micLang = micLang === "pl" ? "en" : "pl"; localStorage.setItem(DICTATION_LANG_KEY, micLang); return placeMic();
+  }
+  if (e.target.closest("[data-mic-setup]")) return micSetup();
+  if (e.target.closest("[data-mic-copy]") && micLost) navigator.clipboard.writeText(micLost).then(() => micSay("Copied.", 3000));
+});
+document.addEventListener("focusin", () => placeMic());
+document.addEventListener("focusout", () => setTimeout(placeMic, 0));
+document.addEventListener("scroll", () => { if (!document.getElementById("mic").hidden) placeMic(); }, true);
+addEventListener("resize", () => placeMic());
+// a recording is never left running behind the developer's back
+document.addEventListener("visibilitychange", () => { if (document.hidden) dictation.cancel(); });
+addEventListener("pagehide", () => dictation.cancel());
 const events = new EventSource("/api/events");
 events.addEventListener("hello", () => reload());
 events.addEventListener("change", () => reload());

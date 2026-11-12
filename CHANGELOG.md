@@ -3,6 +3,13 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.26.0
+
+- Dictation on the review page: a microphone button in the corner of the text box being written in, ⌥M (Alt+M) too,
+  English or Polish. The text goes in at the caret; nothing is sent with it. The speech engine is Whisper on this
+  machine, and nothing is installed until `/craftsman:dictation setup` or the page's "Set up…" asks for it (about
+  0.7 GB). `/craftsman:dictation list | add | remove | use` manage the models. See `REVIEW.md`, "Dictation".
+
 ## 0.25.2
 
 - The comment's shape: the first slider is "Wording"; each slider shows its name over its value. While Wording keeps

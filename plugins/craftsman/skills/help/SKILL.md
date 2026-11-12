@@ -44,6 +44,9 @@ Management commands:
                                                     and every craftsman project below it, and prints its URL;
                                                     `off` stops it; `remove [dir]` takes a project off
                                                     the page (its files stay)
+  /craftsman:dictation [setup|list|add|remove|use|status]
+                                                    voice dictation in the review page, by Whisper on this machine;
+                                                    `setup` installs it (about 0.7 GB), the rest manage its models
   /craftsman:report [project-dir]                   render a project's analysis artifacts and session(s) as one HTML
                                                     report, with navigation and search
 

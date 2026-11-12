@@ -44,6 +44,7 @@ import _dashboard_data as data  # noqa: E402
 import _review_session  # noqa: E402
 import _reviews as reviews  # noqa: E402
 import _settings  # noqa: E402
+import _speech  # noqa: E402
 import github_conversation  # noqa: E402
 import review_state  # noqa: E402
 import send_review  # noqa: E402
@@ -88,6 +89,7 @@ class Hub:
         self.clients = 0
         self.last_client = time.time()
         self.sessions = {}
+        self.speech = _speech.Speech()
 
     def session(self, review_id, checkout=None):
         """The Claude session of one review, created on first use; one per review for the server's lifetime."""
@@ -111,8 +113,10 @@ class Hub:
             runner.stop()
 
     def stop_sessions(self):
+        """Stop every process the server runs: the reviews' sessions and the speech engine."""
         for runner in list(self.sessions.values()):
             runner.stop()
+        self.speech.stop()
 
     def rescan(self):
         """Re-discover the projects inside every root; True when the list changed."""
@@ -172,6 +176,7 @@ class Hub:
             ticks += 1
             with self.lock:
                 new_projects = ticks % RESCAN_EVERY == 0 and self.rescan()
+            self.speech.reap()
             current = self.snapshot()
             changed = sorted(k for k in current.keys() | previous.keys() if current.get(k) != previous.get(k))
             if new_projects:
@@ -241,6 +246,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, data.build(project, self.hub.content, self.hub.project_list()))
         if url.path == "/api/events":
             return self.stream()
+        if url.path == "/api/dictate":
+            return self.send(200, self.hub.speech.status())
         if url.path == "/api/theme":
             current = _theme.chosen()
             return self.send(200, dict(current=current, palettes=_theme.palettes(), css=_theme.theme_css(current)))
@@ -403,14 +410,34 @@ class Handler(BaseHTTPRequestHandler):
                 hub.clients -= 1
                 hub.last_client = time.time()
 
+    def dictate(self, query):
+        """A recording from the page, the raw audio as the body, transcribed by the speech engine."""
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = -1
+        if length < 0 or length > _speech.MAX_UPLOAD:
+            self.close_connection = True
+            return self.send(413, dict(error="the recording is too long", kind="too-long"))
+        audio = self.rfile.read(length)
+        language = urllib.parse.parse_qs(query).get("language", [""])[0]
+        status, body = self.hub.speech.transcribe(audio, language)
+        return self.send(status, body)
+
     def do_POST(self):
         if not self.allowed_host() or self.headers.get("X-Craftsman") != "1":
             return self.send(403, dict(error="refused: not from the dashboard page"))
+        url = urllib.parse.urlsplit(self.path)
+        if url.path == "/api/dictate":
+            return self.dictate(url.query)
         try:
             body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
         except ValueError:
             return self.send(400, dict(error="bad json"))
-        url = urllib.parse.urlsplit(self.path)
+        if url.path == "/api/dictate/start":
+            return self.send(200, self.hub.speech.warm())
+        if url.path == "/api/dictate/setup":
+            return self.send(*self.hub.speech.setup())
         if url.path == "/api/projects":
             project = pathlib.Path(body.get("path", "")).expanduser().resolve()
             if not project.is_dir():
