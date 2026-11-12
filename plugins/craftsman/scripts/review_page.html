@@ -331,7 +331,7 @@
   .md-tools button:hover { background: var(--card); color: var(--text); }
   .draft-in textarea { flex: 1; resize: none; background: none; border: 0; outline: none; color: var(--text); font: inherit;
     font-weight: 300; line-height: 1.55; padding: 12px 14px; }
-  .draft-actions { margin-top: 0; }
+  .draft-actions { margin-top: 0; } .draft-actions .grow { flex: 1; }
   .about-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
   .about-row .switch { font-size: .7812rem; white-space: nowrap; }
   .draft-preview.stale { opacity: .55; transition: opacity .2s; }
@@ -1159,7 +1159,7 @@ function panelComment(c) {
     <div class="style-row${ui.styleOpen ? " open" : ""}" id="style-row">${styleControls(shapeOf(d), "data-style", d.style)}${Object.keys(d.style).length ? `<button class="btn ghost sm" data-style-reset title="Back to the default shape, set in AI Agent tools">Reset</button>` : ""}${styleNote(shapeOf(d))}</div>` : ""}
     <section class="draft-in"><div class="md-tools">${MD_TOOLS.map(([k, label, title]) => `<button data-md-tool="${k}" title="${title}">${label}</button>`).join("")}</div>
       <textarea id="draft-box" placeholder="${ui.assistant ? "Tell AI Agent what you would change here, and why, in your own words. Enter is a new line." : "What would you change here, and why? Markdown works; Enter is a new line."}">${esc(d.text)}</textarea></section>
-    <div class="row-actions draft-actions"><button class="btn go sm" data-draft-make title="${esc(makeBlocked(d) || MOD + " Enter")}" ${makeBlocked(d) ? "disabled" : ""}>Make it a finding</button><button class="btn ghost sm" data-draft-discard>Discard</button></div>`;
+    <div class="row-actions draft-actions"><span class="grow"></span><button class="btn ghost sm" data-draft-discard>Discard</button><button class="btn go sm" data-draft-make title="${esc(makeBlocked(d) || MOD + " Enter")}" ${makeBlocked(d) ? "disabled" : ""}>Make it a finding</button></div>`;
 }
 // The upper half: the finding as it will be. With the assistant on, the one AI Agent wrote of the draft; dimmed while
 // it no longer matches the draft below.

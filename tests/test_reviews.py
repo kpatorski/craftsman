@@ -653,6 +653,14 @@ class ReviewEndpointsTest(ReviewsTest):
         self.assertIn("renderPanel()", selecting)
         self.assertNotIn("render()", selecting.replace("renderPanel()", ""))
 
+    def test_the_finding_tab_puts_its_main_button_last_on_the_right_like_the_ask_tab(self):
+        served = self.page(f"/review?review={ID}")
+        row = served[served.index('<div class="row-actions draft-actions">'):]
+        row = row[:row.index("</div>")]
+        self.assertLess(row.index('<span class="grow"></span>'), row.index("data-draft-discard"))
+        self.assertLess(row.index("data-draft-discard"), row.index("data-draft-make"))
+        self.assertIn(".draft-actions .grow { flex: 1; }", served)
+
     def test_the_shown_files_path_can_be_copied(self):
         served = self.page(f"/review?review={ID}")
         self.assertIn('data-copy-path="${esc(path)}"', served)
