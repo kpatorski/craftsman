@@ -43,7 +43,8 @@ def ask(tool):
     log({"answered": json.loads(sys.stdin.readline())})
 
 
-log({"argv": sys.argv[1:], "cwd": os.getcwd(), "run": os.environ.get("CRAFTSMAN_RUN")})
+log({"argv": sys.argv[1:], "cwd": os.getcwd(), "run": os.environ.get("CRAFTSMAN_RUN"),
+     "review": os.environ.get("CRAFTSMAN_REVIEW")})
 if "--json-schema" in sys.argv:
     # a draft's preview: one prompt in, one finding out
     prompt = sys.stdin.read()

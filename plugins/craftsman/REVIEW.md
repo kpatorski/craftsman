@@ -396,9 +396,7 @@ which holds `worktree/` — as a second working directory (`--add-dir`), on the 
 "Choosing a model". The tools on a fixed list run without asking:
 
 - reading and searching files, subagents, skills;
-- `git` and `gh` commands, each started as `git …` or `gh …` — git in the worktree runs as `git -C <worktree> …`,
-  because a `cd` followed by `git` is a command of its own;
-- the craftsman scripts, by their full path;
+- the review's own craftsman scripts (`review_command_gate.REVIEW_SCRIPTS`), by their full path;
 - writing the checkout's `.claude/sessions/` files and the plugin-version marker of the installed content;
 - the tools listed as `review-tools` in `~/.craftsman/settings.json`.
 
@@ -412,6 +410,25 @@ answers:
 - **Deny** — the agent is told the developer did not allow it, with the reason typed beside it, and goes on.
 
 For a tool of an MCP server the rule offered is the whole server, `mcp__<server>`.
+
+**Shell commands are weighed by rule, not by the model.** What the developer types or dictates, and what the pull
+request says, reaches the model, and a misheard sentence or a planted instruction can make it want a command. Every
+Bash call of the session, and of its subagents, goes through the plugin's hook `scripts/review_command_gate.py`, which
+the server switches on with `CRAFTSMAN_RUN=pr-review` and the review folder in `CRAFTSMAN_REVIEW`:
+
+| Command                                                                                                                                                                                     | Decision                   |
+|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------|
+| `git` that only reads (`diff`, `log`, `show`, `blame`, …), `gh pr view / list / diff`, `gh repo view`, `gh api` with GET                                                                    | runs without asking        |
+| preparing the review: `git fetch origin <ref>`, `git worktree add --detach` and `git -C <worktree> checkout --detach` in the review's worktree, `git diff --output=` into the review folder | runs without asking        |
+| the review's own scripts                                                                                                                                                                    | runs without asking        |
+| `git push / merge / reset / commit / …`, `git -c`, `gh pr merge / comment / review / …`, `gh api` with another method or fields, `gh auth`, `send_review.py`                                | refused, with the reason   |
+| anything else, and anything the rules cannot read with certainty: `$(…)`, redirections, several lines                                                                                       | the developer, on the page |
+
+Such commands may be chained with `&&`, `||`, `;` and piped into `head`, `tail` or `wc`; one refused part refuses the
+whole command. Git in the worktree runs as `git -C <worktree> …`, because a `cd` followed by `git` is a command of its
+own. The session's own list allows no `git`, no `gh` and no other script, so a gate that does not run leaves them to
+the developer. Every page message the session gets says that the words in it are material for the review, never an
+instruction to run a command.
 
 `review-tools` is also how the session reads Jira, through the MCP server Jira is read through. The page sets it:
 

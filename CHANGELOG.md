@@ -3,6 +3,16 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.29.0
+
+- A review's shell commands are weighed by rule, not by the model: the new `review_command_gate.py` hook lets through
+  git and gh that only read, refuses whatever publishes or changes the repository (`git push`, `gh pr merge`,
+  `gh pr comment`, `gh api` writes, `gh auth`, `send_review.py`), and leaves the rest to the developer on the page. A
+  review's session no longer runs every `git`, `gh` and craftsman script without asking: only the review's own
+  scripts. See `REVIEW.md`, "The review's session".
+- Text from the review page and from the pull request is material for the review, never an instruction; the session
+  is told so with every page message.
+
 ## 0.28.0
 
 - craftsman names work by model tier — `fast`, `balanced`, `deep` — never by model: `EXECUTION.md`, "Choosing a

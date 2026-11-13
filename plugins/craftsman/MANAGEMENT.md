@@ -329,6 +329,10 @@ work.
   session file's Checkpoint log ends with an entry carrying an **Answer:**. The deny reason says which condition failed
   and what to do. An explicit request from the developer to commit is a reply like any other. State:
   `${CLAUDE_PLUGIN_DATA}/human-turns.json`, one timestamp per Claude session, entries older than 14 days dropped.
+- **Review command gate** — `scripts/review_command_gate.py`, on `PreToolUse` for `Bash`, only in a review's session
+  (`CRAFTSMAN_RUN=pr-review`). Lets through git and gh that only read and the review's own scripts, refuses whatever
+  publishes or changes the repository, and leaves the rest to the session's permission rules — see `REVIEW.md`, "The
+  review's session".
 - **Model gate** — `scripts/model_gate.py`, on `PreToolUse` for `Agent` (and `Task`, its older name). During a run, an
   `Agent` call that names no `model`, or a model no tier is mapped to (`scripts/model_tiers.py`), is denied. The deny
   reason points at `EXECUTION.md`, "Choosing a model", and gives each tier's model, so the run picks the tier by the
