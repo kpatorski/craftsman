@@ -14,6 +14,8 @@ not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets s
   agent decides: the finding they go into, the order of the places, a pair of the developer's own kept apart.
 - `verify_quotes.py` looks up what a subagent quotes: a researcher's quotes in their files, and a directive reviewer's
   quoted rules and `file:line`s. A run checks quotes with it instead of reading (`EXECUTION.md`).
+- Three more skills lean on scripts: `search` on the new `search_content.py`, `install` on it and on the new
+  `record_source.py` for the `Sources` table, and `rename` on `rename_id.py`, which it already had.
 - `refresh_review.py` does the mechanical part of a refresh — fetch, conversation, worktree, diff, state, use cases
   back to `pending` — and prints what the agent weighs (`REVIEW.md`, "Refreshing a review").
 

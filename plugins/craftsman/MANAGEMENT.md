@@ -45,9 +45,10 @@ globally unique, so the lookup above always resolves to exactly one kind, one pl
 
 ## Checking a known source for updates (`install`)
 
-If `$ARGUMENTS` matches the `Location` of a `Source` already recorded in any index's `Sources` table, this is not a
-new install — it is a check. Fetch the source's current state (full clone with history — never `--depth 1` here;
-the next paragraph explains why) and compare its commit sha to the `Version` already recorded for that row:
+If `$ARGUMENTS` matches the `Location` of a `Source` already recorded in any index's `Sources` table
+(`scripts/record_source.py find`), this is not a new install — it is a check. Fetch the source's current state (full
+clone with history — never `--depth 1` here; the next paragraph explains why) and compare its commit sha to the
+`Version` already recorded for that row:
 
 - **Same sha** — nothing changed since the last sync. Say so, stop.
 - **Different sha** — classify every file, then act per file. See below.
@@ -109,6 +110,10 @@ file with a kept-local decision would show up as the same conflict forever. The 
 decision, not on the outcome: never move `Version` if any file in the diff was left without an explicit decision —
 otherwise a skipped upstream change silently drops off the radar for good.
 
+The `Sources` table is read and written only through `scripts/record_source.py`: `find <content root> <location>`
+says which indexes record a source and at which `Version`; `record <index> <name> <location> <kind> <version>` adds
+the row or moves its `Version`, and pads the table again.
+
 ## Duplicate detection (`install`)
 
 **Run `scripts/validate_content.py <content-root>` for id uniqueness, link validity, required fields/sections, and
@@ -121,9 +126,10 @@ below is the specification the script encodes — read it to understand or exten
 by hand. `search`'s own near-duplicate matching (title/description, not id) is the one part of this section the
 script does not cover — that stays a judgement call.
 
-Before adding a new directive, protocol, or bundle, run the same search `search` would run: match the incoming id,
-title and description against all three indexes (`directives/index.md`, `protocols/index.md`, `bundles/index.md`,
-plus every `bundles/*/bundle.md` for members that live inside one). If the *id* already exists:
+Before adding a new directive, protocol, or bundle, run the same search `search` runs —
+`scripts/search_content.py <content-root> "<id, title and key words of the description>"` — which matches against all
+three indexes (`directives/index.md`, `protocols/index.md`, `bundles/index.md`) plus every `bundles/*/bundle.md` for
+members that live inside one. If the *id* already exists:
 
 - **Identical content** (the file bodies match after normalising whitespace) — no conflict, nothing to do, say so.
 - **Different content** — never silently overwrite and never rename automatically. Report the conflict (both sources,

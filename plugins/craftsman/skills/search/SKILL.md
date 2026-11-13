@@ -20,26 +20,18 @@ duplicate-detection requirement.
 
 ## Run this
 
-1. **`Grep`, not `Read`, for the first pass** — the candidate set lives across up to ten files (the three top-level
-   indexes plus every `bundles/*/bundle.md`, since bundle membership is positional per `core.md` and only visible by
-   opening each one), and reading all of them in full on every search is the slow, expensive way to answer "does
-   this exist". One `Grep` call (where the session has no `Grep` tool, the same search as `grep -rni` through
-   `Bash`), case-insensitive, for `$ARGUMENTS` (and its individual significant words if it's a
-   phrase) across `~/.claude/craftsman/directives/index.md`, `~/.claude/craftsman/protocols/index.md`,
-   `~/.claude/craftsman/bundles/index.md`, and `~/.claude/craftsman/bundles/*/bundle.md` gets the same coverage —
-   every `Id`, `Title`, and row — for a fraction of the cost. If `~/.claude/craftsman/` does not exist yet, `Grep`
-   simply finds nothing there; check for the directory with `Glob` or `ls` to give the right message (see Notes).
-2. From the grep hits, collect candidate ids (a hit on a table row's `Id`/`Title` cell is enough to shortlist it).
-3. Only `Read` a candidate's own file when the grep hit alone doesn't decide it — a row whose `Id`/`Title` didn't
-   match but might be relevant by `description`, or more than one plausible candidate that needs ranking. This is
-   the only point where full files get opened, and only the specific candidates, never the whole index or every
-   bundle.
-4. Report every real match: id, kind (directive/protocol/bundle), title, enabled/disabled, and the link. If nothing
+1. Run `scripts/search_content.py ~/.claude/craftsman "$ARGUMENTS"`. It looks the words of the phrase up in the id,
+   title and description of every installed directive, protocol, bundle and bundle member, and prints the matches
+   as JSON, best first, each with its kind, title, description, whether it is enabled, its bundle and its path. When
+   it says nothing is installed, say so (see Notes).
+2. Weigh the matches: a match on a word of the description alone may be about something else. `Read` a candidate's
+   own file only when its description does not decide it — never the whole index or every bundle.
+3. Report every real match: id, kind (directive/protocol/bundle), title, enabled/disabled, and the link. If nothing
    matches, say so plainly — do not stretch a weak match into a "sort of" answer.
 
 ## Notes
 
-- Read-only. Never modifies an index or a content file. It runs in its own context (`context: fork`), so the grep
-  hits and the files it opens stay out of the conversation that asked — only the matches come back — and the tools
+- Read-only. Never modifies an index or a content file. It runs in its own context (`context: fork`), so the script's
+  output and the files it opens stay out of the conversation that asked — only the matches come back — and the tools
   that write are taken away there (`disallowed-tools`), not merely left unapproved.
 - If `~/.claude/craftsman/` does not exist yet, say so — nothing is installed to search.
