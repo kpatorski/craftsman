@@ -14,9 +14,9 @@ PAGE = pathlib.Path(__file__).resolve().parent.parent / "plugins" / "craftsman" 
 NODE = shutil.which("node")
 
 
-def function(name):
+def function(name, prefix=""):
     """One top-level function of the page's script, from its `function` line to the `}` that closes it."""
-    found = re.search(rf"^function {name}\(.*?^}}$", PAGE.read_text(), re.S | re.M)
+    found = re.search(rf"^{prefix}function {name}\(.*?^}}$", PAGE.read_text(), re.S | re.M)
     if not found:
         raise AssertionError(f"the page has no function {name}")
     return found.group(0)

@@ -446,14 +446,22 @@ page is left. Boxes where speech is the wrong tool -- searches, paths, URLs, bra
 `data-no-dictation`; a new box takes dictation unless it carries it too. The language is kept in the browser.
 
 The speech engine runs on this machine: Whisper, through faster-whisper, on the CPU. Nothing is installed until the
-developer asks, with `/craftsman:dictation setup` or the page's "Set up…" (which says the size first): it builds
-`~/.craftsman/dictation/venv/` from the hash-locked `scripts/dictation_requirements.txt` and fetches the default model,
-`small`, about 0.7 GB in all. Each model is pinned to a revision and every file to its SHA-256; a part is usable only
-once its `ready` marker is written, last, so a run cut short leaves nothing half-usable and the next run continues.
-`/craftsman:dictation list | add | remove | use` manage the models (`base`, `small`, `medium`); the active one is
-`dictation-model` in `settings.json`, and it cannot be removed. The network is used by these commands only, through
-the usual proxy and CA settings (HTTPS_PROXY; REQUESTS_CA_BUNDLE, SSL_CERT_FILE or PIP_CERT; HF_ENDPOINT for a
-mirror).
+developer asks, with `/craftsman:dictation setup` or the page's "Set up" (which first names the model and the size,
+both taken from the catalogue in `scripts/dictation.py`): it builds `~/.craftsman/dictation/venv/` from the hash-locked
+`scripts/dictation_requirements.txt` and adds the default model, `small`.
+
+Every model comes from OpenAI alone. Its checkpoint comes from OpenAI's download server
+(`openaipublic.azureedge.net`), which names each file by its SHA-256, and the tokenizer from the openai/whisper
+repository at a pinned commit; both are checked against their pinned size and SHA-256. `scripts/whisper_convert.py`,
+run by the engine's own Python, turns them into the CTranslate2 model and tokenizer faster-whisper reads — with numpy,
+CTranslate2 and tokenizers only, no PyTorch — and works out the decoding settings the way openai-whisper does. Every
+file it writes is checked against its own pinned SHA-256 before the model is put in place, and OpenAI's files are
+deleted. A part is usable only once its `ready` marker is written, last, so a run cut short leaves nothing half-usable
+and the next run continues. `/craftsman:dictation list | add | remove | use` manage the models (`base`, `small`,
+`medium`); the active one is `dictation-model` in `settings.json`, and it cannot be removed. The network is used by
+these commands only, through the usual proxy and CA settings (HTTPS_PROXY; REQUESTS_CA_BUNDLE, SSL_CERT_FILE or
+PIP_CERT). The engine itself runs with `HF_HUB_OFFLINE=1`: it reads its model from disk and never reaches for a model
+hub.
 
 The page posts a recording to the dashboard server, `POST /api/dictate?language=pl|en`, with the same Host and
 `X-Craftsman` checks as every other write. The server starts the engine, `scripts/speech_service.py` in its venv, on

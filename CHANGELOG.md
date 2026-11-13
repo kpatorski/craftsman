@@ -12,6 +12,11 @@ not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets s
   a run, an `Agent` call with no `model` or with a model no tier is mapped to, and gives the mapping.
 - A review's session runs on the `deep` tier's model, the draft preview on the `fast` tier's; `CRAFTSMAN_PREVIEW_MODEL`
   is gone.
+- Dictation models come from OpenAI alone: the checkpoint from OpenAI's download server and the tokenizer from the
+  openai/whisper repository, both pinned by SHA-256, converted on this machine by the new `whisper_convert.py` and
+  checked against pinned SHA-256s. Nothing comes from Hugging Face, and `HF_ENDPOINT` is gone. A model made from
+  any other source counts as not installed: `/craftsman:dictation setup` replaces it.
+- The page's "Set up" names the model and the size from the catalogue; its message box is wider.
 
 ## 0.27.0
 

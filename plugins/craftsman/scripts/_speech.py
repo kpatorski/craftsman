@@ -71,7 +71,7 @@ class Speech:
         engine = self.engine_status()
         if not engine["ready"]:
             return dict(state="unavailable", external=False, problem=self.setup_failed or engine["problem"],
-                        languages=list(LANGUAGES), setup=True)
+                        languages=list(LANGUAGES), setup=engine.get("offer") or True)
         state = "starting" if self.starting else "ready" if self.alive() else "off"
         return dict(state=state, external=False, problem=None, languages=list(LANGUAGES), model=engine["active"])
 
@@ -130,8 +130,10 @@ class Speech:
         log = dictation.engine_dir() / "service.log"
         log.parent.mkdir(parents=True, exist_ok=True)
         with log.open("ab") as errors:
+            # the engine reads its model from disk only: faster-whisper never reaches for a model hub
             proc = subprocess.Popen(self.command(engine), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                                    stderr=errors, env=dict(os.environ, CRAFTSMAN_SPEECH_TOKEN=token))
+                                    stderr=errors, env=dict(os.environ, CRAFTSMAN_SPEECH_TOKEN=token,
+                                                            HF_HUB_OFFLINE="1"))
         lines = queue.Queue()
         threading.Thread(target=lambda: lines.put(proc.stdout.readline()), daemon=True).start()
         try:

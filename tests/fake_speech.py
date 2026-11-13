@@ -25,7 +25,8 @@ class Engine:
 
     def transcribe(self, samples, language, model):
         time.sleep(float(os.environ.get("FAKE_SPEECH_SLOW") or 0))
-        return f"[{model}/{language}] heard {len(samples)} bytes"
+        offline = " offline" if os.environ.get("HF_HUB_OFFLINE") == "1" else ""
+        return f"[{model}/{language}{offline}] heard {len(samples)} bytes"
 
 
 parser = argparse.ArgumentParser()

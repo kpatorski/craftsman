@@ -12,10 +12,14 @@ Usage:
 Everything lives in `<craftsman home>/dictation/`: `venv/` (faster-whisper and its decoders, from the hash-locked
 `dictation_requirements.txt`) and `models/<id>/`. Each is usable only once its `ready` marker is written, last; the
 venv's marker holds a fingerprint of the requirements and the Python version, so a changed pin rebuilds it and an
-unchanged run does nothing. Every model file is pinned to a revision and checked by SHA-256. The network is needed
-only here: pip and the downloads go through the usual proxy (HTTPS_PROXY) and CA (REQUESTS_CA_BUNDLE, SSL_CERT_FILE,
-PIP_CERT) settings, and HF_ENDPOINT names a Hugging Face mirror. The active model is `dictation-model` in the
-craftsman settings.
+unchanged run does nothing.
+
+A model comes from OpenAI alone: its checkpoint from OpenAI's download server, which names each file by its SHA-256,
+and the tokenizer from the openai/whisper repository at a pinned commit. Both are checked against their pinned size
+and SHA-256, then whisper_convert.py, run by the engine's Python, turns them into the model faster-whisper reads, and
+every file it writes is checked against its own pin before the model is put in place. The network is needed only
+here: pip and the downloads go through the usual proxy (HTTPS_PROXY) and CA (REQUESTS_CA_BUNDLE, SSL_CERT_FILE,
+PIP_CERT) settings. The active model is `dictation-model` in the craftsman settings.
 """
 import argparse
 import hashlib
@@ -41,26 +45,40 @@ MARGIN = 1.2
 PYTHONS = ("python3.12", "python3.11", "python3.13", "python3.10", "python3.9", "python3")
 SUPPORTED = ((3, 9), (3, 13))
 SETUP = "/craftsman:dictation setup"
-_FILES = ("config.json", "model.bin", "tokenizer.json", "vocabulary.txt")
-_TOKENIZER = (2203239, "fb7b63191e9bb045082c79fd742a3106a12c99513ab30df4a0d47fa6cb6fd0ab")
-_VOCABULARY = (459861, "34ce3fe1c5041027b3f8d42912270993f986dbc4bb34cf27f951e34a1e453913")
-# Whisper converted for faster-whisper, each pinned to a revision and every file to its size and SHA-256
+CONVERTER = HERE / "whisper_convert.py"
+WHISPER_COMMIT = "31243bad24cc746f07d4c8bfdd2d974872cb1803"  # openai/whisper v20250625
+TOKENIZER = dict(url=f"https://raw.githubusercontent.com/openai/whisper/{WHISPER_COMMIT}/whisper/assets/"
+                     "multilingual.tiktoken",
+                 size=816730, sha="b34b360dbb493e781e479794586d661700670d65564001f23024971d1f2fa126")
+_CHECKPOINTS = "https://openaipublic.azureedge.net/main/whisper/models"
+_TOKENIZER_JSON = (3928877, "c5768e14ad96b1ec30a41def9a77a46686b9f06d2e3a24b0884b2b0d49642d7d")
+_VOCABULARY = (1068101, "22f3cb2fc2be1545b9a7db8e993ddd59aeccadfbc7d7b00ca517ca8960864766")
+
+
+def _model(name, size, sha, heads, config, weights, **shown):
+    """A catalogue entry: OpenAI's checkpoint, the alignment heads openai-whisper keeps for it, and the size and
+    SHA-256 of every file whisper_convert.py makes of it."""
+    return dict(checkpoint=dict(url=f"{_CHECKPOINTS}/{sha}/{name}.pt", size=size, sha=sha), heads=heads,
+                files={"config.json": config, "model.bin": weights, "tokenizer.json": _TOKENIZER_JSON,
+                       "vocabulary.json": _VOCABULARY}, **shown)
+
+
 CATALOGUE = {
-    "base": dict(repo="Systran/faster-whisper-base", revision="ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66",
-                 title="Whisper base", ram="about 0.5 GB", speed="fastest, less accurate",
-                 files=dict(zip(_FILES, ((2309, "56a6d8110d311f19c8f0471e562832c7527f146b567275bfca59fcf7c184da9a"),
-                                         (145217532, "d01c3014881c9c6f3133c182f3d2887eb6ca1c789a7538c5c007196857a0a6a9"),
-                                         _TOKENIZER, _VOCABULARY)))),
-    "small": dict(repo="Systran/faster-whisper-small", revision="536b0662742c02347bc0e980a01041f333bce120",
-                  title="Whisper small", ram="about 1 GB", speed="a few seconds per sentence; the default",
-                  files=dict(zip(_FILES, ((2370, "b55496ac7940a7ae47d2c01eab40edfd8701feec1229d9cce3b40014383fb828"),
-                                          (483546902, "3e305921506d8872816023e4c273e75d2419fb89b24da97b4fe7bce14170d671"),
-                                          _TOKENIZER, _VOCABULARY)))),
-    "medium": dict(repo="Systran/faster-whisper-medium", revision="08e178d48790749d25932bbc082711ddcfdfbc4f",
-                   title="Whisper medium", ram="about 2.5 GB", speed="slow, most accurate",
-                   files=dict(zip(_FILES, ((2257, "3622a2ddc41ec0e0fd4e68c13c6830f03b90c38d89aaad184de02c8c642cf807"),
-                                           (1527906378, "9b45e1009dcc4ab601eff815b61d80e60ce3fd8c74c1a14f4a282258286b51ae"),
-                                           _TOKENIZER, _VOCABULARY)))),
+    "base": _model("base", 145262807, "ed3a0b6b1c0edf879ad9b11b1af5a0e6ab5db9205f891f668f8b0e6c6326e34e",
+                   "ABzY8KQ!870{>%RzyTQH3`Q^yNP!>##QT-<FaQ7m",
+                   (2309, "56a6d8110d311f19c8f0471e562832c7527f146b567275bfca59fcf7c184da9a"),
+                   (145217607, "905e5bf8336bcc625ba4e33498d675a4b935504118c594d868c36e91a60c1a57"),
+                   title="Whisper base", ram="about 0.5 GB", speed="fastest, less accurate"),
+    "small": _model("small", 483617219, "9ecf779972d90ba49c06d968637d720dd632c55bbf19d441fb42bf17a411e794",
+                    "ABzY8DmU6=0{>%Rpa?J`kvJ6qF(V^F86#Xh7JUGMK}P<N0000",
+                    (2370, "b55496ac7940a7ae47d2c01eab40edfd8701feec1229d9cce3b40014383fb828"),
+                    (483546977, "eef2cbde70d256f29b6e3432c85b92becd26f804650e855cc4ff7e66f12122b0"),
+                    title="Whisper small", ram="about 1 GB", speed="a few seconds per sentence; the default"),
+    "medium": _model("medium", 1528008539, "345ae4da62f9b3d59415adc60127b97c714f32e89e936602e85993674d08dcb1",
+                     "ABzY8B0Jh+0{>%R7}kK1fFL7w6%<-Pf*t^=N)Qr&0RR9",
+                     (2257, "3622a2ddc41ec0e0fd4e68c13c6830f03b90c38d89aaad184de02c8c642cf807"),
+                     (1527906453, "ddb3f3149bc5c9682af4cf9cf22e215a8bf047ca7772190ad2a58129bfeeca2d"),
+                     title="Whisper medium", ram="about 2.5 GB", speed="slow, most accurate"),
 }
 
 
@@ -130,8 +148,9 @@ def sha256(path):
 
 
 class Engine:
-    def __init__(self, fetch=download, run=run, python=None, catalogue=CATALOGUE, free_bytes=None):
-        self.fetch, self.run, self._python, self.catalogue = fetch, run, python, catalogue
+    def __init__(self, fetch=download, run=run, python=None, catalogue=CATALOGUE, tokenizer=TOKENIZER,
+                 free_bytes=None):
+        self.fetch, self.run, self._python, self.catalogue, self.tokenizer = fetch, run, python, catalogue, tokenizer
         self.free_bytes = free_bytes or (lambda path: shutil.disk_usage(path).free)
 
     # ---- where things are ---------------------------------------------------------------------------------------
@@ -158,7 +177,15 @@ class Engine:
             return False
 
     def installed(self):
-        return sorted(model for model in self.catalogue if (self.model_dir(model) / "ready").is_file())
+        """The models in place, each made from the checkpoint the catalogue pins: its `ready` marker names it."""
+        return sorted(model for model, entry in self.catalogue.items()
+                      if self.marker(model) == entry["checkpoint"]["sha"])
+
+    def marker(self, model):
+        try:
+            return (self.model_dir(model) / "ready").read_text().strip()
+        except OSError:
+            return None
 
     def active(self):
         return _settings.read().get("dictation-model")
@@ -168,21 +195,27 @@ class Engine:
     def status(self):
         built, active = (self.venv / "ready").is_file(), self.active()
         problem = None
+        offer = self.offer()
         if not built:
-            problem = f"Dictation is not set up. Run {SETUP} (it downloads about 0.7 GB)."
+            problem = f"Dictation is not set up. Run {SETUP} (it downloads about {offer['download']})."
         elif not self.venv_ready():
             problem = f"The dictation engine is out of date. Run {SETUP}."
         elif not active:
             problem = f"No dictation model is chosen. Run {SETUP}."
         elif active not in self.installed():
             problem = f"The dictation model {active} is not installed. Run /craftsman:dictation add {active}."
-        return dict(ready=problem is None, active=active if built else None, problem=problem,
+        return dict(ready=problem is None, active=active if built else None, problem=problem, offer=offer,
                     python=str(venv_python(self.venv)), models=str(engine_dir() / "models"))
+
+    def offer(self):
+        """What `setup` fetches when nothing is set up: the engine and the default model."""
+        return dict(model=self.catalogue[DEFAULT_MODEL]["title"],
+                    download=gb(VENV_BYTES + self.download_size(DEFAULT_MODEL)))
 
     def listing(self):
         installed, active = self.installed(), self.active()
         rows = [dict(id=model, title=entry["title"], installed=model in installed, active=model == active,
-                     download=sum(size for size, _ in entry["files"].values()), ram=entry["ram"], speed=entry["speed"])
+                     download=entry["checkpoint"]["size"], ram=entry["ram"], speed=entry["speed"])
                 for model, entry in self.catalogue.items()]
         where = engine_dir() if engine_dir().exists() else _reviews.home() if _reviews.home().exists() else pathlib.Path.home()
         return dict(models=rows, free=self.free_bytes(where))
@@ -200,7 +233,7 @@ class Engine:
         """Build what is missing; return what was done -- nothing when everything is already in place."""
         model = self.active() if self.active() in self.catalogue else DEFAULT_MODEL
         needed = (0 if self.venv_ready() else VENV_BYTES) + \
-                 (0 if model in self.installed() else self.download_size(model))
+                 (0 if model in self.installed() else self.space_for(model))
         if needed:
             self.need_space(needed)
         done = []
@@ -227,7 +260,11 @@ class Engine:
         (self.venv / "ready").write_text(self.fingerprint() + "\n")
 
     def download_size(self, model):
-        return sum(size for size, _ in self.entry(model)["files"].values())
+        return self.entry(model)["checkpoint"]["size"] + self.tokenizer["size"]
+
+    def space_for(self, model):
+        """OpenAI's files and the model made of them are on disk together for a moment."""
+        return self.download_size(model) + sum(size for size, _ in self.entry(model)["files"].values())
 
     def entry(self, model):
         if model not in self.catalogue:
@@ -235,30 +272,42 @@ class Engine:
         return self.catalogue[model]
 
     def add(self, model):
-        """Fetch a model's files into `<id>.partial/`, check each, then move it in place and mark it ready. A run cut
-        short keeps the files it checked, so the next one fetches only the rest."""
+        """Fetch OpenAI's checkpoint and tokenizer into `<id>.partial/`, check each, convert them with the engine's
+        Python, check every file made, then move the model in place and mark it ready. A run cut short keeps the
+        downloads it checked, so the next one fetches only the rest."""
         entry = self.entry(model)
         if model in self.installed():
             return
+        if not self.venv_ready():
+            raise SetupFailed(f"the dictation engine is not set up; run {SETUP} first")
         partial = engine_dir() / "models" / f"{model}.partial"
-        partial.mkdir(parents=True, exist_ok=True)
-        missing = sum(size for name, (size, sha) in entry["files"].items() if not self.whole(partial / name, size, sha))
-        if missing:
-            self.need_space(missing)
-        base = os.environ.get("HF_ENDPOINT", "https://huggingface.co").rstrip("/")
-        for name, (size, sha) in entry["files"].items():
-            dest = partial / name
-            if self.whole(dest, size, sha):
+        sources = partial / "openai"
+        sources.mkdir(parents=True, exist_ok=True)
+        wanted = [(entry["checkpoint"], sources / f"{model}.pt"), (self.tokenizer, sources / "multilingual.tiktoken")]
+        missing = sum(source["size"] for source, dest in wanted if not self.whole(dest, source["size"], source["sha"]))
+        self.need_space(missing + sum(size for size, _ in entry["files"].values()))
+        for source, dest in wanted:
+            if self.whole(dest, source["size"], source["sha"]):
                 continue
-            self.fetch(f"{base}/{entry['repo']}/resolve/{entry['revision']}/{name}", dest)
-            if not self.whole(dest, size, sha):
+            self.fetch(source["url"], dest)
+            if not self.whole(dest, source["size"], source["sha"]):
                 dest.unlink(missing_ok=True)
-                raise SetupFailed(f"{name} of {model} does not match its pinned SHA-256; it was thrown away")
+                raise SetupFailed(f"{dest.name} does not match its pinned SHA-256; it was thrown away")
+        converted = partial / "model"
+        shutil.rmtree(converted, ignore_errors=True)
+        self.run([str(venv_python(self.venv)), str(CONVERTER), str(wanted[0][1]), str(wanted[1][1]), entry["heads"],
+                  str(converted)])
+        for name, (size, sha) in entry["files"].items():
+            if not self.whole(converted / name, size, sha):
+                shutil.rmtree(converted, ignore_errors=True)
+                raise SetupFailed(f"the converted {name} of {model} does not match its pinned SHA-256; nothing was "
+                                  f"installed")
         target = self.model_dir(model)
         shutil.rmtree(target, ignore_errors=True)
         target.mkdir(parents=True)
-        partial.rename(target / "model")
-        (target / "ready").write_text(entry["revision"] + "\n")
+        converted.rename(target / "model")
+        shutil.rmtree(partial)
+        (target / "ready").write_text(entry["checkpoint"]["sha"] + "\n")
 
     @staticmethod
     def whole(path, size, sha):

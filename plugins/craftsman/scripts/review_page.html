@@ -433,7 +433,8 @@
   .mic-dock[data-state=transcribing] .mic-btn { border-color: var(--neon); color: var(--neon); }
   .mic-dock .mic-say:empty { display: none; }
   .mic-dock .mic-say { background: var(--float); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: .75rem;
-    color: var(--text); max-width: 420px; }
+    color: var(--text); max-width: 560px; line-height: 1.5; }
+  .mic-dock .mic-say .mic-setup { padding: 1px 8px; font-size: .6875rem; margin-left: 6px; }
   .mic-dock[data-state=error] .mic-say { border-color: var(--must); }
   .mic-dock .mic-say b { color: var(--must); font-weight: 600; }
   .toast .undo { margin-left: 12px; } .toast.show { pointer-events: auto; }
@@ -2794,14 +2795,16 @@ function micToggle(field) {
   if (dictation.active()) return;
   if (micStatus && micStatus.state === "installing") return micSay("The dictation engine is being set up…", 4000);
   if (micStatus && micStatus.state === "unavailable") return micSay(esc(micStatus.problem) +
-    (micStatus.setup ? ` <button class="btn sm" data-mic-setup>Set up…</button>` : ""), 20000);
+    (micStatus.setup ? `<button class="btn sm mic-setup" data-mic-setup>Set up</button>` : ""), 20000);
   const target = field || document.getElementById(micField && micField.id);
   if (!target) return;
   micField = { id: target.id, start: target.selectionStart, end: target.selectionEnd };
   dictation.start(target.id, micLang);
 }
 async function micSetup() {
-  if (!confirm("Set up dictation on this machine?\n\nIt downloads the speech engine and the Whisper small model, about 0.7 GB, into ~/.craftsman/dictation. Your recordings never leave this machine and are never stored.")) return;
+  const offer = micStatus && typeof micStatus.setup === "object" ? micStatus.setup : {};
+  if (!confirm(`Set up dictation on this machine?\n\nIt downloads the speech engine and ${offer.model ? `the ${offer.model} model` : "a speech model"}` +
+    `${offer.download ? `, about ${offer.download},` : ""} into ~/.craftsman/dictation. Your recordings never leave this machine and are never stored.`)) return;
   const started = await api("/api/dictate/setup", {}).catch(() => null);
   if (!started) return;
   micStatus = started;

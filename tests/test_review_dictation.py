@@ -178,6 +178,22 @@ class DictationOnThePageTest(unittest.TestCase):
         self.assertIn("if (dictation && dictation.active()) return dictation.cancel();", function("onEscape").splitlines()[1])
         self.assertIn("placeMic();", function("render"))
 
+    def test_the_setup_question_names_the_model_and_the_size_the_server_offers(self):
+        setup = function("micSetup", prefix="async ")
+        for fixed in ("0.7 GB", "Whisper small"):
+            self.assertNotIn(fixed, setup)
+        self.assertIn("offer.model", setup)
+        self.assertIn("offer.download", setup)
+
+    def test_the_setup_button_is_a_small_one_named_without_an_ellipsis(self):
+        toggle = function("micToggle")
+        self.assertIn('<button class="btn sm mic-setup" data-mic-setup>Set up</button>', toggle)
+        self.assertNotIn("Set up…", toggle)
+        self.assertRegex(PAGE.read_text(), r"\.mic-dock \.mic-say \.mic-setup \{[^}]*font-size: \.6875rem")
+
+    def test_a_message_has_room_for_a_setup_sentence(self):
+        self.assertRegex(PAGE.read_text(), r"\.mic-dock \.mic-say \{[^}]*max-width: 560px")
+
     def test_the_button_keeps_the_caret_in_the_box_and_the_page_talks_only_to_its_own_server(self):
         page = PAGE.read_text()
         self.assertIn('getElementById("mic").addEventListener("mousedown", e => e.preventDefault())', page)

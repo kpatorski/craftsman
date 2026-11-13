@@ -140,9 +140,9 @@ in a Windows browser. The server is optional: without it, every file a run write
 The review page's text boxes take dictation, in English or Polish: a microphone button stands in the corner of the box
 being written in, and the spoken text goes in at the caret, for you to read before anything is sent. The speech engine
 is Whisper, running on this machine; your recordings never leave it and are never stored. Nothing is installed until
-you ask: `/craftsman:dictation setup`, or "Set up…" on the page, downloads the engine and its default model, about
-0.7 GB, into `~/.craftsman/dictation/`. `/craftsman:dictation list` shows the models, `add`, `remove` and `use` manage
-them. See `REVIEW.md`, "Dictation".
+you ask: `/craftsman:dictation setup`, or "Set up" on the page, downloads the engine and its default model, straight
+from OpenAI, into `~/.craftsman/dictation/`. `/craftsman:dictation list` shows the models and their sizes; `add`,
+`remove` and `use` manage them. See `REVIEW.md`, "Dictation".
 
 ### Guard rails
 

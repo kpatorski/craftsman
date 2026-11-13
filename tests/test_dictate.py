@@ -91,7 +91,7 @@ class DictateTest(unittest.TestCase):
         self.assertIsNone(self.speech.proc)
         status, body = self.dictate("pl")
         self.assertEqual(status, 200, body)
-        self.assertTrue(body["text"].startswith("[small/pl] heard"))
+        self.assertTrue(body["text"].startswith("[small/pl offline] heard"), "the engine never reaches for a hub")
         first = self.speech.proc.pid
         self.dictate("en")
         self.assertEqual(self.speech.proc.pid, first, "the engine stays up between recordings")
@@ -147,7 +147,7 @@ class DictateTest(unittest.TestCase):
         self.dictate()
         self.engine["active"] = "base"
         status, body = self.dictate()
-        self.assertTrue(body["text"].startswith("[base/en]"), body)
+        self.assertTrue(body["text"].startswith("[base/en offline]"), body)
 
     def test_a_dead_engine_is_started_again(self):
         self.dictate()
