@@ -2,6 +2,8 @@
 """The directives a review checks the code against -- see REVIEW.md, "Directives".
 
     review_directives.py <review dir> [--content <content root>]
+    review_directives.py <review dir> --plan
+    review_directives.py <review dir> --record-checks <use case> '<verdicts>' [--directive <id>]
 
 Every directive of the workshop, top-level or in a bundle, is listed with whether the workshop enables it -- a bundle
 member only while its bundle is enabled -- and whether this review checks it: as the review's own switch says
@@ -162,6 +164,68 @@ def plan(content, review, state, defaults=None):
     return {"reviewers": reviewers, "not-applicable": not_applicable, "file-checks": file_checks}
 
 
+VERDICTS = ("clean", "failed")
+
+
+def record_checks(content, review, use_case, verdicts, defaults=None, directive=None):
+    """Record what every directive found in one use case, in one `record-check`; the recorded checks. The agent gives
+    only its reviewers' verdicts, `{directive: "clean" | "failed" | {"not-applicable": <reason>}}`, for the `flow`
+    directives the plan checks in this use case (a `file` one only when its reviewer failed); the rest is worked out:
+
+    - `findings` -- a finding not deleted names the directive and has a location in the use case's files;
+    - a `file` directive of the plan's `file-checks` for the use case -- `clean` unless it has findings or failed;
+    - the plan's `not-applicable` checks of the use case, as they are.
+
+    A `flow` directive with no verdict and no finding is a gap, a verdict for a directive the use case does not check
+    is a slip, and a `not-applicable` needs its reason: each refuses the whole record. With `directive`, only that
+    directive's checks are worked out and recorded -- the developer switched it on after the use case was reviewed.
+    Raises Refused."""
+    state = review_state.read(pathlib.Path(review))
+    planned = plan(content, review, state, defaults)
+    use_cases = {u["id"]: u for u in (state.get("structure") or {}).get("use-cases", [])}
+    if use_case not in use_cases and use_case != review_state.UNTIED:
+        raise review_state.Refused(f"no use case {use_case!r}")
+    files = set(use_cases[use_case].get("files", [])) if use_case in use_cases else \
+        {path for r in planned["reviewers"] for u in r["use-cases"] if u["id"] == use_case for path in u["files"]}
+    flow = [d["id"] for r in planned["reviewers"] if any(u["id"] == use_case for u in r["use-cases"])
+            for d in r["directives"]]
+    by_file = planned["file-checks"].get(use_case, [])
+    planned_out = [c for c in planned["not-applicable"] if c["use-case"] == use_case]
+    if directive:
+        flow, by_file = [d for d in flow if d == directive], [d for d in by_file if d == directive]
+        planned_out = [c for c in planned_out if c["directive"] == directive]
+    found = {f["directive"] for f in state["findings"] if f["status"] != "deleted" and f.get("directive")
+             and any(loc.get("path") in files for loc in f.get("locations", []))}
+    stray = sorted(set(verdicts) - set(flow) - set(by_file))
+    if stray:
+        raise review_state.Refused(f"{use_case} does not check {', '.join(stray)}")
+    checks = []
+    for name in flow:
+        verdict = verdicts.get(name)
+        if name in found:
+            checks.append({"result": "findings"})
+        elif verdict in VERDICTS:
+            checks.append({"result": verdict})
+        elif isinstance(verdict, dict) and set(verdict) == {"not-applicable"}:
+            if not str(verdict["not-applicable"] or "").strip():
+                raise review_state.Refused(f"not-applicable for {name} needs its reason")
+            checks.append({"result": "not-applicable", "note": verdict["not-applicable"]})
+        elif verdict is None:
+            raise review_state.Refused(f"no verdict for {name} in {use_case}: a gap is never clean")
+        else:
+            raise review_state.Refused(f"{verdict!r} for {name} is not a verdict: clean, failed, "
+                                       f'or {{"not-applicable": <reason>}}')
+        checks[-1].update({"use-case": use_case, "directive": name})
+    for name in by_file:
+        if name in flow:
+            continue
+        result = "findings" if name in found else "failed" if verdicts.get(name) == "failed" else "clean"
+        checks.append({"use-case": use_case, "directive": name, "result": result})
+    checks += [dict(c, result="not-applicable") for c in planned_out]
+    review_state.change(pathlib.Path(review), "record-check", checks)
+    return checks
+
+
 def batches(items, lines):
     """The items in order, cut where the next one would take a batch over `BATCH_LINES` changed lines; `lines` gives
     an item's changed lines."""
@@ -188,12 +252,23 @@ def main(argv):
     parser.add_argument("--content", default=str(CONTENT))
     parser.add_argument("--unscoped", action="store_true", help="print the ids of the checked directives with no row")
     parser.add_argument("--plan", action="store_true", help="print the reviewers the review starts")
+    parser.add_argument("--record-checks", nargs=2, metavar=("USE_CASE", "VERDICTS"),
+                        help="record what every directive found in a use case, from its reviewers' verdicts (JSON)")
+    parser.add_argument("--directive", help="with --record-checks: record only this directive's checks")
     args = parser.parse_args(argv)
     import _settings  # reads the craftsman home, which _reviews names; _reviews imports this module
     if not args.review and not args.unscoped:
         parser.error("the review's folder is needed, except with --unscoped")
     state = review_state.read(pathlib.Path(args.review)) if args.review else {}
     content = pathlib.Path(args.content).expanduser()
+    if args.record_checks:
+        use_case, verdicts = args.record_checks
+        try:
+            print(json.dumps(record_checks(content, args.review, use_case, json.loads(verdicts),
+                                           _settings.review_directives(), directive=args.directive), indent=2))
+        except (review_state.Refused, ValueError) as refused:
+            sys.exit(f"review_directives: {refused}")
+        return 0
     if args.plan:
         print(json.dumps(plan(content, args.review, state, _settings.review_directives()), indent=2))
         return 0

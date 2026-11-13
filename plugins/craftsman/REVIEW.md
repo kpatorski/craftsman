@@ -215,7 +215,10 @@ only when the search is `requested`. "Check now" on the Rules tab works as it do
 - `status` — `proposed`, `to-send`, `sent`, `deleted`, `maybe-resolved`, or `merged`. The AI Agent's finding starts
   `proposed`; the developer's own starts `to-send`.
 - `merged-into` — for `merged` only: the id of the finding this one was joined into, as one problem in several
-  places. A `merged` finding is never sent; the page shows it folded under that finding.
+  places. A `merged` finding is never sent; the page shows it folded under that finding. The agent joins findings
+  with `scripts/dedupe_findings.py`: `candidates` lists those of one directive and kind in different use cases; `join`
+  carries out the groups the agent judged one problem each — into the developer's finding if one is, else the earliest
+  in the walk, with every place in walk order — and leaves apart a group with two findings of the developer.
 - `edited` — the fields the developer changed: any of `title`, `description`, `comment`, `severity`.
 - `in-prompt` — `false` when the developer leaves the finding out of the fix prompts; missing or `true` otherwise. Set
   with `review_state.py <review dir> in-prompt <id> '{"included": true | false}' --by developer`, also once the
@@ -351,9 +354,11 @@ A test file is one in a `test`, `tests` or `__tests__` folder, or named `*Test.*
 - `checks` — what each directive found in each use case: `{"use-case", "directive", "result", "note", "at"}`, where
   `use-case` is a use case's id or `untied` (the changed files no use case reaches), and `result` is `findings`,
   `clean`, `not-applicable` (with the reviewer's reason in `note`) or `failed` (the reviewer did not answer for it). A
-  later check of the same directive in the same use case replaces the earlier one. Only the agent records them:
-  `review_state.py <review dir> record-check '{"use-case", "directive", "result", "note"}'`, or a list of them in one
-  call, recorded all or none.
+  later check of the same directive in the same use case replaces the earlier one. Only the agent records them, with
+  `review_directives.py <review dir> --record-checks <use case> '<verdicts>' [--directive <id>]`: the agent gives only
+  its reviewers' verdicts — `"clean"`, `"failed"` or `{"not-applicable": "<reason>"}` per `flow` directive with no
+  finding — and the script works out `findings` from the findings, adds the plan's `file-checks` and `not-applicable`
+  checks, refuses a gap, and records them all in one `record-check`, all or none.
 
 The Rules tab lists every directive with its switch and a dot per use case for what it found there; a directive
 switched on with a reviewed use case it has not checked offers "Check now", which asks the agent to check it there.

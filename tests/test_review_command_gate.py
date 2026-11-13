@@ -100,6 +100,8 @@ class ReadingRunsTest(GateCase):
             f"python3 {state} {self.review} set '{{\"language\": \"Polish\"}}'",
             f"python3 {SCRIPTS / 'review_directives.py'} {self.review}",
             f"python3 {SCRIPTS / 'refresh_review.py'} {self.review}",
+            f"python3 {SCRIPTS / 'dedupe_findings.py'} {self.review} candidates",
+            f"python3 {SCRIPTS / 'verify_quotes.py'} --root {self.worktree} --reviewer '{{}}'",
             f"git log -1 && git -C {self.worktree} diff --stat a...b",
             "git rev-parse HEAD || git log -1",
             "git log --oneline | head -5",

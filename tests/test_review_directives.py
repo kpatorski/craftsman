@@ -377,6 +377,82 @@ class CheckPlanTest(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertFalse(review_directives.is_test(path))
 
+    def finding(self, directive, path, status=None):
+        found = review_state.change(self.review, "add-finding", {
+            "category": "naming", "title": "t", "description": "d", "comment": "c", "kind": "violation",
+            "severity": "nit", "directive": directive,
+            "locations": [{"path": path, "line": 1, "side": "RIGHT", "commit": "bbb"}]})
+        if status:
+            review_state.change(self.review, "set-status", {"status": status}, by="developer", item_id=found)
+
+    def record(self, use_case, verdicts):
+        review_directives.record_checks(self.content, self.review, use_case, verdicts)
+        return {(c["use-case"], c["directive"]): (c["result"], c["note"])
+                for c in review_state.read(self.review)["checks"]}
+
+    def test_a_use_cases_checks_are_worked_out_from_the_findings_the_plan_and_the_reviewers_verdicts(self):
+        self.finding("naming", "src/main/CancelRequest.java")
+        self.assertEqual(self.record("u1", {"test-naming": "clean"}), {
+            ("u1", "test-naming"): ("clean", None), ("u1", "naming"): ("findings", None),
+            ("u1", "no-explanatory-comments"): ("clean", None)})
+
+    def test_a_use_case_with_no_reviewer_of_its_own_records_the_plan(self):
+        checks = self.record("u2", {})
+        self.assertEqual(checks[("u2", "naming")], ("clean", None))
+        self.assertEqual(checks[("u2", "test-naming")], ("not-applicable", "no test files in this use case"))
+
+    def test_a_finding_naming_the_directive_wins_over_the_reviewers_verdict(self):
+        self.finding("test-naming", "src/test/CancelTest.java")
+        self.assertEqual(self.record("u1", {"test-naming": "clean"})[("u1", "test-naming")], ("findings", None))
+
+    def test_a_finding_in_another_use_cases_files_counts_there_only(self):
+        self.finding("naming", "src/main/Release.java")
+        self.assertEqual(self.record("u1", {"test-naming": "clean"})[("u1", "naming")], ("clean", None))
+
+    def test_a_directive_checked_on_its_own_leaves_the_plans_other_checks_alone(self):
+        review_directives.record_checks(self.content, self.review, "u2", {}, directive="naming")
+        self.assertEqual([(c["use-case"], c["directive"]) for c in review_state.read(self.review)["checks"]],
+                         [("u2", "naming")])
+
+    def test_a_deleted_finding_counts_for_nothing(self):
+        self.finding("naming", "src/main/Cancel.java", status="deleted")
+        self.assertEqual(self.record("u1", {"test-naming": "clean"})[("u1", "naming")], ("clean", None))
+
+    def test_the_reviewers_reason_and_failure_are_recorded(self):
+        checks = self.record("u1", {"test-naming": {"not-applicable": "no test of a use case"},
+                                    "naming": "failed"})
+        self.assertEqual(checks[("u1", "test-naming")], ("not-applicable", "no test of a use case"))
+        self.assertEqual(checks[("u1", "naming")], ("failed", None))
+
+    def test_a_gap_a_stray_directive_or_a_reasonless_not_applicable_records_nothing(self):
+        for verdicts, named in (({}, "test-naming"), ({"test-naming": "clean", "security": "clean"}, "security"),
+                                ({"test-naming": {"not-applicable": ""}}, "reason"),
+                                ({"test-naming": "fine"}, "fine")):
+            with self.subTest(verdicts=verdicts):
+                with self.assertRaises(review_state.Refused) as refused:
+                    self.record("u1", verdicts)
+                self.assertIn(named, str(refused.exception))
+                self.assertEqual(review_state.read(self.review)["checks"], [])
+
+    def test_a_directive_checked_on_its_own_records_only_its_own_checks(self):
+        self.record("u1", {"test-naming": "clean"})
+        review_directives.record_checks(self.content, self.review, "u1", {"test-naming": "failed"},
+                                        directive="test-naming")
+        checks = {(c["use-case"], c["directive"]): c["result"] for c in review_state.read(self.review)["checks"]}
+        self.assertEqual(checks, {("u1", "test-naming"): "failed", ("u1", "naming"): "clean",
+                                  ("u1", "no-explanatory-comments"): "clean"})
+        review_directives.record_checks(self.content, self.review, "u2", {}, directive="test-naming")
+        self.assertEqual(review_state.read(self.review)["checks"][-1]["result"], "not-applicable")
+
+    def test_the_agent_records_a_use_cases_checks_from_the_command_line(self):
+        done = subprocess.run([sys.executable, str(SCRIPTS / "review_directives.py"), str(self.review),
+                               "--content", str(self.content), "--record-checks", "u1", '{"test-naming": "clean"}'],
+                              capture_output=True, text=True, timeout=30,
+                              env={**os.environ, "CRAFTSMAN_HOME": str(self.root / "home")})
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(len(json.loads(done.stdout)), 3)
+        self.assertEqual(len(review_state.read(self.review)["checks"]), 3)
+
     def test_the_agent_reads_the_plan_from_the_command_line(self):
         done = subprocess.run([sys.executable, str(SCRIPTS / "review_directives.py"), str(self.review),
                                "--content", str(self.content), "--plan"], capture_output=True, text=True,

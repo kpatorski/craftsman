@@ -8,6 +8,12 @@ not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets s
 - The dashboard server opens a review itself before its session starts: it reads the PR or the branches, fetches
   them, makes the worktree and the diff, and creates the review state (`REVIEW.md`, "Opening a review"). A source it
   cannot open refuses the start with why. The session only settles the comment language, then reviews.
+- `review_directives.py --record-checks` works out a use case's directive checks from the findings, the plan and the
+  reviewers' verdicts, and refuses a gap; the agent gives only the verdicts.
+- `dedupe_findings.py` lists the findings that may be one problem across use cases and carries out the joins the
+  agent decides: the finding they go into, the order of the places, a pair of the developer's own kept apart.
+- `verify_quotes.py` looks up what a subagent quotes: a researcher's quotes in their files, and a directive reviewer's
+  quoted rules and `file:line`s. A run checks quotes with it instead of reading (`EXECUTION.md`).
 - `refresh_review.py` does the mechanical part of a refresh — fetch, conversation, worktree, diff, state, use cases
   back to `pending` — and prints what the agent weighs (`REVIEW.md`, "Refreshing a review").
 

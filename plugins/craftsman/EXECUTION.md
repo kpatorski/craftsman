@@ -238,9 +238,12 @@ goes to reviewers that start fresh, see only the change and the rules, and canno
    reviewer per group of at most six directives, all groups started in the same turn so they run in parallel. Each
    prompt carries the diff file's path, the new files' paths and its group's directive paths, and nothing about how the
    code came to be: the reviewer is meant to know only the change and the rules.
-4. **Verify every finding.** A reviewer reports all it sees, not a filtered list. Open each `VIOLATION` and each
-   `CONVENTION` at its `file:line` and check it against the quoted rule; for a `CONVENTION`, open the existing line
-   it points to as well. Then sort what holds:
+4. **Verify every finding.** A reviewer reports all it sees, not a filtered list. First pass its answer to
+   `scripts/verify_quotes.py --root <the project, or the review's worktree> --reviewer '{"<directive id>": "<directive
+   path>", ...}'` on stdin: a line whose quoted rule is not in its directive, or whose `file:line` (or a
+   `CONVENTION`'s existing line) does not exist, does not hold — it is disputed with the script's reason, without
+   reading further. Open each line that holds at its `file:line` and check it against the quoted rule; for a
+   `CONVENTION`, open the existing line it points to as well. Then sort what holds:
    - **already settled** — the Checkpoint log of this run records the developer's decision on this very point (the
      same directive on the same code, chosen or left as is at an earlier checkpoint). Not fixed and not asked
      again. The reviewer is never told about earlier decisions — it stays fresh; the run does this sorting.
@@ -291,8 +294,9 @@ helper only adds cost.
    shape — one line per item, each with its source location and the exact words it rests on.
 3. **Check what comes back before using it.** Every part must report `COVERED`. A `PARTIAL`, a `FAILED` line or a
    helper that did not return is a gap: run that part once more, then do it directly. Check that each quote exists
-   where it is said to (`Grep`) — an item whose quote is not in the source is dropped and counted. Never treat a
-   part that was not read as a part with nothing in it.
+   where it is said to with `scripts/verify_quotes.py --root <folder>`, every item's `{"path", "line", "quote"}` in
+   one JSON list on stdin — an item whose quote is not found is dropped and counted. Never treat a part that was not
+   read as a part with nothing in it.
 4. **Carry on as if the run had done the reading itself.** The results are material for the step, in input order:
    the step's own rules, its writes and its checkpoint follow unchanged, here, in the run. Note the delegation on
    the step's Call stack line (`active — 6 sections read in parallel`).
