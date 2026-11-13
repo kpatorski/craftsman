@@ -16,9 +16,9 @@ import re
 import subprocess
 import threading
 
+import model_tiers
 import review_state
 
-MODEL = os.environ.get("CRAFTSMAN_PREVIEW_MODEL", "haiku")
 DIRECTIVES = ("review-comment", "review-posture", "engineer-prose")
 AROUND = 20  # lines of code shown before and after the lines a draft is about
 LONGEST = 400  # lines of a file's diff shown for a draft about the whole file
@@ -216,12 +216,13 @@ def answer_of(output):
 
 
 def preview(review, path, text, lines=None, side="RIGHT", content=None, command=None, timeout=120, style=None,
-            severity=None):
+            severity=None, model=None):
     """The draft written as a finding, in the shape asked for, or None when a newer draft of the same file came in
-    meanwhile. `severity` is the one the reviewer picked, if they did."""
+    meanwhile. `severity` is the one the reviewer picked, if they did; `model` is the model the call runs on, the
+    fast tier's (model_tiers.py) unless given."""
     state = review_state.read(review)
     argv = (command or claude_command()) + [
-        "-p", "--model", MODEL, "--tools", "", "--no-session-persistence", "--strict-mcp-config",
+        "-p", "--model", model or model_tiers.model("fast"), "--tools", "", "--no-session-persistence", "--strict-mcp-config",
         "--setting-sources", "", "--output-format", "json", "--json-schema", json.dumps(SCHEMA)]
     key = (str(pathlib.Path(review).resolve()), path)
     call = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,

@@ -3,6 +3,16 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.28.0
+
+- craftsman names work by model tier — `fast`, `balanced`, `deep` — never by model: `EXECUTION.md`, "Choosing a
+  model". Each tier's model is set in the dashboard's Manage view (`models` in `~/.craftsman/settings.json`); unset,
+  `fast` is `haiku`, `balanced` is `sonnet`, `deep` is `opus`.
+- Every subagent of a run starts on the model of the tier its work needs. The new `model_gate.py` hook refuses, during
+  a run, an `Agent` call with no `model` or with a model no tier is mapped to, and gives the mapping.
+- A review's session runs on the `deep` tier's model, the draft preview on the `fast` tier's; `CRAFTSMAN_PREVIEW_MODEL`
+  is gone.
+
 ## 0.27.0
 
 - The search for findings runs only when asked for. Once the PR is understood, the review asks on the page whether to

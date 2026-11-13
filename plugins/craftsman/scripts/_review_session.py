@@ -21,6 +21,7 @@ import time
 import _checkout as checkouts
 import _reviews as reviews
 import _settings
+import model_tiers
 import review_state
 
 SCRIPTS = pathlib.Path(__file__).resolve().parent
@@ -116,8 +117,10 @@ class ReviewSession:
     """One review's session. It runs in the developer's checkout of the repository, given when the review starts and
     read from `review.json` when it resumes."""
 
-    def __init__(self, review_id, checkout=None, command=None):
+    def __init__(self, review_id, checkout=None, command=None, model=None):
+        """`model` is the model the session runs on; the deep tier's (model_tiers.py) unless given."""
         self.review = reviews.reviews_root() / review_id
+        self.model = model
         self.checkout = pathlib.Path(checkout) if checkout else None
         self.command = command or claude_command()
         self.process = None
@@ -278,12 +281,14 @@ class ReviewSession:
         self.background = 0
         self.requests = {}
         argv = self.command + ["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
-                               "--replay-user-messages", "--permission-mode", "manual",
+                               "--replay-user-messages", "--model", self.model or model_tiers.model("deep"), "--permission-mode", "manual",
                                "--permission-prompt-tool", "stdio", "--add-dir", str(self.review),
                                "--allowedTools", *allowed_tools(self.checkout)] + extra
         errors = (self.review / "session.stderr").open("a")
+        # CRAFTSMAN_RUN tells the plugin's hooks that this session is a craftsman run (model_gate.py)
         self.process = subprocess.Popen(argv, cwd=self.checkout, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                        stderr=errors, text=True, bufsize=1)
+                                        stderr=errors, text=True, bufsize=1,
+                                        env=dict(os.environ, CRAFTSMAN_RUN="pr-review"))
         errors.close()
         self.reader = threading.Thread(target=self.read, args=(self.process,), daemon=True)
         self.reader.start()

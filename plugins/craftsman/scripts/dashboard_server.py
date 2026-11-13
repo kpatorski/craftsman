@@ -50,6 +50,7 @@ import review_state  # noqa: E402
 import send_review  # noqa: E402
 from _markdown import MD_CSS, render_markdown  # noqa: E402
 import _theme  # noqa: E402
+import model_tiers  # noqa: E402
 
 STATE = pathlib.Path.home() / ".claude" / "craftsman-dashboard.json"
 LOG = pathlib.Path.home() / ".claude" / "craftsman-dashboard.log"
@@ -248,6 +249,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.stream()
         if url.path == "/api/dictate":
             return self.send(200, self.hub.speech.status())
+        if url.path == "/api/models":
+            return self.send(200, model_tiers.listing())
         if url.path == "/api/theme":
             current = _theme.chosen()
             return self.send(200, dict(current=current, palettes=_theme.palettes(), css=_theme.theme_css(current)))
@@ -458,6 +461,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, dict(path=checkouts.browse()))
             except review_state.Refused as refusal:
                 return self.send(409, dict(error=str(refusal)))
+        if url.path == "/api/models":
+            try:
+                model_tiers.set_model(str(body.get("tier", "")), body.get("model"))
+            except ValueError as refusal:
+                return self.send(400, dict(error=str(refusal)))
+            return self.send(200, model_tiers.listing())
         if url.path == "/api/theme":
             try:
                 _theme.choose(str(body.get("id", "")))

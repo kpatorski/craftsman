@@ -16,6 +16,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from _session import (current_path, directives_in_effect, find_directive_file, find_protocol_file,  # noqa: E402
                       next_line, open_sessions)
 from render_status import content_root  # noqa: E402
+import model_tiers  # noqa: E402
 
 
 def describe(session, root):
@@ -48,7 +49,9 @@ def main():
         context = ("craftsman: the conversation was just compacted while a run is open. Compaction dropped the text "
                    "of the directives and protocols this run follows; the summary is not a substitute for them. "
                    "Before taking the next step, read every file listed below in full, then continue from the "
-                   "current step (EXECUTION.md, \"Resuming\" -- no need to ask again where to resume).\n\n"
+                   "current step (EXECUTION.md, \"Resuming\" -- no need to ask again where to resume). A subagent "
+                   f"starts on the model of the tier its work needs: {model_tiers.described()} (EXECUTION.md, "
+                   "\"Choosing a model\").\n\n"
                    + "\n\n".join(describe(s, root) for s in sessions))
         print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": context}}))
     except Exception as error:  # a failed reminder must never break the session

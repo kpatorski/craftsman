@@ -234,10 +234,10 @@ goes to reviewers that start fresh, see only the change and the rules, and canno
    project, or the protocol's narrower scope — into a file in the system temp folder, plus the list of new files
    (a new file is read in full, not through the diff).
 3. **Start the reviewers.** Use the `Agent` tool with `subagent_type: "craftsman:directive-reviewer"` — a read-only
-   agent (Read, Grep, Glob) shipped with the plugin. One reviewer per group of at most six directives, all groups
-   started in the same turn so they run in parallel. Each prompt carries the diff file's path, the new files'
-   paths and its group's directive paths, and nothing about how the code came to be: the reviewer is meant to know
-   only the change and the rules.
+   agent (Read, Grep, Glob) shipped with the plugin, on the `balanced` tier's model (see "Choosing a model"). One
+   reviewer per group of at most six directives, all groups started in the same turn so they run in parallel. Each
+   prompt carries the diff file's path, the new files' paths and its group's directive paths, and nothing about how the
+   code came to be: the reviewer is meant to know only the change and the rules.
 4. **Verify every finding.** A reviewer reports all it sees, not a filtered list. Open each `VIOLATION` and each
    `CONVENTION` at its `file:line` and check it against the quoted rule; for a `CONVENTION`, open the existing line
    it points to as well. Then sort what holds:
@@ -284,11 +284,11 @@ helper only adds cost.
 
 1. **Split by independent part** — a section of the input, a module, a set of files — and keep the parts in their
    original order.
-2. **Start the helpers** with the `Agent` tool, `subagent_type: "craftsman:researcher"` (Read, Grep, Glob only), all
-   in one turn so they run in parallel, at most eight at a time. A helper knows nothing of this run. Its prompt must
-   carry: the part — as a file and line range, or a folder — and what to find in it; the full paths of the protocol
-   and directives whose rules govern the result; and the answer's shape — one line per item, each with its source
-   location and the exact words it rests on.
+2. **Start the helpers** with the `Agent` tool, `subagent_type: "craftsman:researcher"` (Read, Grep, Glob only), all in
+   one turn so they run in parallel, at most eight at a time, each on the model of the tier "Choosing a model" gives its
+   part. A helper knows nothing of this run. Its prompt must carry: the part — as a file and line range, or a folder —
+   and what to find in it; the full paths of the protocol and directives whose rules govern the result; and the answer's
+   shape — one line per item, each with its source location and the exact words it rests on.
 3. **Check what comes back before using it.** Every part must report `COVERED`. A `PARTIAL`, a `FAILED` line or a
    helper that did not return is a gap: run that part once more, then do it directly. Check that each quote exists
    where it is said to (`Grep`) — an item whose quote is not in the source is dropped and counted. Never treat a
@@ -298,6 +298,35 @@ helper only adds cost.
    the step's Call stack line (`active — 6 sections read in parallel`).
 
 Without the `Agent` tool, do the work directly, part by part.
+
+## Choosing a model
+
+A run is an orchestrator: it holds the developer's decisions and the judgement, and hands bounded work to subagents.
+Subagents cost tokens many times over, so each one runs on the cheapest model that does its work well — the pattern
+Anthropic describes for its own multi-agent research system, a strong lead with cheaper subagents
+([How we built our multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system)).
+
+craftsman names the work by tier, never by model. Each tier is a model the developer chooses in the dashboard's Manage
+view; `scripts/model_tiers.py` holds the defaults and, run on its own, prints the mapping in effect
+(`fast = …, balanced = …, deep = …`).
+
+| Tier       | Work                                                                                                    |
+|------------|---------------------------------------------------------------------------------------------------------|
+| `deep`     | Analysis nobody has done yet: finding the structure of a change, weighing a design, an open question    |
+| `balanced` | Steps already laid out by a protocol or by the run: checking given rules on a given diff, reading parts |
+| `fast`     | Mechanical work with a fixed answer: listing, locating, extracting quoted lines, summarising one file   |
+
+- Every subagent — the plugin's `craftsman:directive-reviewer` and `craftsman:researcher` as much as
+  `general-purpose`, `Explore`, `Plan` or an agent of the developer's — is started with `model` set to the model of
+  the tier its work needs. During a run the plugin's `model_gate.py` hook refuses an `Agent` call with no `model` or
+  with a model no tier is mapped to, and its reason gives the mapping. After a compaction the mapping comes back with
+  the run's files.
+- When in doubt between two tiers, take the cheaper one and verify what comes back; verifying is the run's work
+  anyway. A subagent that fails on the cheaper tier is run again once on the next one up.
+- The run itself — the developer's checkpoints, verifying what subagents report, every decision — is `deep` work. Its
+  model is the model of the session it runs in, which the developer picks when starting Claude Code. A review's
+  session, which the dashboard server starts, runs on the `deep` tier's model; the review page's draft preview runs
+  on the `fast` tier's (`REVIEW.md`).
 
 ## Checkpoint protocol
 

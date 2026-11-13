@@ -1,5 +1,5 @@
 {
-  "description": "craftsman: no commit without the developer's answer during a run; reload a run's rules after compaction; keep session files well-formed",
+  "description": "craftsman: no commit without the developer's answer during a run; every subagent of a run on a tier's model; reload a run's rules after compaction; keep session files well-formed",
   "hooks": {
     "PreToolUse": [
       {
@@ -8,6 +8,15 @@
           {
             "type": "command",
             "command": "python3 \"${CLAUDE_PLUGIN_ROOT}\"/scripts/commit_gate.py"
+          }
+        ]
+      },
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}\"/scripts/model_gate.py"
           }
         ]
       }

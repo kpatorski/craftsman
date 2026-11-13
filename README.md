@@ -128,7 +128,8 @@ from — a repository with one task per sub-folder needs starting only once, fro
 (or the × next to the project's name on the page) takes the current one — or `remove <dir>`, any other — off it again,
 without touching its files. `/craftsman:dashboard status` tells whether it runs; `/craftsman:dashboard off` stops it. It
 also stops by itself after 8 hours with no page open. ◐ Palette in its top bar picks the colours of every craftsman
-page: nine dark palettes and a light one.
+page: nine dark palettes and a light one. Manage → Models picks the model behind each tier craftsman uses — `fast`,
+`balanced`, `deep`.
 
 Nothing needs installing beyond `python3`, which craftsman's scripts already use. On WSL 2 the address opens as is
 in a Windows browser. The server is optional: without it, every file a run writes is still announced with its full

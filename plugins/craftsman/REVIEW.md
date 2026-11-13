@@ -222,14 +222,14 @@ Only the developer writes them, with `review_state.py <review dir> <command> '<p
 With the panel's "AI Agent assistant" switch on, the default, the developer writes or dictates their thoughts in their
 own words, and AI Agent writes them up as the finding: a moment after the developer stops, the page asks the server's
 `/api/review/draft-preview`. The server runs a short Claude call of its own for it (`scripts/_draft_preview.py`), not
-the review's session, with a small model (`haiku`, or `CRAFTSMAN_PREVIEW_MODEL`) and no tools. Its prompt holds the
-draft, the code around the draft's lines from the diff, the `code-review` bundle's directives `review-comment`,
-`review-posture` and `engineer-prose`, the findings already in the file, the review's categories and its `language`,
-the shape of the comment asked for, and the severity when the developer picked one. It answers the title, category,
-severity, description and comment, in the review's language whatever the draft's, and the finding of the file it
-repeats. A newer draft of the same file stops the call still running for the older one. The panel shows the answer
-above the draft, and "Make it a finding" sends it with `draft-to-finding`. "Make it a finding" waits while AI Agent
-writes, and while its comment is older than the draft.
+the review's session, on the `fast` tier's model (`EXECUTION.md`, "Choosing a model") and with no tools. Its prompt
+holds the draft, the code around the draft's lines from the diff, the `code-review` bundle's directives
+`review-comment`, `review-posture` and `engineer-prose`, the findings already in the file, the review's categories and
+its `language`, the shape of the comment asked for, and the severity when the developer picked one. It answers the
+title, category, severity, description and comment, in the review's language whatever the draft's, and the finding of
+the file it repeats. A newer draft of the same file stops the call still running for the older one. The panel shows the
+answer above the draft, and "Make it a finding" sends it with `draft-to-finding`. "Make it a finding" waits while AI
+Agent writes, and while its comment is older than the draft.
 
 The shape of the comment asked for wins where it differs from the directives:
 
@@ -392,7 +392,8 @@ time it reads the state.
 ## The review's session
 
 The dashboard server runs the review's Claude session headless: `claude -p`, in the checkout, with the review folder —
-which holds `worktree/` — as a second working directory (`--add-dir`). The tools on a fixed list run without asking:
+which holds `worktree/` — as a second working directory (`--add-dir`), on the `deep` tier's model — see `EXECUTION.md`,
+"Choosing a model". The tools on a fixed list run without asking:
 
 - reading and searching files, subagents, skills;
 - `git` and `gh` commands, each started as `git …` or `gh …` — git in the worktree runs as `git -C <worktree> …`,

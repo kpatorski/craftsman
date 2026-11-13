@@ -106,8 +106,10 @@ class HookCase(unittest.TestCase):
         git(self.project, "add", name)
         git(self.project, "commit", "-q", "-m", f"Add {name}")
 
-    def run_hook(self, script, payload):
-        env = dict(os.environ, CLAUDE_PLUGIN_DATA=str(self.data), CRAFTSMAN_CONTENT_ROOT=str(self.content))
+    def run_hook(self, script, payload, env_extra=None):
+        env = dict(os.environ, CLAUDE_PLUGIN_DATA=str(self.data), CRAFTSMAN_CONTENT_ROOT=str(self.content),
+                   CRAFTSMAN_HOME=str(self.tmp / "no-home"))
+        env.update(env_extra or {})
         payload = {"session_id": "s1", "cwd": str(self.project), **payload}
         done = subprocess.run([sys.executable, str(SCRIPTS / script)], input=json.dumps(payload),
                               capture_output=True, text=True, env=env, timeout=30)
@@ -202,6 +204,58 @@ class CommitGateTest(HookCase):
         self.assertIsNone(self.try_bash("git commit -m x"))
 
 
+class ModelGateTest(HookCase):
+    """A craftsman run starts every subagent on the model of a tier it chose -- EXECUTION.md, "Choosing a model"."""
+
+    def spawn(self, subagent_type, model=None, env=None):
+        tool_input = {"prompt": "Read the diff.", "description": "Review", "subagent_type": subagent_type}
+        if model:
+            tool_input["model"] = model
+        payload = {"hook_event_name": "PreToolUse", "tool_name": "Agent", "tool_input": tool_input}
+        return self.run_hook("model_gate.py", payload, env)
+
+    def assert_denied(self, result, *phrases):
+        self.assertIsNotNone(result, "expected a deny decision, got no objection")
+        out = result["hookSpecificOutput"]
+        self.assertEqual(out["permissionDecision"], "deny")
+        for phrase in ("Choosing a model", "fast = haiku, balanced = sonnet, deep = opus") + phrases:
+            self.assertIn(phrase, out["permissionDecisionReason"])
+
+    def test_a_subagent_started_in_a_run_without_a_model_is_refused(self):
+        self.session()
+        for subagent in ("general-purpose", "Explore", "craftsman:directive-reviewer", "craftsman:researcher"):
+            with self.subTest(subagent=subagent):
+                self.assert_denied(self.spawn(subagent))
+
+    def test_a_subagent_on_a_tiers_model_is_let_through(self):
+        self.session()
+        for model in ("haiku", "sonnet", "opus"):
+            with self.subTest(model=model):
+                self.assertIsNone(self.spawn("craftsman:researcher", model=model))
+
+    def test_a_model_no_tier_is_mapped_to_is_refused(self):
+        self.session()
+        self.assert_denied(self.spawn("general-purpose", model="fable"), "`fable`")
+
+    def test_the_developers_own_mapping_decides(self):
+        self.session()
+        home = self.tmp / "home"
+        home.mkdir()
+        (home / "settings.json").write_text(json.dumps({"models": {"deep": "fable"}}))
+        env = {"CRAFTSMAN_HOME": str(home)}
+        self.assertIsNone(self.spawn("general-purpose", model="fable", env=env))
+        self.assertIsNotNone(self.spawn("general-purpose", model="opus", env=env))
+
+    def test_the_review_session_is_a_run_too(self):
+        self.assert_denied(self.spawn("general-purpose", env={"CRAFTSMAN_RUN": "pr-review"}))
+
+    def test_outside_a_craftsman_run_nothing_is_checked(self):
+        self.assertIsNone(self.spawn("general-purpose"))
+        self.assertIsNone(self.spawn("general-purpose", model="fable"))
+        self.session(state="done")
+        self.assertIsNone(self.spawn("general-purpose"))
+
+
 class ReloadAfterCompactTest(HookCase):
     def compacted(self):
         return self.run_hook("reload_after_compact.py", {"hook_event_name": "SessionStart", "source": "compact"})
@@ -222,6 +276,7 @@ class ReloadAfterCompactTest(HookCase):
         self.assertIn(str(self.content / "bundles" / "java" / "directives" / "prefer-lombok" / "directive.md"), context)
         self.assertIn(str(self.content / "bundles" / "tdd" / "protocols" / "finish-loop" / "protocol.md"), context)
         self.assertIn("finish-loop checkpoint.", context)
+        self.assertIn("fast = haiku, balanced = sonnet, deep = opus", context)
 
     def test_reads_the_older_session_format_too(self):
         path = self.session()

@@ -304,6 +304,11 @@ the open page changes at once, and another open page changes when it comes back 
 `theme` in `~/.craftsman/settings.json`, and the report and diff files rendered afterwards use it too. Graphite is
 the palette until one is picked.
 
+**Model tiers.** The Manage view's Models section maps each tier — `fast`, `balanced`, `deep` (`EXECUTION.md`,
+"Choosing a model") — to a model: an alias Claude Code knows or a full model id, suggested from `availableModels` in
+Claude Code's own settings when the developer has set a lineup there. The mapping is kept as `models` in
+`~/.craftsman/settings.json`; an empty field brings back the tier's default from `scripts/model_tiers.py`.
+
 `scripts/render_dashboard.py` still renders the old static, read-only snapshot of the installed content to a
 single HTML file — kept for a machine where a local server is not wanted; the skill no longer uses it.
 
@@ -312,7 +317,9 @@ single HTML file — kept for a machine where a local server is not wanted; the 
 Instructions in these files guide the model; they cannot guarantee it follows them, and the rules that matter most
 were the ones broken live. The plugin therefore ships `hooks/hooks.json`, which Claude Code loads with the plugin —
 no setup. Every hook is a no-op unless the working folder holds an open craftsman run (a session file whose State is
-`active` or `blocked`), and a hook that fails internally objects to nothing: it never blocks unrelated work.
+`active` or `blocked`) — or, for the model gate, the session is a review's, which the dashboard server starts with
+`CRAFTSMAN_RUN` in its environment — and a hook that fails internally objects to nothing: it never blocks unrelated
+work.
 
 - **Commit gate** — `scripts/commit_gate.py`. `UserPromptSubmit` and `PostToolUse` on `AskUserQuestion` record that the
   developer has spoken; the model cannot produce either event, which is what makes it a real signal. `PreToolUse` on
@@ -322,11 +329,15 @@ no setup. Every hook is a no-op unless the working folder holds an open craftsma
   session file's Checkpoint log ends with an entry carrying an **Answer:**. The deny reason says which condition failed
   and what to do. An explicit request from the developer to commit is a reply like any other. State:
   `${CLAUDE_PLUGIN_DATA}/human-turns.json`, one timestamp per Claude session, entries older than 14 days dropped.
-- **Reload after compaction** — `scripts/reload_after_compact.py`, on `SessionStart` with source `compact`. Adds to
-  the context the open run's session file, current step, Next line, and the full path of the current step's
-  protocol and of every directive in **Directives in effect** (or says which could not be found), with the
-  instruction to read them again before the next step — see `EXECUTION.md`, "Resuming", "After a compaction". It
-  names files rather than pasting them, so the injected text stays short and can never be a stale copy.
+- **Model gate** — `scripts/model_gate.py`, on `PreToolUse` for `Agent` (and `Task`, its older name). During a run, an
+  `Agent` call that names no `model`, or a model no tier is mapped to (`scripts/model_tiers.py`), is denied. The deny
+  reason points at `EXECUTION.md`, "Choosing a model", and gives each tier's model, so the run picks the tier by the
+  work and starts the subagent again.
+- **Reload after compaction** — `scripts/reload_after_compact.py`, on `SessionStart` with source `compact`. Adds to the
+  context the open run's session file, current step, Next line, and the full path of the current step's protocol and of
+  every directive in **Directives in effect** (or says which could not be found), and each model tier's model, with the
+  instruction to read them again before the next step — see `EXECUTION.md`, "Resuming", "After a compaction". It names
+  files rather than pasting them, so the injected text stays short and can never be a stale copy.
 
 - **Session file check** — `scripts/session_check.py`, on `PostToolUse` for `Write|Edit` of a `.claude/sessions/*.md`
   file, and for a `Bash` command that names a `.claude/sessions` path (a shell command does not say which file it

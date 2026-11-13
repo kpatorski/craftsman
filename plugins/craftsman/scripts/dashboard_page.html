@@ -71,6 +71,10 @@
   .id { font-family: var(--mono); font-size: .75rem; color: var(--muted); }
   .arrow { color: var(--green); margin: 0 6px; }
   .kv { display: grid; grid-template-columns: 80px 1fr; gap: 3px 12px; font-size: .8438rem; }
+  .tiers { display: grid; grid-template-columns: 90px 1fr 220px auto; gap: 8px 12px; align-items: center; font-size: .8438rem; }
+  .tiers .tier { font-family: var(--mono); color: var(--heading); }
+  .tiers input { background: var(--panel2); color: var(--text); border: 1px solid var(--border); border-radius: 4px;
+    padding: 3px 6px; font-family: var(--mono); font-size: .75rem; }
   .kv > :nth-child(odd) { color: var(--muted); text-transform: uppercase; font-size: .6875rem; letter-spacing: .5px; padding-top: 3px; }
 
   .badge { display: inline-block; font-size: .6875rem; padding: 0 7px; border-radius: 9px; border: 1px solid var(--border);
@@ -208,7 +212,9 @@ function ingest(data) {
   if (current.type === "lib" && !libById[current.id]) current = { type: "library" };
   loaded = true;
 }
+let MODELS = null;
 async function reload() {
+  MODELS = await fetch("/api/models").then(r => r.json()).catch(() => null);
   const r = await fetch("/api/data" + (project ? "?project=" + encodeURIComponent(project) : ""));
   if (!r.ok) { document.getElementById("centre").innerHTML = `<div class="view"><h1>No project</h1><div class="muted">Start the dashboard from a project: /craftsman:dashboard</div></div>`; return; }
   ingest(await r.json()); render(); flashKeys.clear();
@@ -632,10 +638,30 @@ function viewManage() {
     `They need the agent's judgement (duplicates, update conflicts), so the dashboard hands you the command instead of running it.</div>` +
     cmd("/craftsman:install https://github.com/kpatorski/craftsman-workshop") +
     cmd("claude plugin marketplace update craftsman && claude plugin update craftsman@craftsman") +
-    cmd("/craftsman:uninstall <id>") + cmd("/craftsman:merge") + cmd("/craftsman:dashboard off");
+    cmd("/craftsman:uninstall <id>") + cmd("/craftsman:merge") + cmd("/craftsman:dashboard off") + viewModels();
+}
+function viewModels() {
+  if (!MODELS) return "";
+  const row = t => `<span class="tier">${esc(t.id)}</span><span class="muted">${esc(t.says)}</span>` +
+    `<input data-model-input="${esc(t.id)}" list="model-suggestions" value="${esc(t.model)}" placeholder="${esc(t.default)}" ` +
+    `aria-label="Model of the ${esc(t.id)} tier"><button class="btn" data-model-tier="${esc(t.id)}">Save</button>`;
+  return `<h2>Models</h2><div class="muted" style="font-size:.7812rem;margin-bottom:8px">craftsman picks a tier for each ` +
+    `piece of work, never a model. Map each tier to a model Claude Code can run: an alias or a full model id. ` +
+    `An empty field brings the default back.</div><div class="tiers">${MODELS.tiers.map(row).join("")}</div>` +
+    `<datalist id="model-suggestions">${MODELS.suggestions.map(m => `<option value="${esc(m)}">`).join("")}</datalist>`;
+}
+async function saveModel(tier) {
+  const field = document.querySelector(`[data-model-input="${tier}"]`);
+  const r = await fetch("/api/models", { method: "POST", headers: { "Content-Type": "application/json", "X-Craftsman": "1" },
+    body: JSON.stringify({ tier, model: field ? field.value : "" }) });
+  const out = await r.json().catch(() => ({ error: "no answer from the server" }));
+  if (!r.ok) return toast(out.error || "failed");
+  MODELS = out; render();
+  toast(`${tier} runs on ${out.tiers.find(t => t.id === tier).model}`);
 }
 function render() {
   const c = document.getElementById("centre"); const y = c.scrollTop;
+  const typed = [...document.querySelectorAll("[data-model-input]")].map(f => [f.dataset.modelInput, f.value, f === document.activeElement]);
   let body, crumb;
   if (current.type === "now") { body = viewNow(); crumb = "now"; }
   else if (current.type === "file") {
@@ -652,6 +678,10 @@ function render() {
     `<span class="live${live ? "" : " off"}">${live ? "live" : "reconnecting…"}</span>` +
     `<button class="btn" data-theme-picker title="Colour palette">◐ Palette</button></div><div class="view">${body}</div>`;
   c.scrollTop = y;
+  for (const [tier, value, focused] of typed) {
+    const f = document.querySelector(`[data-model-input="${tier}"]`);
+    if (f && focused) { f.value = value; f.focus(); }
+  }
   renderMenu(); renderSide();
   const s = document.getElementById("libsearch");
   if (s && current.type === "library" && document.activeElement !== s && libQuery) { s.focus(); s.setSelectionRange(libQuery.length, libQuery.length); }
@@ -701,8 +731,9 @@ document.addEventListener("toggle", e => {
   e.target.open ? openKeys.add(k) : openKeys.delete(k);
 }, true);
 document.addEventListener("click", e => {
-  const t = e.target.closest("[data-remove-project],[data-switch],[data-copy],[data-toggle],[data-file],[data-lib],[data-nav],[data-goto]");
+  const t = e.target.closest("[data-model-tier],[data-remove-project],[data-switch],[data-copy],[data-toggle],[data-file],[data-lib],[data-nav],[data-goto]");
   if (!t) return;
+  if (t.dataset.modelTier) return saveModel(t.dataset.modelTier);
   if (t.dataset.removeProject) {
     const path = t.dataset.removeProject;
     if (!confirm(`Remove ${projectLabel(path)} from the dashboard?\n\n${path}\n\nOnly the dashboard forgets it — the project's files stay as they are.`)) return;

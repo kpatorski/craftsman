@@ -91,6 +91,21 @@ class DraftPreviewTest(unittest.TestCase):
         return _draft_preview.preview(self.review, path, text, list(lines) if lines else None,
                                       content=self.content, command=self.command)
 
+    def test_the_call_runs_on_the_fast_tiers_model_unless_given_another(self):
+        home = self.root / "home"
+        home.mkdir()
+        (home / "settings.json").write_text(json.dumps({"models": {"fast": "claude-haiku-9-0"}}))
+        saved = os.environ.get("CRAFTSMAN_HOME")
+        os.environ["CRAFTSMAN_HOME"] = str(home)
+        try:
+            self.preview("klasa nie musi byc publiczna")
+            _draft_preview.preview(self.review, "src/Cancel.java", "x", [2, 3], content=self.content,
+                                   command=self.command, model="sonnet")
+        finally:
+            os.environ.pop("CRAFTSMAN_HOME") if saved is None else os.environ.__setitem__("CRAFTSMAN_HOME", saved)
+        models = [call["argv"][call["argv"].index("--model") + 1] for call in self.calls()]
+        self.assertEqual(models, ["claude-haiku-9-0", "sonnet"])
+
     def test_the_finding_comes_back_as_the_call_wrote_it(self):
         self.assertEqual(self.preview("klasa nie musi byc publiczna"), ANSWER)
 

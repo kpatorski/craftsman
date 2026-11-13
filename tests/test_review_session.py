@@ -65,8 +65,8 @@ class ReviewSessionTest(unittest.TestCase):
     def received(self):
         return [entry["received"] for entry in self.logged() if "received" in entry]
 
-    def started(self):
-        self.runner = sessions.ReviewSession(ID, self.checkout, command=self.command)
+    def started(self, **options):
+        self.runner = sessions.ReviewSession(ID, self.checkout, command=self.command, **options)
         self.runner.start("https://github.com/org/booking/pull/123")
         self.assertTrue(eventually(lambda: not self.runner.busy()), "the first turn never ended")
 
@@ -92,6 +92,24 @@ class ReviewSessionTest(unittest.TestCase):
         self.assertEqual(argv[argv.index("--permission-prompt-tool") + 1], "stdio")
         self.assertEqual(argv[argv.index("--input-format") + 1], "stream-json")
         self.assertEqual(argv[argv.index("--output-format") + 1], "stream-json")
+
+    def test_the_session_runs_on_the_deep_tiers_model(self):
+        home = self.tmp / "craftsman-home"
+        home.mkdir(parents=True, exist_ok=True)
+        (home / "settings.json").write_text(json.dumps({"models": {"deep": "claude-opus-9-1"}}))
+        self.started()
+        argv = self.logged()[0]["argv"]
+        self.assertEqual(argv[argv.index("--model") + 1], "claude-opus-9-1")
+
+    def test_the_session_runs_on_the_model_it_is_given(self):
+        self.started(model="sonnet")
+        argv = self.logged()[0]["argv"]
+        self.assertEqual(argv[argv.index("--model") + 1], "sonnet")
+
+    def test_the_session_says_it_is_a_craftsman_run_so_the_hooks_treat_it_as_one(self):
+        self.started()
+
+        self.assertEqual(self.logged()[0]["run"], "pr-review")
 
     def test_the_session_may_run_each_craftsman_script_by_its_full_path(self):
         self.started()
