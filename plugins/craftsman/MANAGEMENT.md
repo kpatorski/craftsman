@@ -12,25 +12,21 @@ available, skip versioning silently — do not block the command on it.
 
 ## Plugin version
 
-`~/.claude/craftsman/.craftsman-plugin-version` records which version of this plugin last touched this content tree
-— read from this plugin's own `.claude-plugin/plugin.json`, found the same way this file itself was loaded. Every
-command compares the two before doing anything else — this is a local, offline comparison of two files already on
-disk, cheap enough to run every time, never a network call. On a mismatch: say once, plainly, that the plugin
-updated since content was last touched (old version → new version), point to this plugin's own `CHANGELOG.md`, and
-write the new version into the marker. This is a fact worth knowing, not a warning to act on — it never triggers or
-suggests an automatic update; the plugin itself updates only when the developer runs it themselves (see README.md,
-"Updating"). If `~/.claude/craftsman/` does not exist yet, skip this check — a first install writes the marker fresh.
-If `~/.claude/craftsman/` exists but the marker file does not (content installed before this file existed), treat it
-the same as a mismatch — say so once, using "unknown" as the old version, and write the marker.
+`~/.claude/craftsman/.craftsman-plugin-version` records which version of this plugin last touched this content tree.
+Every command runs `scripts/plugin_version.py` before doing anything else and says the line it prints, if any — a
+local, offline comparison of the marker with this plugin's own `.claude-plugin/plugin.json`, never a network call. The
+script, not the agent, writes the marker: Claude asks before any write under a `.claude` folder, whatever the
+permission rules say. What it prints:
 
-**The marker can also read *newer* than this running session's own plugin.** `~/.claude/craftsman/` is one shared
-path on disk — if another session (or the developer, from a terminal) updated the plugin and touched this content
-tree first, that session already wrote the newer version into the marker, while this session loaded its own
-plugin.json at its own start and has not changed since. This is not a broken state and does not need "unknown"
-handling: say plainly, once, that a *different* session updated the plugin to a newer version than this one has
-loaded (old = this session's version, new = the marker's), and that a fresh session picks it up (see README.md,
-"Updating" — a running session keeps the version it started with). Never overwrite the marker with this session's
-own, older version in this direction — that would erase the newer session's record for no reason.
+- nothing, when the two versions match, or when `~/.claude/craftsman/` does not exist yet — a first install writes the
+  marker fresh;
+- that the plugin updated since the content was last touched (old version → new version, "unknown" when the marker is
+  missing), with a pointer to `CHANGELOG.md` — and it writes the new version into the marker. This is a fact worth
+  knowing, not a warning to act on: it never triggers or suggests an update; the plugin updates only when the developer
+  runs it themselves (see README.md, "Updating");
+- that another session runs a newer version than this one has loaded, and that a fresh session picks it up, when the
+  marker reads newer. `~/.claude/craftsman/` is one shared path on disk, and a running session keeps the version it
+  started with (see README.md, "Updating"). The marker keeps the newer version.
 
 ## Resolving an id
 
@@ -343,6 +339,10 @@ work.
   `Agent` call that names no `model`, or a model no tier is mapped to (`scripts/model_tiers.py`), is denied. The deny
   reason points at `EXECUTION.md`, "Choosing a model", and gives each tier's model, so the run picks the tier by the
   work and starts the subagent again.
+- **Model tiers in context** — `scripts/model_context.py`, on `UserPromptSubmit` for a prompt that starts a run
+  (`/craftsman:analyse`, `domain-design`, `implement`, `pr-review`) and on `SessionStart` (startup or resume) when a
+  run is open or the session is a review's: adds each tier's model to the context, so the run picks subagents' models
+  from its first step.
 - **Reload after compaction** — `scripts/reload_after_compact.py`, on `SessionStart` with source `compact`. Adds to the
   context the open run's session file, current step, Next line, and the full path of the current step's protocol and of
   every directive in **Directives in effect** (or says which could not be found), and each model tier's model, with the

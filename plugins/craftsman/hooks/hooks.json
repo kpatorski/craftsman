@@ -1,5 +1,5 @@
 {
-  "description": "craftsman: no commit without the developer's answer during a run; a review's shell commands weighed by rule; every subagent of a run on a tier's model; reload a run's rules after compaction; keep session files well-formed",
+  "description": "craftsman: no commit without the developer's answer during a run; a review's shell commands weighed by rule; every subagent of a run on a tier's model, the tiers known from the run's start; reload a run's rules after compaction; keep session files well-formed",
   "hooks": {
     "PreToolUse": [
       {
@@ -38,6 +38,14 @@
             "command": "python3 \"${CLAUDE_PLUGIN_ROOT}\"/scripts/commit_gate.py"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}\"/scripts/model_context.py"
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -67,6 +75,15 @@
           {
             "type": "command",
             "command": "python3 \"${CLAUDE_PLUGIN_ROOT}\"/scripts/reload_after_compact.py"
+          }
+        ]
+      },
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}\"/scripts/model_context.py"
           }
         ]
       }

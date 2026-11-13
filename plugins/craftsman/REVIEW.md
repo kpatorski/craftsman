@@ -430,8 +430,11 @@ which holds `worktree/` — as a second working directory (`--add-dir`), on the 
 
 - reading and searching files, subagents, skills;
 - the review's own craftsman scripts (`review_command_gate.REVIEW_SCRIPTS`), by their full path;
-- writing the checkout's `.claude/sessions/` files and the plugin-version marker of the installed content;
-- the tools listed as `review-tools` in `~/.craftsman/settings.json`.
+- the tools listed as `review-tools` in `~/.craftsman/settings.json`, except a rule that allows every command or every
+  write — `Bash`, `Write`, `Edit`, `Bash(*)`, `Edit(//**)` and the like — which the session is never given.
+
+Nothing that writes files is on the list. The plugin-version marker under `~/.claude/craftsman/` is written by
+`plugin_version.py`, because Claude asks before any write under a `.claude` folder whatever the rules say.
 
 For any other tool the session asks the server (`--permission-prompt-tool stdio`) and waits. The page shows the request
 at the top of the review — the tool, what it would run or open, and the rule that would allow it — and the developer
@@ -442,7 +445,11 @@ answers:
   to `review-tools` and to the running session, so neither this review nor the next one asks for it again;
 - **Deny** — the agent is told the developer did not allow it, with the reason typed beside it, and goes on.
 
-For a tool of an MCP server the rule offered is the whole server, `mcp__<server>`.
+For a tool of an MCP server the rule offered is the whole server, `mcp__<server>`. For a shell command or a file
+write it is never the whole tool: Claude's own suggestion when it names a command, else the command itself
+(`Bash(ls -la)`) or the file by its absolute path (`Edit(//srv/notes/a.md)`). **Always in reviews** refuses a rule that
+allows every command or every write; such a rule already in `review-tools` is listed under ⚙ as too broad, to take
+back, and is not given to the session.
 
 **Shell commands are weighed by rule, not by the model.** What the developer types or dictates, and what the pull
 request says, reaches the model, and a misheard sentence or a planted instruction can make it want a command. Every

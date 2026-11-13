@@ -21,9 +21,9 @@ always means the one belonging to *this running plugin*: already loaded, the sam
 
 ## Dispatch
 
-0. Run the plugin-version check — `MANAGEMENT.md`, "Plugin version" — before anything else. A local comparison of
-   two files already on disk, not a network call; skip it only when step 1 below is about to report that
-   `~/.claude/craftsman/` does not exist yet.
+0. Run the plugin-version check — `scripts/plugin_version.py`, see `MANAGEMENT.md`, "Plugin version" — before
+   anything else, and say the line it prints, if any. A local comparison of two files already on disk, not a network
+   call.
 1. Find the entry-point protocol matching the invoked skill (`analyse`, `domain-design`, `implement`, or a
    workshop-added one carrying `entry-point: true`) in `~/.claude/craftsman/protocols/index.md`.
 2. Read its `## Protocol` section and walk it top to bottom.
@@ -320,11 +320,11 @@ view; `scripts/model_tiers.py` holds the defaults and, run on its own, prints th
 | `balanced` | Steps already laid out by a protocol or by the run: checking given rules on a given diff, reading parts |
 | `fast`     | Mechanical work with a fixed answer: listing, locating, extracting quoted lines, summarising one file   |
 
-- Every subagent — the plugin's `craftsman:directive-reviewer` and `craftsman:researcher` as much as
-  `general-purpose`, `Explore`, `Plan` or an agent of the developer's — is started with `model` set to the model of
-  the tier its work needs. During a run the plugin's `model_gate.py` hook refuses an `Agent` call with no `model` or
-  with a model no tier is mapped to, and its reason gives the mapping. After a compaction the mapping comes back with
-  the run's files.
+- Every subagent — the plugin's `craftsman:directive-reviewer` and `craftsman:researcher` as much as `general-purpose`,
+  `Explore`, `Plan` or an agent of the developer's — is started with `model` set to the model of the tier its work
+  needs. During a run the plugin's `model_gate.py` hook refuses an `Agent` call with no `model` or with a model no tier
+  is mapped to, and its reason gives the mapping. The mapping is in the context from the run's start
+  (`model_context.py`) and comes back after a compaction with the run's files.
 - When in doubt between two tiers, take the cheaper one and verify what comes back; verifying is the run's work
   anyway. A subagent that fails on the cheaper tier is run again once on the next one up.
 - The run itself — the developer's checkpoints, verifying what subagents report, every decision — is `deep` work. Its

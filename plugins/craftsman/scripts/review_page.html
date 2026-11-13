@@ -1935,9 +1935,11 @@ function viewTools() {
   const tools = (R && R.tools) || [];
   const row = t => `<div class="row" style="grid-template-columns:minmax(0,1fr) auto auto;align-items:center">
     <span>${t.status === "rule" ? `<code>${esc(t.rule)}</code> <span class="muted">· allowed from a request</span>`
+      : t.status === "too broad" ? `<code>${esc(t.rule)}</code> <span class="tag amber">too broad · not given to the session</span>`
       : `<b>${esc(t.name)}</b> <span class="muted">· <code>${esc(t.rule)}</code> · ${esc(t.status)}</span>`}
       ${t.refused ? '<span class="tag amber">refused in this session</span>' : ""}</span>
-    <label class="switch${t.allowed ? " on" : ""}" data-tool-toggle="${esc(t.rule)}" data-on="${t.allowed ? 1 : 0}"><i></i>${t.allowed ? "allowed" : "not allowed"}</label>
+    ${t.status === "too broad" ? `<button class="btn sm" data-tool-toggle="${esc(t.rule)}" data-on="1" title="Allows every command or every write, so the session is not given it">Take back</button>`
+      : `<label class="switch${t.allowed ? " on" : ""}" data-tool-toggle="${esc(t.rule)}" data-on="${t.allowed ? 1 : 0}"><i></i>${t.allowed ? "allowed" : "not allowed"}</label>`}
     ${t.allowed && t.refused && R.running ? `<button class="btn sm" data-allow-tool="${esc(t.rule)}">Restart and go on</button>` : "<span></span>"}</div>`;
   return `<div class="card" style="max-width:820px"><h3><span>AI Agent tools</span></h3>
     <div class="muted" style="margin-bottom:12px">The review's session uses its own tools — reading the code, <code>git</code>, <code>gh</code>,

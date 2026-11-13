@@ -151,12 +151,23 @@ class ReviewSessionTest(unittest.TestCase):
 
         self.assertEqual([], [tool for tool in self.tools() if tool.startswith("mcp__")])
 
-    def test_the_session_may_record_the_plugin_version_it_ran_with(self):
+    def test_the_session_records_the_plugin_version_through_its_script_not_by_writing_under_claudes_folder(self):
         self.started()
 
-        marker = pathlib.Path.home() / ".claude" / "craftsman" / ".craftsman-plugin-version"
-        self.assertIn(f"Write(/{marker})", self.tools())
-        self.assertIn(f"Edit(/{marker})", self.tools())
+        self.assertIn(f"Bash(python3 {sessions.SCRIPTS / 'plugin_version.py'}:*)", self.tools())
+        self.assertEqual([], [tool for tool in self.tools() if ".craftsman-plugin-version" in tool])
+
+    def test_a_whole_tool_that_runs_or_writes_anything_is_not_given_to_the_session_even_when_listed(self):
+        home = self.tmp / "craftsman-home"
+        home.mkdir(parents=True, exist_ok=True)
+        (home / "settings.json").write_text(json.dumps({"review-tools": [
+            "Bash", "Write", "Edit", "Bash(*)", "mcp__jira", "Bash(npm test:*)", "Edit(//srv/notes/**)"]}))
+
+        self.started()
+
+        given = [tool for tool in self.tools() if not tool.startswith(("Bash(python3", "Bash(/"))]
+        self.assertEqual(["mcp__jira", "Bash(npm test:*)", "Edit(//srv/notes/**)"],
+                         [tool for tool in given if tool not in sessions.ALLOWED_TOOLS])
 
     def transcript(self, *events):
         self.review.mkdir(parents=True, exist_ok=True)
@@ -190,6 +201,28 @@ class ReviewSessionTest(unittest.TestCase):
         self.assertEqual(sessions.agent_tools(self.review),
                          [{"name": "claude.ai Atlassian", "rule": "mcp__claude_ai_Atlassian", "status": "connected",
                            "allowed": False, "refused": True}])
+
+    def test_a_whole_tool_kept_in_the_settings_is_listed_to_take_back_but_not_as_allowed(self):
+        (self.tmp / "craftsman-home").mkdir(parents=True, exist_ok=True)
+        (self.tmp / "craftsman-home" / "settings.json").write_text(json.dumps({"review-tools": ["Bash", "Bash(npm test)"]}))
+
+        self.assertEqual(sessions.agent_tools(self.review), [
+            {"name": "Bash", "rule": "Bash", "status": "too broad", "allowed": False, "refused": False},
+            {"name": "Bash(npm test)", "rule": "Bash(npm test)", "status": "rule", "allowed": True, "refused": False}])
+
+    def test_the_rule_offered_for_every_review_is_what_was_asked_never_the_whole_tool(self):
+        cases = [
+            ({"tool_name": "Bash", "input": {"command": "ls -la"},
+              "permission_suggestions": [{"type": "addRules", "rules": [{"toolName": "Bash"}]}]}, "Bash(ls -la)"),
+            ({"tool_name": "Write", "input": {"file_path": "/srv/notes/a.md"},
+              "permission_suggestions": [{"type": "setMode", "mode": "acceptEdits"}]}, "Edit(//srv/notes/a.md)"),
+            ({"tool_name": "Bash", "input": {"command": "npm test"},
+              "permission_suggestions": [{"type": "addRules", "rules": [{"toolName": "Bash", "ruleContent": "npm:*"}]}]},
+             "Bash(npm:*)"),
+        ]
+        for request, rule in cases:
+            with self.subTest(rule=rule):
+                self.assertEqual(rule, sessions.suggested_rule(request))
 
     def test_an_allowed_server_the_session_does_not_have_is_still_listed_to_take_back(self):
         (self.tmp / "craftsman-home").mkdir(parents=True, exist_ok=True)
@@ -288,7 +321,9 @@ class ReviewSessionTest(unittest.TestCase):
     def test_an_unknown_answer_or_a_rule_that_is_not_one_is_refused(self):
         self.asking()
 
-        for decision, rule in (("maybe", None), ("always", ""), ("always", "Bash(npm test"), ("always", "rm -rf /")):
+        for decision, rule in (("maybe", None), ("always", ""), ("always", "Bash(npm test"), ("always", "rm -rf /"),
+                               ("always", "Bash"), ("always", "Write"), ("always", "Edit"), ("always", "Bash(*)"),
+                               ("always", "Bash(:*)"), ("always", "Edit(//**)"), ("always", "NotebookEdit")):
             with self.subTest(decision=decision, rule=rule):
                 with self.assertRaises(review_state.Refused):
                     self.runner.answer("req-1", decision, rule=rule)
@@ -308,13 +343,10 @@ class ReviewSessionTest(unittest.TestCase):
         self.assertEqual(argv[argv.index("--add-dir") + 1], str(self.review))
         self.assertLess(argv.index("--add-dir"), argv.index("--allowedTools"))
 
-    def test_the_session_may_write_only_its_own_session_files_by_absolute_path(self):
+    def test_nothing_that_writes_files_is_on_the_fixed_list(self):
         self.started()
 
-        argv = self.logged()[0]["argv"]
-        tools = argv[argv.index("--allowedTools") + 1:]
-        self.assertIn(f"Write(/{self.checkout}/.claude/sessions/**)", tools)
-        self.assertIn(f"Edit(/{self.checkout}/.claude/sessions/**)", tools)
+        self.assertEqual([], [tool for tool in self.tools() if tool.startswith(("Write", "Edit", "MultiEdit"))])
 
     def test_every_event_is_kept_for_the_console_and_the_session_id_in_the_state(self):
         self.started()

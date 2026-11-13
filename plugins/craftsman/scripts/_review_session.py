@@ -36,14 +36,11 @@ ALLOWED_TOOLS = ["Read", "Grep", "Glob", "Agent", "Skill", "TodoWrite"] + [
 
 
 def allowed_tools(checkout):
-    """The fixed list; writing the checkout's craftsman session files and the plugin-version marker of the installed
-    content (MANAGEMENT.md, "Plugin version") -- by absolute path (`//`), the form a headless session matches against
-    the absolute paths the agent writes to; and the tools the developer lists as `review-tools` in the craftsman
-    settings, such as the MCP server their Jira is read through."""
-    sessions = f"/{pathlib.Path(checkout).resolve()}/.claude/sessions/**"
-    marker = f"/{pathlib.Path.home() / '.claude' / 'craftsman' / '.craftsman-plugin-version'}"
-    return ALLOWED_TOOLS + [f"Write({sessions})", f"Edit({sessions})", f"Write({marker})", f"Edit({marker})"] + \
-        _settings.review_tools()
+    """The fixed list, and the tools the developer lists as `review-tools` in the craftsman settings, such as the MCP
+    server their Jira is read through -- but never a whole tool that runs or writes anything (`too_broad`), whatever the
+    settings hold. Nothing that writes is on the list: Claude asks for a write under any `.claude` folder whatever the
+    rules say, so the plugin-version marker is written by `plugin_version.py`."""
+    return ALLOWED_TOOLS + [rule for rule in _settings.review_tools() if not too_broad(rule)]
 
 
 def mcp_rule(server):
@@ -77,12 +74,14 @@ def agent_tools(review):
             servers[rule] = dict(name=rule[len("mcp__"):], status="not connected")
     return [dict(name=s["name"], rule=rule, status=s["status"], allowed=rule in allowed,
                  refused=any(tool.startswith(rule + "__") for tool in refused)) for rule, s in servers.items()] + \
-        [dict(name=rule, rule=rule, status="rule", allowed=True, refused=False)
-         for rule in allowed if not rule.startswith("mcp__")]
+        [dict(name=rule, rule=rule, status="too broad" if too_broad(rule) else "rule", allowed=not too_broad(rule),
+              refused=False) for rule in allowed if not rule.startswith("mcp__")]
 
 
 RULE = re.compile(r"^(?P<tool>[A-Za-z][A-Za-z0-9_-]*)(?:\((?P<content>.+)\))?$")
 DECISIONS = ("allow", "always", "deny")
+# tools whose whole-tool rule would allow every command or every write; "Always" names a command or a file instead
+UNBOUNDED = ("Bash", "Write", "Edit", "MultiEdit", "NotebookEdit")
 
 
 def rule_text(rule):
@@ -91,17 +90,36 @@ def rule_text(rule):
     return f"{rule['toolName']}({content})" if content else rule["toolName"]
 
 
+def too_broad(rule):
+    """Whether a rule allows every command, or every write: `Bash`, `Write`, `Edit(//**)` and the like."""
+    matched = RULE.match(rule or "")
+    if not matched or matched["tool"] not in UNBOUNDED:
+        return False
+    return matched["content"] is None or matched["content"].strip("/") in ("*", ":*", "**", "**/*")
+
+
+def asked_for(request):
+    """The rule for just what a request asks: its command, or the file it writes, by absolute path."""
+    tool, given = str(request.get("tool_name") or ""), request.get("input") or {}
+    if tool == "Bash" and given.get("command"):
+        return f"Bash({given['command']})"
+    if given.get("file_path"):
+        return f"Edit(/{given['file_path']})"
+    return tool
+
+
 def suggested_rule(request):
     """The rule offered for "allow in every review": every tool of an MCP server for one of its tools, else the first
-    rule Claude suggests, else the tool's name."""
+    rule Claude suggests, else just what was asked -- never a whole tool that runs or writes anything."""
     tool = str(request.get("tool_name") or "")
     server = re.match(r"^(mcp__.+?)__", tool)
     if server:
         return server.group(1)
     for suggestion in request.get("permission_suggestions") or []:
         if suggestion.get("type") == "addRules" and suggestion.get("rules"):
-            return rule_text(suggestion["rules"][0])
-    return tool
+            rule = rule_text(suggestion["rules"][0])
+            return asked_for(request) if too_broad(rule) else rule
+    return asked_for(request) if too_broad(tool) else tool
 
 
 def claude_command():
@@ -261,6 +279,9 @@ class ReviewSession:
         matched = RULE.match(rule or "") if decision == "always" else None
         if decision == "always" and not matched:
             raise review_state.Refused(f"not a permission rule, as Tool or Tool(content): {rule!r}")
+        if decision == "always" and too_broad(rule):
+            raise review_state.Refused(f"{rule} would allow every command or every write in every review; "
+                                       f"name the command or the file, or allow it once")
         with self.lock:
             request = self.requests.get(request_id)
             if request is None or not self.running():

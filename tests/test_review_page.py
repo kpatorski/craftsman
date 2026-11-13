@@ -262,5 +262,30 @@ class KeyboardTest(unittest.TestCase):
         self.assertEqual(run("fileStep", files, "gone.java", -1), "A.java")
 
 
+@unittest.skipUnless(NODE, "node is not installed")
+class AgentToolsTest(unittest.TestCase):
+    """The ⚙ panel: a rule too broad to give the session can only be taken back, never switched on."""
+
+    def tools(self, tools):
+        program = "\n".join([
+            "const esc = s => String(s);", "const sendCard = () => '', commentStyleCard = () => '';",
+            f"var R = {json.dumps(dict(tools=tools, running=False))};", function("viewTools"),
+            "console.log(JSON.stringify(viewTools()));"])
+        return json.loads(subprocess.run([NODE, "-e", program], capture_output=True, text=True, check=True).stdout)
+
+    def test_a_too_broad_rule_offers_only_to_take_it_back(self):
+        page = self.tools([{"name": "Bash", "rule": "Bash", "status": "too broad", "allowed": False, "refused": False}])
+
+        self.assertIn('data-tool-toggle="Bash" data-on="1"', page)
+        self.assertIn("Take back", page)
+        self.assertNotIn('class="switch', page)
+
+    def test_a_rule_allowed_from_a_request_keeps_its_switch(self):
+        page = self.tools([{"name": "Bash(npm test)", "rule": "Bash(npm test)", "status": "rule", "allowed": True,
+                            "refused": False}])
+
+        self.assertIn('class="switch on" data-tool-toggle="Bash(npm test)" data-on="1"', page)
+
+
 if __name__ == "__main__":
     unittest.main()

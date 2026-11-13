@@ -256,6 +256,46 @@ class ModelGateTest(HookCase):
         self.assertIsNone(self.spawn("general-purpose"))
 
 
+class ModelContextTest(HookCase):
+    """A run knows each tier's model from its first step, not from the gate's first refusal."""
+
+    def context(self, payload, env_extra=None):
+        out = self.run_hook("model_context.py", payload, env_extra)
+        return out["hookSpecificOutput"]["additionalContext"] if out else None
+
+    def prompt(self, text):
+        return self.context({"hook_event_name": "UserPromptSubmit", "prompt": text})
+
+    def test_a_prompt_that_starts_a_run_brings_the_tiers(self):
+        for text in ("/craftsman:implement add a use case", "/craftsman:pr-review --headless main:x",
+                     "/craftsman:analyse spec.md", "/craftsman:domain-design"):
+            with self.subTest(text=text):
+                context = self.prompt(text)
+                self.assertIn("fast = haiku, balanced = sonnet, deep = opus", context)
+                self.assertIn("Choosing a model", context)
+
+    def test_other_prompts_bring_nothing(self):
+        for text in ("/craftsman:list", "implement it", "please run /craftsman:implement later"):
+            with self.subTest(text=text):
+                self.assertIsNone(self.prompt(text))
+
+    def test_a_session_that_starts_or_resumes_with_a_run_open_brings_the_tiers(self):
+        start = {"hook_event_name": "SessionStart", "source": "startup"}
+        self.assertIsNone(self.context(start))
+        self.session()
+        self.assertIn("deep = opus", self.context(start))
+        self.assertIn("deep = opus", self.context(dict(start, source="resume")))
+        self.assertIsNone(self.context(dict(start, source="compact")), "reload_after_compact.py brings it then")
+
+    def test_the_reviews_session_brings_the_tiers_the_developer_mapped(self):
+        home = self.tmp / "home"
+        home.mkdir()
+        (home / "settings.json").write_text(json.dumps({"models": {"deep": "claude-opus-9-1"}}))
+        context = self.context({"hook_event_name": "SessionStart", "source": "startup"},
+                               {"CRAFTSMAN_RUN": "pr-review", "CRAFTSMAN_HOME": str(home)})
+        self.assertIn("deep = claude-opus-9-1", context)
+
+
 class ReloadAfterCompactTest(HookCase):
     def compacted(self):
         return self.run_hook("reload_after_compact.py", {"hook_event_name": "SessionStart", "source": "compact"})
