@@ -27,7 +27,7 @@ import sys
 SCRIPTS = pathlib.Path(__file__).resolve().parent
 # the scripts a review's session runs (the code-review protocols and EXECUTION.md name them)
 REVIEW_SCRIPTS = ("review_state.py", "review_directives.py", "github_conversation.py", "fix_prompts.py",
-                  "changed_since.py", "render_diff.py", "model_tiers.py")
+                  "changed_since.py", "render_diff.py", "model_tiers.py", "refresh_review.py")
 PYTHONS = ("python3", "python")
 CHAIN = {"&&", "||", ";", "|"}
 PIPE_FILTERS = {"head", "tail", "wc"}

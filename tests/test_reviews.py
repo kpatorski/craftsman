@@ -409,7 +409,11 @@ class ReviewEndpointsTest(ReviewsTest):
 
     def setUp(self):
         super().setUp()
-        subprocess.run(["git", "init", "-q", str(self.checkout)], check=True)
+        subprocess.run(["git", "init", "-q", "-b", "main", str(self.checkout)], check=True)
+        for args in (["config", "user.email", "dev@example.com"], ["config", "user.name", "dev"],
+                     ["commit", "-q", "--allow-empty", "-m", "Start"], ["checkout", "-q", "-b", "feature/x"],
+                     ["commit", "-q", "--allow-empty", "-m", "Cancel"], ["checkout", "-q", "main"]):
+            subprocess.run(["git", "-C", str(self.checkout), *args], check=True, capture_output=True)
         self.saved_env = {key: os.environ.get(key) for key in ("CRAFTSMAN_CLONES", "CRAFTSMAN_GITHUB",
                                                                 "CRAFTSMAN_BROWSE")}
         self.real_state = dashboard_server.STATE
@@ -946,6 +950,23 @@ class ReviewEndpointsTest(ReviewsTest):
         self.assertEqual(status, 409)
         self.assertIn("cannot set sent", body["error"])
 
+    def test_the_server_opens_the_review_before_its_session_starts(self):
+        status, body = self.call("/api/review/start", {"checkout": str(self.checkout), "source": "main:feature/x"})
+        self.assertEqual(status, 200, body)
+        review = self.home / "reviews" / BRANCHES
+        state = review_state.read(review)
+        head = subprocess.run(["git", "-C", str(self.checkout), "rev-parse", "feature/x"], capture_output=True,
+                              text=True).stdout.strip()
+        self.assertEqual((state["source"]["kind"], state["head"]), ("branches", head))
+        self.assertTrue((review / "worktree").is_dir())
+
+    def test_a_source_that_cannot_be_opened_is_refused_and_no_session_starts(self):
+        status, body = self.call("/api/review/start", {"checkout": str(self.checkout), "source": "main:feature/gone"})
+        self.assertEqual(status, 409)
+        self.assertIn("feature/gone", body["error"])
+        self.assertIsNone(dashboard_server.Handler.hub.running_session(reviews.review_id_for(
+            "main:feature/gone", self.checkout)))
+
     def test_the_page_starts_a_review_session_and_stops_it(self):
         fresh = "main:feature/x"
         status, body = self.call("/api/review/start", {"checkout": str(self.checkout), "source": fresh})
@@ -1131,6 +1152,7 @@ class ReviewEndpointsTest(ReviewsTest):
             listed = {review["id"]: review for review in self.call("/api/reviews")[1]["reviews"]}
 
         self.assertEqual(listed[BRANCHES]["checkout"], str(self.checkout))
+        self.assertTrue(eventually(lambda: (self.tmp / "fake.log").exists()))
         cwd = [json.loads(line) for line in (self.tmp / "fake.log").read_text().splitlines()][0]["cwd"]
         self.assertEqual(pathlib.Path(cwd).resolve(), self.checkout)
 
@@ -1156,7 +1178,17 @@ class ReviewEndpointsTest(ReviewsTest):
         origin = self.tmp / "github" / "org" / "booking.git"
         subprocess.run(["git", "clone", "-q", "--bare", str(self.checkout), str(origin)], check=True,
                        capture_output=True)
-        os.environ.update(CRAFTSMAN_CLONES=str(self.tmp / "clones"), CRAFTSMAN_GITHUB=f"file://{self.tmp / 'github'}")
+        head = subprocess.run(["git", "-C", str(origin), "rev-parse", "feature/x"], capture_output=True,
+                              text=True).stdout.strip()
+        subprocess.run(["git", "-C", str(origin), "update-ref", "refs/pull/124/head", head], check=True)
+        gh_state = self.tmp / "gh-state.json"
+        gh_state.write_text(json.dumps({"pulls": {"124": {
+            "number": 124, "title": "Cancel", "html_url": "https://github.com/org/booking/pull/124",
+            "base": {"ref": "main"}, "head": {"ref": "feature/x", "sha": head, "label": "org:feature/x"}}}}))
+        os.environ.update(CRAFTSMAN_CLONES=str(self.tmp / "clones"), CRAFTSMAN_GITHUB=f"file://{self.tmp / 'github'}",
+                          CRAFTSMAN_GH=f"{sys.executable} {pathlib.Path(__file__).resolve().parent / 'fake_gh.py'}",
+                          FAKE_GH_STATE=str(gh_state), FAKE_GH_LOG=str(self.tmp / "gh-log.jsonl"))
+        self.addCleanup(lambda: [os.environ.pop(key, None) for key in ("CRAFTSMAN_GH", "FAKE_GH_STATE", "FAKE_GH_LOG")])
 
         status, body = self.call("/api/review/start", {"clone": True,
                                                        "source": "https://github.com/org/booking/pull/124"})

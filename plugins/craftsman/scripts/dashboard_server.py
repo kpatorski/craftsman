@@ -49,6 +49,7 @@ import github_conversation  # noqa: E402
 import review_state  # noqa: E402
 import send_review  # noqa: E402
 from _markdown import MD_CSS, render_markdown  # noqa: E402
+import _open_review  # noqa: E402
 import _theme  # noqa: E402
 import model_tiers  # noqa: E402
 
@@ -294,6 +295,7 @@ class Handler(BaseHTTPRequestHandler):
                     # review.json does not exist yet: init takes the context in from here
                     existing.mkdir(parents=True, exist_ok=True)
                     (existing / "context.md").write_text(str(body["context"]).strip() + "\n")
+                _open_review.open_review(existing, source, checkout)
                 self.hub.session(review_id, checkout).start(source)
                 return self.send(200, dict(ok=True, id=review_id))
             if path == "/api/review/stop":

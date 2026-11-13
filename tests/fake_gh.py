@@ -6,12 +6,14 @@ a comment on a whole file fail, as a GitHub that does not know `subject_type` an
 
 The state: `reviews` -- the inline comments of each review sent, by review id; `comments` -- further inline comments,
 written by others or posted as replies; `issue_comments` -- the general comments; `review_list` -- the reviews as
-GitHub lists them. A test may seed any of them.
+GitHub lists them; `pulls` -- the pull requests by number, as GitHub's REST API gives one. A test may seed any of them.
 """
 import json
 import os
 import pathlib
+import re
 import sys
+import urllib.parse
 
 LOG = pathlib.Path(os.environ["FAKE_GH_LOG"])
 STATE = pathlib.Path(os.environ["FAKE_GH_STATE"])
@@ -73,6 +75,15 @@ elif endpoint.endswith("/issues/123/comments") and "POST" in args:
     state["issue_comments"].append(answer)
 elif endpoint.endswith("/issues/123/comments"):
     answer = state["issue_comments"]
+elif re.fullmatch(r"repos/[^/]+/[^/]+/pulls/\d+", endpoint):
+    pull = state.get("pulls", {}).get(endpoint.rsplit("/", 1)[1])
+    if not pull:
+        sys.exit("HTTP 404: Not Found")
+    answer = pull
+elif re.fullmatch(r"repos/[^/]+/[^/]+/pulls\?.*", endpoint):
+    query = urllib.parse.parse_qs(endpoint.split("?", 1)[1])
+    answer = [pull for pull in state.get("pulls", {}).values()
+              if pull["head"]["label"] == query["head"][0] and pull.get("state", "open") == query.get("state", ["open"])[0]]
 else:
     sys.exit(f"fake gh does not know {endpoint}")
 STATE.write_text(json.dumps(state))

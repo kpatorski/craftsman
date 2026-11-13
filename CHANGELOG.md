@@ -3,6 +3,14 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.30.0
+
+- The dashboard server opens a review itself before its session starts: it reads the PR or the branches, fetches
+  them, makes the worktree and the diff, and creates the review state (`REVIEW.md`, "Opening a review"). A source it
+  cannot open refuses the start with why. The session only settles the comment language, then reviews.
+- `refresh_review.py` does the mechanical part of a refresh — fetch, conversation, worktree, diff, state, use cases
+  back to `pending` — and prints what the agent weighs (`REVIEW.md`, "Refreshing a review").
+
 ## 0.29.0
 
 - A review's shell commands are weighed by rule, not by the model: the new `review_command_gate.py` hook lets through

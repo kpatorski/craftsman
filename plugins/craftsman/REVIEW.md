@@ -19,7 +19,7 @@ written into the reviewed repository; `review.json` records the path of its chec
 | `session.stderr` | the dashboard server      | what the review's Claude process wrote to stderr                |
 | `context.md`     | the dashboard server      | the context given in the wizard, until `init` takes it in       |
 | `diff/`          | `scripts/review_state.py` | the diff of every refresh, `<head-sha>.diff`                    |
-| `worktree/`      | the agent, the server     | a `git worktree` of the checkout at the reviewed commit         |
+| `worktree/`      | the dashboard server      | a `git worktree` of the checkout at the reviewed commit         |
 
 ### The checkout
 
@@ -40,6 +40,34 @@ never touched. Closing or archiving a review deletes its worktree, and its clone
 it. Resuming a review whose clone or worktree is gone — `/tmp` is emptied on restart — makes them again at the reviewed
 commit before its session starts; the page says "Restoring the repository…" meanwhile, and why if it fails. A missing
 checkout of the developer is never made again: the page says it is missing.
+
+### Opening a review
+
+The dashboard server opens a review before its session starts (`scripts/_open_review.py`); none of it is left to the
+model:
+
+1. it reads the source: a pull request from GitHub (`gh api`, on the PR's host), or two branches, each in the
+   checkout or on `origin` — a branch in the checkout wins, as the one the developer has — with the open pull request
+   of the source branch, if there is one;
+2. a review already opened is left as it is;
+3. it fetches the PR's base branch and `refs/pull/<number>/head`, or the two branches, from `origin`;
+4. it makes `worktree/` at the reviewed commit;
+5. it writes the diff from where the change branched off to the head, and creates the review state with it.
+
+A source it cannot open — a branch that does not exist, a PR GitHub does not know, a head it cannot fetch — refuses
+the start, with why, and no session starts. The session then settles the language of the comments and goes on with the
+review (the code-review bundle's `open-review`).
+
+### Refreshing a review
+
+`scripts/refresh_review.py <review dir>`, which the agent runs when the developer asks for a refresh, does the
+mechanical part: it fetches the source again as opening it did and reads the PR's description; reads the PR's
+conversation again into `github.json`; and, when the head moved, moves `worktree/` to the new head, writes the new diff,
+moves the review state to it (`refresh`), and puts every use case with a file the new commits changed back to
+`pending`. When the head did not move, it records `refreshed` only. It prints one JSON object — `moved`, `old-head`,
+`head`, `base`, `commits`, `changed-files`, `back-to-pending`, `unplaced` (changed files in no use case yet),
+`description`, and `github` (`error`, `new`) — which the agent weighs (the code-review bundle's `refresh-review`): the
+answers on GitHub, the files to place, the findings to re-check.
 
 Nobody edits `review.json` by hand, the agent included. Every change goes through `review_state.py`, which takes a
 lock, checks the change, and writes the file atomically. The agent and the page change the same file at the same
