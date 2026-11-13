@@ -300,6 +300,34 @@ class ReviewStateTest(unittest.TestCase):
         self.assertEqual(self.state()["scope"], "Cancels a reservation.")
         self.assertEqual(self.state()["language"], "English")
 
+    def test_the_agent_records_whether_the_developer_wants_the_findings_searched(self):
+        self.opened()
+        self.assertIsNone(self.state()["findings-search"])
+
+        self.run_state("set", payload={"findings-search": "skipped"})
+        self.assertEqual(self.state()["findings-search"], "skipped")
+        self.run_state("set", payload={"findings-search": "requested"})
+        self.assertEqual(self.state()["findings-search"], "requested")
+        self.run_state("set", payload={"findings-search": "maybe"}, expect_ok=False)
+
+    def test_the_developer_asks_for_the_findings_search_once(self):
+        self.opened()
+        self.run_state("set", payload={"findings-search": "skipped"})
+
+        self.run_state("search-findings", by="developer")
+        self.assertEqual(self.state()["findings-search"], "requested")
+        self.run_state("search-findings", by="developer", expect_ok=False)
+
+    def test_a_review_started_before_the_search_was_asked_for_takes_it_too(self):
+        self.opened()
+        state = self.state()
+        del state["findings-search"]
+        (self.review / "review.json").write_text(json.dumps(state))
+
+        self.run_state("search-findings", by="developer")
+
+        self.assertEqual(self.state()["findings-search"], "requested")
+
     def test_a_finding_says_how_serious_it_is_and_who_found_it(self):
         self.opened()
 

@@ -155,6 +155,19 @@ pull request's branch has it (`/api/review/file`); a path outside `worktree/`, o
 
 ### Findings
 
+The search for findings — the walk of the use cases with the directive reviewers, then the joining of repeats — is the
+costly part of a review, and it runs only when the developer asks for it. `findings-search` says where that stands:
+
+- `null` — not asked yet. Once the PR is understood, the agent asks on the page whether to search now;
+- `skipped` — the developer said "not now". The review goes straight to answering the page, and the Findings tab
+  offers "Search for findings";
+- `requested` — the developer asked for it, at that question or on the Findings tab
+  (`review_state.py <review dir> search-findings --by developer`, which the page sends with a `find` message; asked
+  once). The agent walks the use cases still `pending`.
+
+A refresh re-checks the findings already in the review either way; it reviews the use cases the new commits touched
+only when the search is `requested`. "Check now" on the Rules tab works as it does without the search.
+
 `findings` — each one:
 
 - `id` — `f<number>`, never reused.
@@ -365,6 +378,7 @@ not yet in `handled`, it passes those first.
 | `refresh` | —                              | reads the PR or branches again, re-checks the findings         |
 | `close`   | —                              | sets `closed` and ends the run                                 |
 | `check`   | `directive`                    | checks the use cases already reviewed against that directive   |
+| `find`    | —                              | searches for findings, the developer having asked on the page  |
 | `context` | —                              | reads the notes in `context` and works by them from now on     |
 
 A question from the page opens a thread, or adds to one, before its `ask` line is written.

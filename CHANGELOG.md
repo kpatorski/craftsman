@@ -3,6 +3,13 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.27.0
+
+- The search for findings runs only when asked for. Once the PR is understood, the review asks on the page whether to
+  search now; "not now" leaves the review answering the page, and the Findings tab offers "Search for findings". A
+  refresh reviews the changed use cases only once the search was asked for. Needs the `code-review` bundle's
+  protocols from the workshop's matching commit. See `REVIEW.md`, "Findings".
+
 ## 0.26.0
 
 - Dictation on the review page: a microphone button in the corner of the text box being written in, ⌥M (Alt+M) too,

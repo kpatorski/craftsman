@@ -187,6 +187,42 @@ class StoryTest(unittest.TestCase):
         self.assertNotIn("dends", html)
 
 
+STEP_IDS = ["open-review", "read-pr-scope", "map-change-structure", "tell-the-story", "read-test-rules",
+            "triage-explanations", "review-use-cases", "deduplicate-findings", "serve-page"]
+
+
+def step_of(state):
+    """The step the page shows for `state`, with the session idle on no question."""
+    program = "\n".join([f"const STEPS = {json.dumps([[k, k, k] for k in STEP_IDS])};", constant("stepAt"),
+                         f"const S = () => ({json.dumps(state)});", "const useCases = () => (S().structure || {})['use-cases'] || [];",
+                         "const waiting = () => false;", "const idle = () => false;", function("reviewStep")])
+    out = subprocess.run([NODE, "-e", program + "\nconsole.log(JSON.stringify(reviewStep()));"], capture_output=True,
+                         text=True, check=True).stdout
+    return STEP_IDS[json.loads(out)]
+
+
+@unittest.skipUnless(NODE, "node is not installed")
+class FindingsOnDemandTest(unittest.TestCase):
+    UNDERSTOOD = {"scope": "Cancels a reservation.", "story": {"does": "x", "chapters": []}, "checkpoint": None,
+                  "rules": [{"id": "r1"}], "threads": [], "findings": [],
+                  "structure": {"use-cases": [{"id": "u1", "status": "pending"}]}}
+
+    def test_a_review_whose_search_the_developer_put_off_waits_on_the_page(self):
+        self.assertEqual(step_of(dict(self.UNDERSTOOD, **{"findings-search": "skipped"})), "serve-page")
+
+    def test_a_review_still_to_search_or_searching_is_not_waiting_on_the_page(self):
+        for search in (None, "requested"):
+            with self.subTest(search=search):
+                self.assertNotEqual(step_of(dict(self.UNDERSTOOD, **{"findings-search": search})), "serve-page")
+
+    def test_the_findings_tab_offers_the_search_only_when_it_was_put_off(self):
+        self.assertIn("data-search-findings", run("searchOffer", {"findings-search": "skipped"}))
+        for search in (None, "requested"):
+            with self.subTest(search=search):
+                self.assertEqual(run("searchOffer", {"findings-search": search}), "")
+        self.assertEqual(run("searchOffer", {}), "")
+
+
 @unittest.skipUnless(NODE, "node is not installed")
 class SendTest(unittest.TestCase):
     def test_send_counts_the_findings_the_comments_and_the_fix_prompt_only_when_it_goes(self):

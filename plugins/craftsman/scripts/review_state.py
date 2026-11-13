@@ -10,7 +10,7 @@ update-comment <id>, comment-status <id>, comment-sent <id>, use-case-status <id
 reply <thread id>, resolve <thread id>, view, unview, archive, answer, handled <message id>,
 switch-directive, clear-directive-switches, record-check, add-context, remove-context <id>,
 in-prompt <id>, save-draft,
-discard-draft, draft-to-finding, show.
+discard-draft, draft-to-finding, search-findings, show.
 
 The agent and the review page change review.json at the same time. Every change takes an exclusive lock, reads the
 file fresh, checks the change against REVIEW.md's rules, and replaces the file atomically -- so neither side loses
@@ -35,7 +35,8 @@ TEXT_FIELDS = ("title", "description", "comment")
 DEVELOPER_FIELDS = TEXT_FIELDS + ("severity",)
 AGENT_FIELDS = DEVELOPER_FIELDS + ("category", "locations", "directive", "kind", "when")
 SETTABLE = ("source", "checkout", "refreshed", "session", "closed", "language", "scope",
-            "requirements", "tickets", "structure", "story", "rules", "checkpoint")
+            "requirements", "tickets", "structure", "story", "rules", "checkpoint", "findings-search")
+FINDINGS_SEARCH = (None, "skipped", "requested")  # not asked yet; the developer said "not now"; the developer wants it
 STATUS_BY = {
     "agent": ("maybe-resolved", "merged", "proposed"),
     "developer": ("to-send", "deleted", "proposed"),
@@ -63,7 +64,7 @@ def empty_state(source, base, head, checkout=None):
     return {"source": source, "checkout": checkout, "base": base, "head": head, "refreshed": None, "session": None, "closed": None,
             "language": None, "scope": None, "requirements": None, "tickets": [], "structure": None, "story": None, "rules": [],
             "checkpoint": None, "findings": [], "comments": [], "threads": [], "viewed": [], "archived": False, "handled": [],
-            "directive-switches": {}, "checks": [], "context": [], "drafts": {}}
+            "directive-switches": {}, "checks": [], "context": [], "drafts": {}, "findings-search": None}
 
 
 @contextmanager
@@ -226,6 +227,8 @@ def set_fields(state, payload, by):
         check_structure(payload["structure"])
     if payload.get("story") is not None:
         check_story(payload["story"])
+    if payload.get("findings-search", None) not in FINDINGS_SEARCH:
+        raise Refused(f"findings-search must be one of {FINDINGS_SEARCH}")
     state.update(payload)
     return state, None
 
@@ -590,6 +593,15 @@ def answer(state, payload, by):
     return state, None
 
 
+def search_findings(state, payload, by):
+    if by != "developer":
+        raise Refused("only the developer asks for the findings search")
+    if state.get("findings-search") == "requested":
+        raise Refused("the findings search is already asked for")
+    state["findings-search"] = "requested"
+    return state, None
+
+
 def handled(state, payload, by, message_id):
     if message_id not in state["handled"]:
         state["handled"].append(message_id)
@@ -600,7 +612,7 @@ COMMANDS = {"set": set_fields, "add-finding": add_finding, "add-comment": add_co
             "view": view, "unview": unview, "archive": archive, "answer": answer,
             "switch-directive": switch_directive, "clear-directive-switches": clear_directive_switches,
             "record-check": record_check, "add-context": add_context, "save-draft": save_draft,
-            "discard-draft": discard_draft, "draft-to-finding": draft_to_finding}
+            "discard-draft": discard_draft, "draft-to-finding": draft_to_finding, "search-findings": search_findings}
 COMMANDS_WITH_ID = {"update-finding": update_finding, "set-status": set_status, "mark-sent": mark_sent,
                     "update-comment": update_comment, "comment-status": comment_status,
                     "comment-sent": comment_sent, "use-case-status": use_case_status, "reply": reply,

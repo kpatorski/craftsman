@@ -681,6 +681,8 @@ function reviewStep() {
   if (at === merge && s.findings.some(f => f.status === "merged")) at = last;
   if (cp && cp.answer && asked >= 0) at = Math.max(at, asked + 1);
   if (at >= merge && idle()) at = last;
+  // the developer put the findings off: the walk is skipped, and the session answers the page
+  if (s["findings-search"] === "skipped" && !ucs.some(u => u.status !== "pending")) at = last;
   return Math.min(at, last);
 }
 function stepsStrip(at, mode) {
@@ -895,7 +897,17 @@ function findingTable(list, sortable) {
         <td class="muted">${threads.length ? `💬 ${threads.reduce((a, t) => a + t.messages.length, 0)}` : '<span class="dim">—</span>'}</td><td>${st}</td></tr>`;
     }).join("")}</tbody></table>`;
 }
+// The search for findings runs when the developer asks for it: put off when the review opened, it is offered here.
+function searchOffer(state) {
+  if (state["findings-search"] !== "skipped") return "";
+  return `<div class="card"><h3><span>AI Agent has not searched this change for findings</span></h3>
+    <div class="muted">It checks every use case against the directives switched on in Rules, then joins the findings that repeat one problem.
+      It takes a while and uses more of your plan than the rest of the review.</div>
+    <div class="row-actions"><button class="btn go sm" data-search-findings>Search for findings</button></div></div>`;
+}
 function viewFindings() {
+  const offer = searchOffer(S());
+  if (offer && !S().findings.length) return offer;
   if (!S().findings.length && reviewStep() < stepAt("review-use-cases")) return pendingCard(stepAt("review-use-cases"), "No findings yet");
   const all = S().findings.filter(f => f.status !== "merged"), base = all.filter(STATUS[ui.fstatus] || STATUS.open);
   const openQ = f => threadsOf("finding", f.id).some(t => t.status === "open"), text = ui.search.toLowerCase();
@@ -903,7 +915,7 @@ function viewFindings() {
     (!ui.fquestions || openQ(f)) && (!text || (f.title + " " + f.comment + " " + (f.locations || []).map(l => l.path).join(" ")).toLowerCase().includes(text)));
   const chip = (label, n, on, data) => `<button class="chip${on ? " on" : ""}" ${data}>${label}${n !== null ? ` <b>${n}</b>` : ""}</button>`;
   const cats = [...new Set(all.map(f => f.category))].sort();
-  return `<div class="filters">
+  return `${offer}<div class="filters">
       ${chip("All", base.length, !ui.fsev, 'data-fsev=""')}${SEVS.map(k => chip(SEV[k], base.filter(f => f.severity === k).length, ui.fsev === k, `data-fsev="${k}"`)).join("")}
       <span class="fsep"></span>${chip("✦ AI Agent", base.filter(f => f.by !== "developer").length, ui.fby === "agent", 'data-fby="agent"')}${chip("You", base.filter(f => f.by === "developer").length, ui.fby === "developer", 'data-fby="developer"')}
       <span class="fsep"></span><select class="chip${ui.fcat ? " on" : ""}" id="fcat"><option value="">Any category</option>${cats.map(c => `<option${c === ui.fcat ? " selected" : ""}>${esc(c)}</option>`).join("")}</select>
@@ -2163,6 +2175,7 @@ document.addEventListener("click", async e => {
     });
   }
   if (d.contextRemove) return change("remove-context", { note: d.contextRemove }).then(o => o && toast("note taken back; AI Agent is told"));
+  if (d.searchFindings !== undefined) return change("search-findings").then(o => o && (toast("asked AI Agent to search for findings"), reload()));
   if (d.directiveCheck) return change("check-directive", { directive: d.directiveCheck })
     .then(o => o && toast(`asked AI Agent to check ${d.directiveCheck} in the use cases already reviewed`));
   if (d.refresh !== undefined) return api("/api/review/message", { ...K(), type: "refresh" }).then(o => o && toast("asked AI Agent to read the PR again"));

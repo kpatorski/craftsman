@@ -193,6 +193,17 @@ class ReviewsTest(unittest.TestCase):
         with self.assertRaises(review_state.Refused):
             reviews.developer_change(ID, "check-directive", {})
 
+    def test_the_page_asks_the_agent_to_search_for_findings_it_skipped(self):
+        review_state.change(self.review, "set", {"findings-search": "skipped"})
+
+        reviews.developer_change(ID, "search-findings", {})
+
+        self.assertEqual(review_state.read(self.review)["findings-search"], "requested")
+        self.assertEqual([m["type"] for m in self.inbox()], ["find"])
+        with self.assertRaises(review_state.Refused):
+            reviews.developer_change(ID, "search-findings", {})
+        self.assertEqual(len(self.inbox()), 1)
+
     def test_the_page_adds_the_developers_own_finding(self):
         reviews.developer_change(ID, "add-finding", {"fields": {
             "title": "Mine", "comment": "Return a result.", "severity": "nit",

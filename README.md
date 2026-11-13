@@ -196,10 +196,12 @@ allow it: the page asks the first time the review wants one of its tools, and �
 else the review wants beyond its own tools it asks for on the page, and waits: allow it once, in every review, or deny
 it with a reason — see `REVIEW.md`, "The review's session". The review reads the PR's description and the tickets it
 links, maps the change into use cases, tells the PR's story, reads the business rules in its tests, notes the few places
-that are hard to follow, and only then reviews the code, use case by use case from the entry point down, against the
-enabled directives — including whether the code could be simpler or left to the standard library, the framework or a
-dependency the build already has. Every finding is a proposed PR comment: edit it, delete it, or mark it to send, and
-send the marked ones to GitHub whenever you like — nothing is posted before that.
+that are hard to follow, and then asks whether to search the code for findings. The search is the longest and costliest
+part, so it runs only when asked for — there, later from the Findings tab, or one directive at a time from Rules. It
+reviews the code use case by use case from the entry point down, against the enabled directives — including whether
+the code could be simpler or left to the standard library, the framework or a dependency the build already has. Every
+finding is a proposed PR comment: edit it, delete it, or mark it to send, and send the marked ones to GitHub whenever
+you like — nothing is posted before that.
 
 Reviews have their own page, `/review` on the dashboard server, apart from the dashboard. The reviews are tiles in a
 rail on the left; the open one has five tabs:
@@ -217,7 +219,8 @@ rail on the left; the open one has five tabs:
   its language (Java, Kotlin, TypeScript, JavaScript, Python, Go, C#, SQL, shell, YAML, JSON, XML); findings are dots
   beside the line numbers, opened under the line on a click, or all inline with a switch.
 - **Findings** — a table to filter, search and sort; a finding picked opens in the AI Agent panel to edit, ask about,
-  drop, or mark to send. A finding's "In fix prompt" switch leaves it out of the fix prompt Send can post.
+  drop, or mark to send. "Search for findings" is there while the search has not been asked for. A finding's "In fix
+  prompt" switch leaves it out of the fix prompt Send can post.
 - **Comments** — the PR's conversation on GitHub as it reads there: everyone's comments, reviews and threads on the
   code, read again after every Send and on request. Write a comment on the whole PR, quote one to answer it, or reply
   in a thread; yours wait for Send. A thread on a line of the diff also shows under that line in the code.
