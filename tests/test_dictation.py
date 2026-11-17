@@ -254,5 +254,43 @@ class DictationTest(unittest.TestCase):
         self.assertIn(dictation.DEFAULT_MODEL, dictation.CATALOGUE)
 
 
+class FindPythonTest(unittest.TestCase):
+    """The engine's pinned wheels need Python 3.12 or newer; any newer one is taken, the newest first."""
+
+    def setUp(self):
+        self.bin = pathlib.Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.bin, True)
+        path = os.environ.get("PATH")
+        self.addCleanup(os.environ.__setitem__, "PATH", path)
+        os.environ["PATH"] = str(self.bin)
+
+    def python(self, name, version):
+        script = self.bin / name
+        script.write_text(f"#!/bin/sh\necho {version}\n")
+        script.chmod(0o755)
+        return str(script)
+
+    def test_a_python_newer_than_any_named_one_is_taken(self):
+        found = self.python("python3", "3.14")
+        self.assertEqual(dictation.find_python(), (found, "3.14"))
+
+    def test_the_newest_named_python_wins(self):
+        self.python("python3.12", "3.12")
+        newest = self.python("python3.13", "3.13")
+        self.python("python3", "3.11")
+        self.assertEqual(dictation.find_python(), (newest, "3.13"))
+
+    def test_python_3_12_itself_is_enough(self):
+        found = self.python("python3.12", "3.12")
+        self.assertEqual(dictation.find_python(), (found, "3.12"))
+
+    def test_a_python_older_than_3_12_is_not_enough(self):
+        self.python("python3", "3.11")
+        self.python("python3.11", "3.11")
+        with self.assertRaises(dictation.SetupFailed) as refused:
+            dictation.find_python()
+        self.assertIn("3.12 or newer", str(refused.exception))
+
+
 if __name__ == "__main__":
     unittest.main()

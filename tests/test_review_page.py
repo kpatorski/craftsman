@@ -287,5 +287,20 @@ class AgentToolsTest(unittest.TestCase):
         self.assertIn('class="switch on" data-tool-toggle="Bash(npm test)" data-on="1"', page)
 
 
+class CodeFontTest(unittest.TestCase):
+    """Monospace text looks bigger than the page's light sans-serif at the same size, so code is set a sixth smaller."""
+
+    def test_every_monospace_size_is_a_sixth_below_the_body_text(self):
+        css = PAGE.read_text().split("</style>")[1]
+        body = float(re.search(r"font: 300 (\.\d+)rem", css).group(1))
+        sizes = {}
+        for selector, rule in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+            if "var(--mono)" in rule:
+                for size in re.findall(r"(?:font-size: |font: (?:\d00 )?)(\.\d+)rem", rule):
+                    sizes[selector.strip()] = float(size)
+        self.assertGreater(len(sizes), 10)
+        self.assertEqual({}, {selector: size for selector, size in sizes.items() if size > body * 5 / 6})
+
+
 if __name__ == "__main__":
     unittest.main()

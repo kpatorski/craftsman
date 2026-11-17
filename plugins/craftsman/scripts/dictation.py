@@ -4,7 +4,7 @@ developer asks: `setup` builds the engine's own virtual environment and fetches 
 manage the models.
 
 Usage:
-    dictation.py setup [--python <python3.9-3.13>]
+    dictation.py setup [--python <python3.12 or newer>]
     dictation.py list [--json]
     dictation.py add <model> | remove <model> | use <model>
     dictation.py status [--json]
@@ -42,8 +42,9 @@ REQUIREMENTS = HERE / "dictation_requirements.txt"
 DEFAULT_MODEL = "small"
 VENV_BYTES = 230 * 1024 * 1024  # the installed packages: 219 MB on macOS arm64, Python 3.12
 MARGIN = 1.2
-PYTHONS = ("python3.12", "python3.11", "python3.13", "python3.10", "python3.9", "python3")
-SUPPORTED = ((3, 9), (3, 13))
+# the pinned numpy and av have wheels for Python 3.12 and newer only
+PYTHONS = ("python3.15", "python3.14", "python3.13", "python3.12", "python3")
+MINIMUM = (3, 12)
 SETUP = "/craftsman:dictation setup"
 CONVERTER = HERE / "whisper_convert.py"
 WHISPER_COMMIT = "31243bad24cc746f07d4c8bfdd2d974872cb1803"  # openai/whisper v20250625
@@ -134,9 +135,9 @@ def find_python():
                                      capture_output=True, text=True, timeout=20).stdout.strip()
         except (OSError, subprocess.SubprocessError):
             continue
-        if version and SUPPORTED[0] <= tuple(map(int, version.split("."))) <= SUPPORTED[1]:
+        if version and tuple(map(int, version.split("."))) >= MINIMUM:
             return path, version
-    raise SetupFailed("no Python 3.9-3.13 found; pass --python <path>")
+    raise SetupFailed("no Python 3.12 or newer found; pass --python <path>")
 
 
 def sha256(path):

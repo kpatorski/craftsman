@@ -3,6 +3,12 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.30.1
+
+- `/craftsman:dictation setup` takes any Python from 3.12 up, the newest found first, instead of 3.9 to 3.13: the
+  engine's pinned numpy and av have wheels for 3.12 and newer only, Python 3.14 included.
+- The review page sets code a size smaller than its text, so monospace no longer looks larger than the prose.
+
 ## 0.30.0
 
 - The dashboard server opens a review itself before its session starts: it reads the PR or the branches, fetches
