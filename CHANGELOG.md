@@ -3,6 +3,11 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.30.2
+
+- The review page keeps a chip's label on one line, and the severity chips of a comment draft keep their size
+  next to a long heading.
+
 ## 0.30.1
 
 - `/craftsman:dictation setup` takes any Python from 3.12 up, the newest found first, instead of 3.9 to 3.13: the

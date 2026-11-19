@@ -177,7 +177,7 @@
 
   .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
   .chip { padding: 5px 12px; border-radius: var(--pill); border: 1px solid var(--line); color: var(--muted); font-size: .7812rem;
-    cursor: pointer; background: none; }
+    cursor: pointer; background: none; white-space: nowrap; }
   .chip:hover { color: var(--text); }
   .chip.on { border-color: var(--neon-dim); color: var(--neon); background: var(--neon-bg); }
   .wiz .wstep { display: flex; gap: 14px; margin: 6px 0 22px; } .wiz .wstep > .grow { flex: 1; min-width: 0; } .wiz .wl { font-weight: 500; margin-bottom: 8px; }
@@ -320,7 +320,7 @@
   .draft-out { background: var(--code-bg); }
   .draft-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 14px;
     border-bottom: 1px solid var(--line); font-size: .75rem; color: var(--muted); }
-  .draft-sev { display: flex; gap: 6px; } .draft-sev .chip { padding: 3px 10px; cursor: pointer; }
+  .draft-sev { display: flex; gap: 6px; flex: none; } .draft-sev .chip { padding: 3px 10px; cursor: pointer; }
   .draft-preview { flex: 1; overflow: auto; padding: 12px 16px; }
   .draft-preview pre { overflow-x: auto; }
   .draft-in { background: var(--bg); border-color: var(--line2); }

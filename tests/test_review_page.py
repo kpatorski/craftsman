@@ -302,5 +302,19 @@ class CodeFontTest(unittest.TestCase):
         self.assertEqual({}, {selector: size for selector, size in sizes.items() if size > body * 5 / 6})
 
 
+class ChipTest(unittest.TestCase):
+    """A chip is a pill: one line high, whatever text stands next to it."""
+
+    def rules(self, selector):
+        css = PAGE.read_text().split("</style>")[1]
+        return " ".join(rule for found, rule in re.findall(r"([^{}]+)\{([^{}]*)\}", css) if found.strip() == selector)
+
+    def test_a_chip_keeps_its_label_on_one_line(self):
+        self.assertIn("white-space: nowrap", self.rules(".chip"))
+
+    def test_the_severity_chips_of_a_draft_are_not_squeezed_by_the_heading_beside_them(self):
+        self.assertIn("flex: none", self.rules(".draft-sev"))
+
+
 if __name__ == "__main__":
     unittest.main()
