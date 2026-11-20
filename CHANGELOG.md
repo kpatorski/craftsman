@@ -3,6 +3,11 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.32.1
+
+- What a finding draft is about stays on one line on the review page: a long file name is cut short, the place in the
+  file is always shown, and the whole path is in the tooltip.
+
 ## 0.32.0
 
 - The review page's header shows what the review's session has cost so far: Claude Code's estimate in dollars and

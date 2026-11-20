@@ -368,6 +368,34 @@ class SessionCostTest(unittest.TestCase):
         self.assertIsNone(self.label(None))
 
 
+@unittest.skipUnless(NODE, "node is not installed")
+class AboutChipTest(unittest.TestCase):
+    """What a finding draft is about: one line, a long name cut short, where in the file always shown."""
+
+    def chip(self, path, draft):
+        program = "\n".join(["const esc = s => String(s);", constant("lineSpan"), function("aboutChip")])
+        program += f"\nconsole.log(JSON.stringify(aboutChip({json.dumps(path)}, {json.dumps(draft)})));"
+        return json.loads(subprocess.run([NODE, "-e", program], capture_output=True, text=True, check=True).stdout)
+
+    def test_the_name_is_cut_on_its_own_and_the_place_in_the_file_stays_whole(self):
+        chip = self.chip("src/app/booking-edit-loading.spec.ts", {"lines": None})
+
+        self.assertIn('title="src/app/booking-edit-loading.spec.ts"', chip)
+        self.assertIn('<b class="mono about-name">booking-edit-loading.spec.ts</b>', chip)
+        self.assertIn('<span class="about-where">· whole file</span>', chip)
+        self.assertIn('<span class="about-where">:3–5</span>', self.chip("src/A.ts", {"lines": [3, 5]}))
+        self.assertIn('<span class="about-where">· the folder</span>', self.chip("src/app/", {"lines": None}))
+
+    def test_the_chip_keeps_to_one_line(self):
+        css = PAGE.read_text().split("</style>")[1]
+        rules = lambda selector: " ".join(r for found, r in re.findall(r"([^{}]+)\{([^{}]*)\}", css) if found.strip() == selector)
+
+        self.assertIn("white-space: nowrap", rules(".about-chip"))
+        self.assertIn("min-width: 0", rules(".about-chip"))
+        self.assertIn("text-overflow: ellipsis", rules(".about-name"))
+        self.assertIn("flex: none", rules(".about-where"))
+
+
 class ToastTest(unittest.TestCase):
     """A toast stays a small box at the bottom however long its message, such as a rule naming many files."""
 

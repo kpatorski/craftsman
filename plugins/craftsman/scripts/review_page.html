@@ -319,7 +319,10 @@
   .gtip div { display: flex; gap: 8px; align-items: center; padding: 2px 0; } .gtip .hint { color: var(--dim); font-size: .75rem; margin-top: 4px; }
   .crumb-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .about-chip { align-self: flex-start; display: inline-flex; gap: 8px; align-items: center; padding: 4px 12px; border-radius: var(--pill);
-    border: 1px solid var(--line2); font-size: .7812rem; color: var(--muted); max-width: 100%; }
+    border: 1px solid var(--line2); font-size: .7812rem; color: var(--muted); max-width: 100%; min-width: 0; white-space: nowrap; }
+  .about-text { display: flex; gap: 4px; align-items: baseline; min-width: 0; }
+  .about-name { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .about-where { flex: none; }
   .about-chip a { cursor: pointer; color: var(--text); }
   .draft-out, .draft-in { flex: 1 1 0; min-height: 140px; display: flex; flex-direction: column; border-radius: 12px; border: 1px solid var(--line); }
   .draft-out { background: var(--code-bg); }
@@ -338,7 +341,7 @@
     font-weight: 300; line-height: 1.55; padding: 12px 14px; }
   .draft-actions { margin-top: 0; } .draft-actions .grow { flex: 1; }
   .about-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-  .about-row .switch { font-size: .7812rem; white-space: nowrap; }
+  .about-row .switch { font-size: .7812rem; white-space: nowrap; flex: none; }
   .draft-preview.stale { opacity: .55; transition: opacity .2s; }
   .draft-title { margin: 0 0 4px; font-size: 1rem; font-weight: 500; color: var(--heading); }
   .draft-preview .banner { margin: 0 0 10px; }
@@ -1184,6 +1187,11 @@ function draftOf(path) {
   }
   return drafts[path];
 }
+// What a finding draft is about, in one line: the name is cut short when it is long, never where in the file.
+function aboutChip(path, d) {
+  const name = path.endsWith("/") ? path : path.split("/").pop(), where = path.endsWith("/") ? "· the folder" : d.lines ? ":" + lineSpan(d.lines) : "· whole file";
+  return `<span class="about-text" title="${esc(path)}">About <b class="mono about-name">${esc(name)}</b><span class="about-where">${where}</span></span>`;
+}
 const draftPlace = (path, d) => path.endsWith("/") ? esc(path) + " · the folder" : esc(path.split("/").pop()) + (d.lines ? ":" + lineSpan(d.lines) : " · whole file");
 const MD_TOOLS = [["bold", "<b>B</b>", "Bold"], ["italic", "<i>I</i>", "Italic"], ["code", "&lt;/&gt;", "Inline code"],
   ["block", "{ }", "Code block"], ["list", "☰", "List"], ["quote", "❝", "Quote"], ["link", "🔗", "Link"]];
@@ -1197,7 +1205,7 @@ function syncDraft(c) {
 }
 function panelComment(c) {
   const path = draftAt = draftKey(c), d = draftOf(path), folder = path.endsWith("/");
-  return `<div class="about-row"><div class="about-chip"><span>About <b class="mono">${draftPlace(path, d)}</b></span>${d.lines ? `<a data-draft-whole title="Make it about the whole file">×</a>` : ""}</div>
+  return `<div class="about-row"><div class="about-chip">${aboutChip(path, d)}${d.lines ? `<a data-draft-whole title="Make it about the whole file">×</a>` : ""}</div>
       <span class="switch${ui.assistant ? " on" : ""}" data-assistant-switch title="AI Agent writes your draft up as a finding by the review's rules"><i></i>✦ AI Agent assistant</span></div>
     ${folder ? `<div class="banner" style="margin:0">A finding on a folder goes to the PR's conversation, naming the folder: GitHub has no comment on a folder.</div>` : ""}
     <section class="draft-out" id="draft-out">${draftOut(path, d)}</section>
