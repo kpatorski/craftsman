@@ -179,7 +179,8 @@ pull request's branch has it (`/api/review/file`); a path outside `worktree/`, o
 
 `checkpoint` is the question the run is stopped on, or null. `{"id", "step", "question", "options": [...],
 "answer"}`. `answer` is null until the developer answers — on the page or in the CLI — and then `{"option", "note",
-"by"}`.
+"by"}`. Every answer is also added to `answered` — `{"id", "step", "question", "option", "note", "at"}` — which
+stays after the run clears `checkpoint`, so the page shows the questions already asked and how they were answered.
 
 ### Findings
 

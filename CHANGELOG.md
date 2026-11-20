@@ -3,6 +3,15 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.31.0
+
+- The AI Agent's question on the review page has its own note box: an option that corrects or asks for a note is
+  sent only with one, and the box at the bottom is for questions and context alone.
+- The questions the AI Agent asked stay in the review's conversation, each with the option chosen and the note sent
+  with it (`answered` in `review.json`).
+- A long toast, such as a rule allowed in every review naming many files, is cut to a few lines; the whole message
+  is in its tooltip.
+
 ## 0.30.2
 
 - The review page keeps a chip's label on one line, and the severity chips of a comment draft keep their size

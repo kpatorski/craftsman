@@ -287,6 +287,37 @@ class AgentToolsTest(unittest.TestCase):
         self.assertIn('class="switch on" data-tool-toggle="Bash(npm test)" data-on="1"', page)
 
 
+@unittest.skipUnless(NODE, "node is not installed")
+class AgentQuestionTest(unittest.TestCase):
+    """The AI Agent's question carries its own note box; what was asked and answered stays in the conversation."""
+
+    def page(self, name, *args):
+        program = "\n".join(["const esc = s => String(s), when = at => 'at ' + at;", function("needsNote"), function(name)])
+        program += f"\nconsole.log(JSON.stringify({name}(...{json.dumps(args)})));"
+        return json.loads(subprocess.run([NODE, "-e", program], capture_output=True, text=True, check=True).stdout)
+
+    def test_an_option_that_corrects_or_asks_for_a_note_needs_one(self):
+        for option, needs in [("Correct it (write a note)", True), ("Add a note", True), ("The shape is right", False),
+                              ("Go on", False)]:
+            with self.subTest(option=option):
+                self.assertEqual(run("needsNote", option), needs)
+
+    def test_the_question_has_its_own_note_box_next_to_its_options(self):
+        card = self.page("agentAsks", {"question": "Is this the shape?", "options": ["Right", "Correct it (write a note)"]})
+
+        self.assertIn('id="cp-note"', card)
+        self.assertIn('data-answer="Correct it (write a note)" data-needs-note="1"', card)
+        self.assertIn('data-answer="Right" data-needs-note=""', card)
+
+    def test_an_answered_question_shows_the_option_and_the_note(self):
+        block = self.page("answeredBlock", [{"question": "Is this the shape?", "step": "scope", "option": "Correct it",
+                                             "note": "Two use cases", "at": "t1"}])
+
+        for text in ("Is this the shape?", "Correct it", "Two use cases", "at t1"):
+            self.assertIn(text, block)
+        self.assertEqual(self.page("answeredBlock", []), "")
+
+
 class CodeFontTest(unittest.TestCase):
     """Monospace text looks bigger than the page's light sans-serif at the same size, so code is set a sixth smaller."""
 
@@ -314,6 +345,18 @@ class ChipTest(unittest.TestCase):
 
     def test_the_severity_chips_of_a_draft_are_not_squeezed_by_the_heading_beside_them(self):
         self.assertIn("flex: none", self.rules(".draft-sev"))
+
+
+class ToastTest(unittest.TestCase):
+    """A toast stays a small box at the bottom however long its message, such as a rule naming many files."""
+
+    def test_a_long_message_is_cut_to_a_few_lines_and_kept_whole_in_the_tooltip(self):
+        css = PAGE.read_text().split("</style>")[1]
+        rule = " ".join(r for found, r in re.findall(r"([^{}]+)\{([^{}]*)\}", css) if found.strip() == ".toast")
+        for part in ("max-width:", "max-height:", "overflow: hidden", "overflow-wrap: anywhere"):
+            with self.subTest(part=part):
+                self.assertIn(part, rule)
+        self.assertIn("t.title = msg", function("toast"))
 
 
 if __name__ == "__main__":

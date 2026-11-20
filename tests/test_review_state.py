@@ -826,6 +826,19 @@ class ReviewStateTest(unittest.TestCase):
 
         self.assertEqual(self.state()["checkpoint"]["answer"], {"option": "right", "note": None, "by": "developer"})
 
+    def test_an_answered_question_stays_in_the_review_after_the_agent_clears_it(self):
+        self.opened()
+        self.run_state("set", payload={"checkpoint": {"id": "c1", "step": "read-pr-scope", "question": "Scope?",
+                                                      "options": ["right", "correct"], "answer": None}})
+        self.run_state("answer", payload={"option": "correct", "note": "Two use cases, not one"}, by="developer")
+        self.run_state("set", payload={"checkpoint": None})
+
+        [asked] = self.state()["answered"]
+        self.assertEqual({k: asked[k] for k in ("id", "step", "question", "option", "note")},
+                         {"id": "c1", "step": "read-pr-scope", "question": "Scope?", "option": "correct",
+                          "note": "Two use cases, not one"})
+        self.assertTrue(asked["at"])
+
     def test_two_writers_at_once_lose_nothing(self):
         self.opened()
         command = [sys.executable, str(SCRIPT), str(self.review), "add-finding", json.dumps(finding())]

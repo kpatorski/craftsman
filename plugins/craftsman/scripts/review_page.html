@@ -248,6 +248,10 @@
   .sugg:hover { color: var(--text); border-color: var(--line2); }
   .agent-asks { border: 1px solid var(--should); border-left-width: 3px; border-radius: 12px; padding: 10px 12px; margin-top: 12px; background: var(--should-bg); }
   .agent-asks .who { font-size: .75rem; color: var(--should); margin-bottom: 4px; }
+  .agent-asks textarea { width: 100%; min-height: 54px; margin-top: 10px; }
+  .answered { border: 1px solid var(--line); border-left-width: 3px; border-radius: 12px; padding: 8px 12px; margin-top: 12px; font-size: .8125rem; }
+  .answered .who { font-size: .75rem; color: var(--muted); margin-bottom: 4px; }
+  .answered .reply { margin-top: 6px; } .answered .reply b { color: var(--heading); font-weight: 500; }
   .ctx-notes .who { font-size: .75rem; color: var(--muted); margin-bottom: 6px; } .ctx-notes .ctx-note { font-size: .8125rem; }
   .codediff { min-height: 0; min-width: 0; } .codediff .diffcard { height: 100%; display: flex; flex-direction: column; box-sizing: border-box; }
   .codediff .diffbody { flex: 1; min-height: 0; overflow: auto; }
@@ -420,7 +424,8 @@
     animation: slide 1.4s ease-in-out infinite; }
   @keyframes slide { to { left: 100%; } }
   .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--float); border: 1px solid var(--neon-dim);
-    border-radius: 10px; padding: 8px 14px; font-size: .8125rem; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 50; }
+    border-radius: 10px; padding: 8px 14px; font-size: .8125rem; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 50;
+    max-width: min(640px, calc(100vw - 40px)); max-height: 6.5em; overflow: hidden; overflow-wrap: anywhere; }
   .toast.show { opacity: 1; }
   .mic-dock { position: fixed; z-index: 60; display: flex; align-items: center; gap: 4px; flex-direction: row; }
   .mic-dock[hidden] { display: none; }
@@ -1103,12 +1108,23 @@ function placeOf(about) {
   const uc = about.kind === "use-case" && useCases().find(u => u.id === about.id);
   return uc ? uc.name : `${about.kind} ${about.id}`;
 }
-// The AI Agent's question the run stopped on: in the PR's conversation, answered with one of its options; what is
-// written in the box below goes with the answer as a note.
+// An option that corrects what the AI Agent proposed, or says it takes a note, is sent only with a note.
+function needsNote(option) {
+  return /correct|note/i.test(option);
+}
+// The AI Agent's question the run stopped on: in the PR's conversation, answered with one of its options; the note
+// box in the question goes with the answer.
 function agentAsks(cp) {
   return `<div class="agent-asks"><div class="who">✦ AI Agent asks · waiting for you${cp.step ? " · " + esc(cp.step) : ""}</div>
     <div style="white-space:pre-wrap;color:var(--heading)">${esc(cp.question)}</div>
-    <div class="row-actions">${(cp.options || []).map((o, i) => `<button class="btn${i === 0 ? " go" : ""} sm" data-answer="${esc(o)}">${esc(o)}</button>`).join("")}</div></div>`;
+    <textarea class="field" id="cp-note" placeholder="Your note with the answer: what to correct, or anything to add"></textarea>
+    <div class="row-actions">${(cp.options || []).map((o, i) => `<button class="btn${i === 0 ? " go" : ""} sm" data-answer="${esc(o)}" data-needs-note="${needsNote(o) ? "1" : ""}">${esc(o)}</button>`).join("")}</div></div>`;
+}
+// The questions the AI Agent asked before, each with the option chosen and the note sent with it, oldest first.
+function answeredBlock(answered) {
+  return answered.map(a => `<div class="answered"><div class="who">✦ AI Agent asked${a.step ? " · " + esc(a.step) : ""} · ${when(a.at)}</div>
+    <div style="white-space:pre-wrap">${esc(a.question)}</div>
+    <div class="reply">You answered <b>${esc(a.option)}</b>${a.note ? `<div style="white-space:pre-wrap">${esc(a.note)}</div>` : ""}</div></div>`).join("");
 }
 // "Ask about it": the conversation about the context, and the box to ask in. A question goes on in the open thread
 // about the same context, or starts one.
@@ -1117,12 +1133,13 @@ function askTab(c) {
   const cp = c.kind === "review" && waiting() ? S().checkpoint : null;
   const gh = c.kind === "github" ? ghContext(c.id) : "";
   const quote = c.kind === "file" && c.lines && ui.selection && ui.selection.path === c.path ? ui.selection.quote : null;
-  const empty = threads.length || cp || gh || (c.kind === "review" && contextNotes(S()).length) ? "" : `<div class="muted" style="padding-top:12px;font-size:.8125rem">No conversation about ${nounOf(c)} yet. It stays with the review and never goes to GitHub.</div>`;
+  const answered = c.kind === "review" ? S().answered || [] : [];
+  const empty = threads.length || cp || gh || answered.length || (c.kind === "review" && contextNotes(S()).length) ? "" : `<div class="muted" style="padding-top:12px;font-size:.8125rem">No conversation about ${nounOf(c)} yet. It stays with the review and never goes to GitHub.</div>`;
   const notes = c.kind === "review" ? contextNotes(S()) : [];
   const context = notes.length ? `<div class="ctx-notes"><div class="who">Context you gave the AI Agent</div>${notes.map(n => `<div class="ctx-note"><div class="ctx-text">${esc(n.text)}</div>
         <span class="muted ctx-at">${when(n.at)}</span><button class="btn ghost ctx-x" data-context-remove="${esc(n.id)}" title="Take this note back; AI Agent is told">×</button></div>`).join("")}</div>` : "";
-  return `<div class="ask-out">${gh}${context}${cp ? agentAsks(cp) : ""}${threadsBlock(threads)}${empty}</div>
-    <div class="ask-in">${quote ? `<div class="quote">${esc(quote)}</div>` : ""}<textarea id="ask-in" placeholder="Ask AI Agent about ${nounOf(c)}…${cp ? " Or write a note for your answer above." : ""}"></textarea></div>
+  return `<div class="ask-out">${gh}${context}${answeredBlock(answered)}${cp ? agentAsks(cp) : ""}${threadsBlock(threads)}${empty}</div>
+    <div class="ask-in">${quote ? `<div class="quote">${esc(quote)}</div>` : ""}<textarea id="ask-in" placeholder="Ask AI Agent about ${nounOf(c)}…"></textarea></div>
     <div class="ask-foot">${(SUGGESTIONS[c.kind === "file" && c.lines ? "lines" : c.kind] || []).map(q => `<button class="sugg" data-sugg="${esc(q)}">${esc(q)}</button>`).join("")}
       <span class="grow"></span>${c.kind === "review" ? `<button class="btn ghost sm" data-context-add title="What the PR does not say: the AI Agent takes it into account from its next step on">Add as context</button>` : ""}
       <button class="btn go sm" data-ask title="${MOD} Enter">Ask</button></div>`;
@@ -2039,7 +2056,7 @@ function render() {
 // ================================================================ actions
 let toastTimer;
 function toast(msg, undo) {
-  const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show");
+  const t = document.getElementById("toast"); t.textContent = msg; t.title = msg; t.classList.add("show");
   ui.undo = undo || null;
   if (undo) t.insertAdjacentHTML("beforeend", `<button class="btn ghost sm undo" data-undo>Undo <kbd>${MOD} Z</kbd></button>`);
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.classList.remove("show"); ui.undo = null; }, undo ? 5000 : 3200);
@@ -2148,10 +2165,11 @@ document.addEventListener("click", async e => {
   if (d.stepFile) { const file = stepIn(treeFiles(), ui.file, +d.stepFile); setCtx({ kind: "file", path: file }); return go({ ui: { file, cursor: file } }); }
   if (d.codeFilter) { ui.codeFilter = d.codeFilter; return render(); }
   if (d.answerHere !== undefined) { setCtx(PR, "ask"); return render(); }
-  if (d.answer !== undefined) return change("answer", { option: d.answer, note: ["cp-note", "ask-in"].map(id => document.getElementById(id)?.value.trim()).find(Boolean) || null }).then(o => {
-    if (o && document.getElementById("ask-in")) document.getElementById("ask-in").value = "";
-    return o && reload();
-  });
+  if (d.answer !== undefined) {
+    const box = document.getElementById("cp-note"), note = box ? box.value.trim() : "";
+    if (d.needsNote && !note) { box && box.focus(); return toast("Write the note first: what should the AI Agent correct?"); }
+    return change("answer", { option: d.answer, note: note || null }).then(o => o && reload());
+  }
   if (d.live !== undefined) {
     if (!R.running && !S().closed) return api("/api/review/resume", K()).then(() => reload());
     ui.log = !ui.log; return renderPanel();

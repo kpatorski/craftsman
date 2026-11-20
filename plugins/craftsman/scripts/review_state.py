@@ -64,7 +64,7 @@ def empty_state(source, base, head, checkout=None):
     return {"source": source, "checkout": checkout, "base": base, "head": head, "refreshed": None, "session": None, "closed": None,
             "language": None, "scope": None, "requirements": None, "tickets": [], "structure": None, "story": None, "rules": [],
             "checkpoint": None, "findings": [], "comments": [], "threads": [], "viewed": [], "archived": False, "handled": [],
-            "directive-switches": {}, "checks": [], "context": [], "drafts": {}, "findings-search": None}
+            "directive-switches": {}, "checks": [], "context": [], "drafts": {}, "findings-search": None, "answered": []}
 
 
 @contextmanager
@@ -589,7 +589,11 @@ def answer(state, payload, by):
         raise Refused("a checkpoint is answered by the developer")
     if not state.get("checkpoint"):
         raise Refused("no checkpoint is open")
-    state["checkpoint"]["answer"] = {"option": payload["option"], "note": payload.get("note"), "by": by}
+    asked = state["checkpoint"]
+    asked["answer"] = {"option": payload["option"], "note": payload.get("note"), "by": by}
+    # kept after the agent clears the question, so the page shows what was asked and answered
+    state["answered"] = state.get("answered", []) + [{**{k: asked.get(k) for k in ("id", "step", "question")},
+                                                      "option": payload["option"], "note": payload.get("note"), "at": now()}]
     return state, None
 
 
