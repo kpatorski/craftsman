@@ -494,6 +494,11 @@ page shows what the session is doing in its header, and the whole log on request
 calls, refused tools, and the end of each turn. A subagent's result arrives in a later turn than the one that started
 it, so the log never waits for one answer per message.
 
+The header also shows what the session has cost so far, from the `result` event of every turn: the dollars are Claude
+Code's estimate at API prices, and the tooltip splits the tokens into input, output, cache read and cache write. A
+turn's `total_cost_usd` is the running total of one run of the session, so the server adds up the runs a restart
+separates.
+
 ## Dictation
 
 Every text box the developer writes prose in -- comments, replies, findings, "Ask AI Agent", the draft, a new review's

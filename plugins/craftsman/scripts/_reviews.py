@@ -92,7 +92,7 @@ def read_review(review_id, content=None):
             "unscoped": [d["id"] for d in directives if d["on"] and d["files"] != "none" and not d["scoped"]],
             "protocols": review_directives.protocols(content or review_directives.CONTENT),
             "missing-diff": None if (review / "diff" / f"{state['head']}.diff").is_file() else state["head"],
-            "console": console_lines(review), "files": files,
+            "console": console_lines(review), "cost": session_cost(review), "files": files,
             "untied": [changed["path"] for changed in files if not changed["use-cases"]]}
 
 
@@ -147,6 +147,31 @@ def console_lines(review, limit=400):
             cost = event.get("total_cost_usd")
             lines.append({"kind": "turn", "text": "turn ended" + (f" · ${cost:.4f}" if cost is not None else "")})
     return lines[-limit:]
+
+
+USAGE = {"input": "input_tokens", "output": "output_tokens", "cache-read": "cache_read_input_tokens",
+         "cache-write": "cache_creation_input_tokens"}
+
+
+def session_cost(review):
+    """What the review's session has cost so far: Claude Code's estimate in dollars and the tokens of every turn.
+    A turn's `total_cost_usd` is the running total of one run of the session, so a smaller one starts a new run."""
+    path = pathlib.Path(review) / "session.jsonl"
+    cost, done, run = dict.fromkeys(USAGE, 0), 0, 0
+    for raw in (path.read_text().splitlines() if path.exists() else []):
+        try:
+            event = json.loads(raw)
+        except ValueError:
+            continue
+        if event.get("type") != "result":
+            continue
+        total = event.get("total_cost_usd") or 0
+        if total < run:
+            done += run
+        run = total
+        for key, field in USAGE.items():
+            cost[key] += (event.get("usage") or {}).get(field) or 0
+    return {"usd": round(done + run, 6), **cost}
 
 
 def diff_text(review_id, path=None):

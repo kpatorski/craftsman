@@ -289,6 +289,21 @@ class ReviewsTest(unittest.TestCase):
             ("you", "Why the retry?"), ("text", "Because the provider..."), ("tool", "Bash git log -1"),
             ("denied", "Write"), ("turn", "turn ended · $0.0123")])
 
+    def test_the_session_cost_adds_up_every_turn_and_every_restart_of_the_session(self):
+        def turn(cost, read):
+            return {"type": "result", "total_cost_usd": cost, "usage": {
+                "input_tokens": 1, "output_tokens": 10, "cache_read_input_tokens": read, "cache_creation_input_tokens": 100}}
+        # the cost is a running total of one run of the session; a restart starts it again from nothing
+        events = [turn(0.5, 1000), turn(1.25, 2000), {"type": "system", "subtype": "init"}, turn(0.25, 500)]
+        (self.review / "session.jsonl").write_text("".join(json.dumps(e) + "\n" for e in events) + "not json\n")
+
+        self.assertEqual(reviews.session_cost(self.review), {"usd": 1.5, "input": 3, "output": 30,
+                                                             "cache-read": 3500, "cache-write": 300})
+
+    def test_a_review_without_a_session_has_cost_nothing(self):
+        self.assertEqual(reviews.session_cost(self.review),
+                         {"usd": 0, "input": 0, "output": 0, "cache-read": 0, "cache-write": 0})
+
     def test_a_long_tool_call_shows_as_its_first_line_shortened(self):
         command = "python3 review_state.py pr-1 set <<'EOF'\n" + "{" + "x" * 400 + "}\nEOF"
         event = {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Bash",

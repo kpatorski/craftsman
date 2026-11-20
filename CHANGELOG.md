@@ -3,6 +3,12 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.32.0
+
+- The review page's header shows what the review's session has cost so far: Claude Code's estimate in dollars and
+  all tokens, with input, output and cache tokens apart in the tooltip.
+- Allowing a rule in every review says so in a short toast, without repeating the rule just read.
+
 ## 0.31.0
 
 - The AI Agent's question on the review page has its own note box: an option that corrects or asks for a note is

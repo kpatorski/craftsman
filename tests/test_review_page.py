@@ -347,6 +347,27 @@ class ChipTest(unittest.TestCase):
         self.assertIn("flex: none", self.rules(".draft-sev"))
 
 
+@unittest.skipUnless(NODE, "node is not installed")
+class SessionCostTest(unittest.TestCase):
+    """What the review's session has cost, small next to its status, with the tokens by kind in the tooltip."""
+
+    def label(self, cost):
+        program = "\n".join([function("tokens"), function("costLabel")]) + f"\nconsole.log(JSON.stringify(costLabel({json.dumps(cost)})));"
+        return json.loads(subprocess.run([NODE, "-e", program], capture_output=True, text=True, check=True).stdout)
+
+    def test_the_cost_shows_dollars_and_all_tokens_and_the_tooltip_splits_them(self):
+        shown, tooltip = self.label({"usd": 13.710709, "input": 194, "output": 109705, "cache-read": 15682162,
+                                     "cache-write": 514808})
+
+        self.assertEqual(shown, "$13.71 · 16.3M tokens")
+        for part in ("estimate", "input 194", "output 109.7k", "cache read 15.7M", "cache write 514.8k"):
+            self.assertIn(part, tooltip)
+
+    def test_a_session_that_has_not_run_shows_no_cost(self):
+        self.assertIsNone(self.label({"usd": 0, "input": 0, "output": 0, "cache-read": 0, "cache-write": 0}))
+        self.assertIsNone(self.label(None))
+
+
 class ToastTest(unittest.TestCase):
     """A toast stays a small box at the bottom however long its message, such as a rule naming many files."""
 
@@ -357,6 +378,11 @@ class ToastTest(unittest.TestCase):
             with self.subTest(part=part):
                 self.assertIn(part, rule)
         self.assertIn("t.title = msg", function("toast"))
+
+    def test_allowing_a_rule_in_every_review_says_so_without_repeating_the_rule(self):
+        said = re.search(r'permitAnswer === "always"\) toast\((.+?)\);', PAGE.read_text()).group(1)
+
+        self.assertRegex(said, r'^"[^"$]+"$', "a plain message, the rule was read before the click")
 
 
 if __name__ == "__main__":

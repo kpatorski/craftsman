@@ -111,6 +111,7 @@
   .tag { font-size: .75rem; padding: 2px 9px; border-radius: 7px; font-weight: 400; white-space: nowrap; background: var(--nit-bg); color: var(--nit); }
   .tag.green { background: var(--neon-bg); color: var(--neon); } .tag.red { background: var(--must-bg); color: var(--must); }
   .tag.amber { background: var(--should-bg); color: var(--should); } .tag.blue { background: var(--change-bg); color: var(--change); }
+  .cost { font-size: .75rem; color: var(--muted); white-space: nowrap; cursor: help; }
   .live { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 10px; font-size: .8125rem;
     background: var(--neon-bg); color: var(--neon); cursor: pointer; border: 0; }
   .live.wait { background: var(--should-bg); color: var(--should); } .live.idle .pulse { animation: none; }
@@ -733,6 +734,19 @@ function progressLine() {
   return permits + restoring + problem + refused + ask + silent + `<div style="margin:-8px 0 18px"><div class="stepline"><span>Step ${at + 1} of ${STEPS.length} · <b>${STEPS[at][1]}</b></span>
     <span>AI Agent ${doing()}</span></div>${stepsStrip(at, sessionMode())}</div>`;
 }
+// A count of tokens in a few characters: 950, 109.7k, 16.3M.
+function tokens(n) {
+  return n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? (n / 1e3).toFixed(1) + "k" : String(n);
+}
+// What the review's session has cost so far, and the tooltip that splits its tokens by kind; null before it has run.
+function costLabel(cost) {
+  if (!cost) return null;
+  const all = cost.input + cost.output + cost["cache-read"] + cost["cache-write"];
+  if (!all && !cost.usd) return null;
+  return [`$${cost.usd.toFixed(2)} · ${tokens(all)} tokens`,
+    `Claude Code's estimate at API prices · input ${tokens(cost.input)} · output ${tokens(cost.output)} · ` +
+    `cache read ${tokens(cost["cache-read"])} · cache write ${tokens(cost["cache-write"])}`];
+}
 // What the session asks to use: the command, the file or the call, in a few words.
 function permitWhat(p) {
   const i = p.input || {};
@@ -817,6 +831,7 @@ function renderHead() {
     : idle() ? ["idle", "AI Agent is idle · ask it anything"]
     : R.running ? ["", (now ? `AI Agent · reviewing ${now.name}` : "AI Agent is working") + bg]
     : ["off", s.closed ? "Review closed" : "Session stopped · start it"];
+  const cost = costLabel(R.cost);
   const branches = s.source && (s.source["base-branch"] ? `${s.source["base-branch"]} ← ${s.source["head-branch"]}` :
     s.source.kind === "branches" ? `${s.source.target} ← ${s.source.source}` : "");
   const tabs = [["story", "Story", ""],
@@ -829,6 +844,7 @@ function renderHead() {
         ${(s.tickets || []).map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div>
       <div class="sub">${esc([pr && pr.repository, branches, plural(files.length, "file")].filter(Boolean).join(" · "))}, <span class="plus">+${added}</span> <span class="minus">−${removed}</span></div></div>
     <div class="actions">
+      ${cost ? `<span class="cost" title="${esc(cost[1])}">${esc(cost[0])}</span>` : ""}
       <button class="live ${status[0]}" data-live title="Click for the session's log"><span class="pulse"></span>${esc(status[1])}</button>
       <button class="btn ghost icon" data-refresh title="Refresh PR: read it again from GitHub" aria-label="Refresh PR"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12.5 1.5v3h-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <button class="btn go" data-send ${toSend && pr && !ui.sending ? "" : "disabled"} title="${pr ? "" : "No pull request to send to"}">${ui.sending ? "Sending…" : `Send (${toSend})`}</button>
@@ -2261,7 +2277,7 @@ document.addEventListener("click", async e => {
     t.disabled = true;
     const out = await api("/api/review/permission", { ...K(), request: d.permit, answer: d.permitAnswer, rule: value("rule").trim(),
       reason: value("reason").trim() });
-    if (out && d.permitAnswer === "always") toast(`allowed in every review: ${value("rule").trim()}`);
+    if (out && d.permitAnswer === "always") toast("Allowed in every review · listed under AI Agent tools ⚙");
     return reload();
   }
   if (d.toolToggle !== undefined) return api("/api/review/tools", { ...K(), rule: d.toolToggle, allow: d.on !== "1" }).then(() => reload());
