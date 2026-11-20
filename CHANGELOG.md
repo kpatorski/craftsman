@@ -3,6 +3,11 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.34.2
+
+- Explain, Search for findings and the language's Save on the review page react to a click.
+- While an explanation is coming, its card shows three blinking dots.
+
 ## 0.34.1
 
 - Explain opens the side panel on what it explains and shows the explanation as a card at the top of "Ask about it",

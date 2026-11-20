@@ -476,6 +476,22 @@ class ExplainTest(unittest.TestCase):
         self.assertIn("askInto(c)", function("askNow", prefix="async "))
 
 
+class ClickTest(unittest.TestCase):
+    """A click reaches the page's handler only on an element whose data attribute is listed in CLICKABLE."""
+
+    def test_every_data_attribute_the_click_handler_reads_is_clickable(self):
+        page = PAGE.read_text()
+        listed = set(re.findall(r'"([a-z-]+)"', re.search(r"^const CLICKABLE = \[(.*?)\]", page, re.S | re.M).group(1)))
+        handler = page[page.index('document.addEventListener("click"'):]
+        handler = handler[:handler.index("\n});\n")]
+        read = {re.sub(r"[A-Z]", lambda m: "-" + m.group(0).lower(), name)
+                for name in re.findall(r"\bd\.([a-zA-Z]+)\b", handler)}
+
+        # read beside the clickable attribute of the same element, never clicked on their own
+        beside = {"type", "on", "permit-answer", "needs-note", "fcat"}
+        self.assertEqual(set(), read - listed - beside)
+
+
 class ToastTest(unittest.TestCase):
     """A toast stays a small box at the bottom however long its message, such as a rule naming many files."""
 

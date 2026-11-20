@@ -253,7 +253,9 @@
   .explain-card { border: 1px solid var(--neon-dim); border-left-width: 3px; border-radius: 12px; padding: 10px 12px; margin-top: 12px; font-size: .8125rem; }
   .explain-card .who { font-size: .75rem; color: var(--neon); margin-bottom: 6px; }
   .explaining { display: flex; gap: 8px; align-items: center; color: var(--muted); }
-  .explaining .pulse { animation: p 1.6s infinite; }
+  .dots { display: inline-flex; gap: 3px; } .dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--neon); animation: blink 1.2s infinite; }
+  .dots i:nth-child(2) { animation-delay: .2s; } .dots i:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: .2; } 40% { opacity: 1; } }
   .answered { border: 1px solid var(--line); border-left-width: 3px; border-radius: 12px; padding: 8px 12px; margin-top: 12px; font-size: .8125rem; }
   .answered .who { font-size: .75rem; color: var(--muted); margin-bottom: 4px; }
   .answered .reply { margin-top: 6px; } .answered .reply b { color: var(--heading); font-weight: 500; }
@@ -1079,7 +1081,7 @@ function explainButton(about) {
   const [label, title] = state === "asked" ? ["✦ Explaining…", "AI Agent is explaining it; the answer comes in the side panel"]
     : busy ? ["✦ Explanation", "AI Agent is answering a question about it; ask again once it has"]
     : state === "answered" ? ["✦ Explanation", "Show AI Agent's explanation in the side panel"]
-    : ["✦ Explain", "AI Agent explains it in a few sentences, in your language, in the side panel"];
+    : ["✦ Explain", "AI Agent explains it in the side panel"];
   return `<button class="btn ghost sm" data-explain="${esc(about.kind + "|" + key)}" title="${title}"${busy ? " disabled" : ""}>${label}</button>`;
 }
 // Where the explanation of a file or a finding stands: none asked, asked and coming, or answered.
@@ -1100,7 +1102,7 @@ function explainCard(about) {
     : `<div class="msg developer"><div class="who">you</div><div class="body">${esc(m.text)}</div></div>`).join("");
   const coming = t.messages[t.messages.length - 1].by !== "developer" ? ""
     : !R.running ? `<div class="banner" style="margin:0">No answer yet: the AI agent's session is stopped. <a style="color:var(--neon)" data-power>Start it</a> and it answers.</div>`
-    : `<div class="explaining"><span class="pulse"></span>${t.messages.length === 1 ? "AI Agent is explaining…" : "AI Agent is answering…"} It answers once it finishes the step it is on, so this may take a moment.</div>`;
+    : `<div class="explaining"><span class="dots"><i></i><i></i><i></i></span>${t.messages.length === 1 ? "AI Agent is explaining…" : "AI Agent is answering…"} It answers once it finishes the step it is on, so this may take a moment.</div>`;
   return `<div class="explain-card"><div class="who">✦ Explanation</div>${said}${coming}</div>`;
 }
 // The questions about a context; an explanation has its card instead.
@@ -2166,7 +2168,8 @@ const CLICKABLE = ["tab", "sort", "restart", "inline", "gutter", "goto", "findin
   "comment-file", "draft-whole", "draft-sev", "draft-make", "draft-discard", "md-tool", "assistant-switch", "answer-here", "agent-tools", "allow-tool", "tool-toggle", "nr-existing", "permit",
   "gh-read", "gh-quote", "gh-reply-open", "gh-reply", "gh-thread", "comment-add", "cedit", "csave", "cdrop",
   "directive-switch", "directive-check", "directive-default", "rfilter", "context-add", "context-remove", "in-prompt",
-  "ai-edit", "ai-save", "ai-cancel", "ai-again", "style-reset", "row", "chev", "tree-all", "unchanged", "ctx", "ptab", "pin", "sugg", "ask", "chapter", "send-default", "undo", "edge", "tree-drawer", "style-fold", "tell-story", "copy-path", "goto-finding"].map(name => `[data-${name}]`).join(",");
+  "ai-edit", "ai-save", "ai-cancel", "ai-again", "style-reset", "row", "chev", "tree-all", "unchanged", "ctx", "ptab", "pin", "sugg", "ask", "chapter", "send-default", "undo", "edge", "tree-drawer", "style-fold", "tell-story", "copy-path", "goto-finding",
+  "explain", "language-save", "search-findings"].map(name => `[data-${name}]`).join(",");
 document.addEventListener("click", async e => {
   if (!e.target.closest("#pop")) hidePop();
   const t = e.target.closest(CLICKABLE); if (!t) return;
