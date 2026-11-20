@@ -645,6 +645,16 @@ class ReviewEndpointsTest(ReviewsTest):
         self.assertFalse(self.call(f"/api/review?id={ID}")[1]["send-fix-prompt"])
         self.assertEqual(json.loads((self.home / "settings.json").read_text())["send-fix-prompt"], False)
 
+    def test_the_preferred_language_is_kept_for_every_review_and_this_review_talks_in_it_at_once(self):
+        self.assertIsNone(self.call(f"/api/review?id={ID}")[1]["preferred-language"])
+
+        status, body = self.call("/api/review/language", {"id": ID, "language": " Polish "})
+
+        self.assertEqual((status, body), (200, {"preferred-language": "Polish"}))
+        self.assertEqual(self.call(f"/api/review?id={ID}")[1]["preferred-language"], "Polish")
+        self.assertEqual(json.loads((self.home / "settings.json").read_text())["language"], "Polish")
+        self.assertEqual(self.call(f"/api/review?id={ID}")[1]["state"]["conversation-language"], "Polish")
+
     def test_the_review_page_sends_through_one_dialog_with_the_fix_prompt_in_it(self):
         served = self.page(f"/review?review={ID}")
         for hook in ("function openSend(", 'id="with-prompt"', "/api/review/fix-prompt", "data-copy-prompt",

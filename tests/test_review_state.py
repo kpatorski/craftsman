@@ -826,6 +826,14 @@ class ReviewStateTest(unittest.TestCase):
 
         self.assertEqual(self.state()["checkpoint"]["answer"], {"option": "right", "note": None, "by": "developer"})
 
+    def test_the_conversation_language_is_set_apart_from_the_language_of_the_comments(self):
+        self.opened()
+        self.assertIsNone(self.state()["conversation-language"])
+
+        self.run_state("set", payload={"conversation-language": "Polish", "language": "English"})
+
+        self.assertEqual((self.state()["conversation-language"], self.state()["language"]), ("Polish", "English"))
+
     def test_an_answered_question_stays_in_the_review_after_the_agent_clears_it(self):
         self.opened()
         self.run_state("set", payload={"checkpoint": {"id": "c1", "step": "read-pr-scope", "question": "Scope?",

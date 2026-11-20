@@ -1,6 +1,8 @@
 """The developer's craftsman settings: `<craftsman home>/settings.json`, one JSON object. Keys:
 
 - `theme`: the colour palette of every craftsman page (see _theme.py);
+- `language`: the language the developer is talked to in, e.g. "Polish", until they write in another one (see
+  REVIEW.md, "Languages");
 - `review-tools`: tools a review's headless session may use besides its fixed list, as permission rules -- for
   example `mcp__jira` for every tool of the MCP server `jira` (see REVIEW.md, "The review's session");
 - `review-directives`: the developer's default set of directives for every review, `{<directive id>: true | false}`,
@@ -56,6 +58,17 @@ def review_directives():
     if not isinstance(chosen, dict):
         return {}
     return {str(key): value for key, value in chosen.items() if isinstance(value, bool)}
+
+
+def language():
+    """The developer's preferred language, or None when not set."""
+    chosen = read().get("language")
+    return chosen if isinstance(chosen, str) and chosen.strip() else None
+
+
+def set_language(chosen):
+    update("language", str(chosen or "").strip() or None)
+    return language()
 
 
 def send_fix_prompt():

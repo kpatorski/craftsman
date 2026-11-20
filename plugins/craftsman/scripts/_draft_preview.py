@@ -191,7 +191,9 @@ Categories in this review so far: {categories}.
 How the reviewer wants the comment written; where the style below and the directives differ, the style below wins:
 {how_to_write(style, severity)}
 
-Write the finding, in {language}, except the category:
+Write the comment in {language}: it goes to the author of the pull request.
+Write the title and the description in the language of the reviewer's draft: they are the reviewer's own, and never
+leave the review. The category is in English.
 - comment: the comment for the author, in GitHub markdown, in the style above. Keep the reviewer's point. Do not
   repeat what the comment sits on: the file, the line, the names right above it.
   When the draft has a code block or asks for one, the comment has one too: the actual code the reviewer means, written

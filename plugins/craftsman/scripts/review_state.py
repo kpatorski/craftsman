@@ -34,7 +34,7 @@ SEVERITY = ("must-fix", "should-fix", "nit")
 TEXT_FIELDS = ("title", "description", "comment")
 DEVELOPER_FIELDS = TEXT_FIELDS + ("severity",)
 AGENT_FIELDS = DEVELOPER_FIELDS + ("category", "locations", "directive", "kind", "when")
-SETTABLE = ("source", "checkout", "refreshed", "session", "closed", "language", "scope",
+SETTABLE = ("source", "checkout", "refreshed", "session", "closed", "language", "conversation-language", "scope",
             "requirements", "tickets", "structure", "story", "rules", "checkpoint", "findings-search")
 FINDINGS_SEARCH = (None, "skipped", "requested")  # not asked yet; the developer said "not now"; the developer wants it
 STATUS_BY = {
@@ -62,7 +62,7 @@ class Refused(Exception):
 
 def empty_state(source, base, head, checkout=None):
     return {"source": source, "checkout": checkout, "base": base, "head": head, "refreshed": None, "session": None, "closed": None,
-            "language": None, "scope": None, "requirements": None, "tickets": [], "structure": None, "story": None, "rules": [],
+            "language": None, "conversation-language": None, "scope": None, "requirements": None, "tickets": [], "structure": None, "story": None, "rules": [],
             "checkpoint": None, "findings": [], "comments": [], "threads": [], "viewed": [], "archived": False, "handled": [],
             "directive-switches": {}, "checks": [], "context": [], "drafts": {}, "findings-search": None, "answered": []}
 

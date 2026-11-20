@@ -87,7 +87,9 @@ time; this is what keeps either of them from losing the other's change.
   run by the agent, moves the review to a new head.
 - `refreshed` — when `base`/`head` were last read.
 - `closed` — when the developer closed the review, or null while it is open.
-- `language` — the language the comments are written in, settled when the review is opened.
+- `language` — the language of what goes to the pull request: comments and the fix prompt. Settled when the review
+  is opened.
+- `conversation-language` — the language the developer is talked to in, or null; see "Languages".
 - `session` — the id of the Claude session the dashboard server runs for this review. `claude --resume <id>` opens
   the same conversation in the CLI.
 
@@ -175,6 +177,15 @@ pull request's branch has it (`/api/review/file`); a path outside `worktree/`, o
     again;
   - `messages` — `{"by", "at", "text"}`, where `by` is `developer` or `agent` and `text` is GitHub markdown.
 
+### Languages
+
+A review speaks two languages. What goes to the pull request — comments, the fix prompt — is in `language`, the PR's.
+What stays in the review is in `conversation-language`, the developer's: threads, explanations, the story, the scope,
+the agent's questions, and a finding's title and description. A review opened while the developer's `language` is set
+in `~/.craftsman/settings.json` starts in it; the AI Agent tools panel sets it, and setting it there moves the open
+review to it too. When the developer writes in another language, the agent sets `conversation-language` to that one.
+While it is null, the agent talks in the language the developer last wrote in, English before they wrote anything.
+
 ### Checkpoint
 
 `checkpoint` is the question the run is stopped on, or null. `{"id", "step", "question", "options": [...],
@@ -258,8 +269,8 @@ the review's session, on the `fast` tier's model (`EXECUTION.md`, "Choosing a mo
 holds the draft, the code around the draft's lines from the diff, the `code-review` bundle's directives
 `review-comment`, `review-posture` and `engineer-prose`, the findings already in the file, the review's categories and
 its `language`, the shape of the comment asked for, and the severity when the developer picked one. It answers the
-title, category, severity, description and comment, in the review's language whatever the draft's, and the finding of
-the file it repeats. A newer draft of the same file stops the call still running for the older one. The panel shows the
+title, category, severity, description and comment — the comment in the review's `language`, the title and the
+description in the draft's — and the finding of the file it repeats. A newer draft of the same file stops the call still running for the older one. The panel shows the
 answer above the draft, and "Make it a finding" sends it with `draft-to-finding`. "Make it a finding" waits while AI
 Agent writes, and while its comment is older than the draft.
 

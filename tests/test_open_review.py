@@ -95,6 +95,19 @@ class OpenReviewTest(RepositoryCase):
         self.assertNotIn("Later.java", diff, "the diff is what the PR adds, not what main did since")
         self.assertEqual(git(self.review / "worktree", "rev-parse", "HEAD"), self.head)
 
+    def test_a_review_talks_in_the_developers_preferred_language_from_the_start(self):
+        home = self.tmp / "home"
+        home.mkdir(parents=True, exist_ok=True)
+        (home / "settings.json").write_text(json.dumps({"language": "Polish"}))
+        saved = os.environ.get("CRAFTSMAN_HOME")
+        os.environ["CRAFTSMAN_HOME"] = str(home)
+        try:
+            self.open()
+        finally:
+            os.environ.pop("CRAFTSMAN_HOME") if saved is None else os.environ.__setitem__("CRAFTSMAN_HOME", saved)
+
+        self.assertEqual(review_state.read(self.review)["conversation-language"], "Polish")
+
     def test_the_developers_own_checkout_is_left_as_it_was(self):
         (self.checkout / "wip.txt").write_text("half done")
         before = (git(self.checkout, "rev-parse", "--abbrev-ref", "HEAD"), git(self.checkout, "status", "--short"))

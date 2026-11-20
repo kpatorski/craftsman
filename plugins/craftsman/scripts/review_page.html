@@ -1988,9 +1988,22 @@ function viewTools() {
       every review, or deny it. Allow the MCP server Jira is read through and the AI Agent reads the PR's tickets; allowing a server
       allows every tool it has, writing ones too. What is allowed here applies to every review; it is kept as <code>review-tools</code>
       in <code>~/.craftsman/settings.json</code>.</div>
-    ${tools.map(row).join("") || `<span class="muted">${R ? "This review's session has connected to no MCP server. The servers are the ones <code>claude mcp list</code> shows, in the review's checkout." : "Open a review: the servers are the ones its session connected to."}</span>`}</div>` + sendCard() + commentStyleCard();
+    ${tools.map(row).join("") || `<span class="muted">${R ? "This review's session has connected to no MCP server. The servers are the ones <code>claude mcp list</code> shows, in the review's checkout." : "Open a review: the servers are the ones its session connected to."}</span>`}</div>` + languageCard() + sendCard() + commentStyleCard();
 }
 // The default shape of the comment AI Agent writes of a draft, for every review; each draft may ask for another.
+// The language the AI Agent talks to the developer in: threads, explanations, the story, its questions, a finding's
+// title and description. What goes to the pull request is in the review's language.
+function languageCard() {
+  if (!R) return "";
+  const now = S()["conversation-language"];
+  return `<div class="card" style="max-width:820px;margin-top:16px"><h3><span>Language</span></h3>
+    <div class="muted" style="margin-bottom:12px">The language the AI Agent talks to you in: threads, explanations, the story, its questions,
+      and a finding's title and description. Comments and everything else sent to the pull request stay in the PR's language. A new review
+      starts in this one; when you write in another, the AI Agent switches to it. Kept as <code>language</code> in
+      <code>~/.craftsman/settings.json</code>.${now ? ` This review talks in ${esc(now)}.` : ""}</div>
+    <div style="display:flex;gap:8px;align-items:center"><input class="field" id="preferred-language" data-no-dictation value="${esc(R["preferred-language"] || "")}" placeholder="e.g. Polish" style="max-width:240px">
+      <button class="btn sm" data-language-save>Save</button></div></div>`;
+}
 function sendCard() {
   if (!R) return "";
   const on = R["send-fix-prompt"] !== false;
@@ -2242,6 +2255,8 @@ document.addEventListener("click", async e => {
   if (d.edge !== undefined) return drawer("panel", !document.body.classList.contains("panel-open"));
   if (d.treeDrawer !== undefined) return drawer("tree", true);
   if (d.styleFold !== undefined) { ui.styleOpen = !ui.styleOpen; return renderPanel(); }
+  if (d.languageSave !== undefined) return api("/api/review/language", { ...K(), language: document.getElementById("preferred-language").value })
+    .then(o => o && (toast(o["preferred-language"] ? `AI Agent talks to you in ${o["preferred-language"]}` : "No preferred language"), reload()));
   if (d.sendDefault !== undefined) return api("/api/review/send-fix-prompt", { ...K(), on: d.sendDefault === "1" }).then(() => reload());
   if (d.chapter !== undefined) {
     setCtx(d.chapter ? { kind: "chapter", id: d.chapter } : PR, "ask"); render();

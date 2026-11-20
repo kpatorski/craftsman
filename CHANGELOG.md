@@ -3,6 +3,14 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.33.0
+
+- A review speaks two languages: what goes to the pull request in the PR's (`language`), everything else for the
+  developer in theirs (`conversation-language`, new in `review.json`). A finding's draft gets its comment in the PR's
+  language and its title and description in the draft's.
+- `language` in `~/.craftsman/settings.json` is the developer's preferred language, set in the review page's AI Agent
+  tools panel; a new review starts in it. Needs the workshop's `pr-review` protocols that read it.
+
 ## 0.32.1
 
 - What a finding draft is about stays on one line on the review page: a long file name is cut short, the place in the

@@ -323,9 +323,15 @@ class Handler(BaseHTTPRequestHandler):
                                            problem=runner.problem, tools=_review_session.agent_tools(review),
                                            permissions=runner.permission_requests(),
                                            **{"comment-style": _settings.comment_style(),
-                                              "send-fix-prompt": _settings.send_fix_prompt()}))
+                                              "send-fix-prompt": _settings.send_fix_prompt(),
+                                              "preferred-language": _settings.language()}))
             if path == "/api/review/send-fix-prompt":
                 return self.send(200, {"send-fix-prompt": _settings.set_send_fix_prompt(body.get("on"))})
+            if path == "/api/review/language":
+                chosen = _settings.set_language(body.get("language"))
+                if chosen:
+                    review_state.change(review, "set", {"conversation-language": chosen})
+                return self.send(200, {"preferred-language": chosen})
             if path == "/api/review/fix-prompt":
                 return self.send(200, reviews.fix_prompt(review_id))
             if path == "/api/review/comment-style":

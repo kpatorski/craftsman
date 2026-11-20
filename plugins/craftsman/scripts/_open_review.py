@@ -17,6 +17,7 @@ import re
 import shutil
 import subprocess
 
+import _settings
 import review_state
 from review_state import Refused
 from _reviews import PULL_REQUEST
@@ -141,6 +142,8 @@ def open_review(review, source, checkout, gh=None):
             raise Refused(f"the diff {base[:12]}...{head[:12]} could not be written: {written.stderr.strip()}")
         review_state.change(review, "init", {"source": described, "checkout": str(checkout), "base": base,
                                              "head": head, "diff": str(diff)})
+        if _settings.language():
+            review_state.change(review, "set", {"conversation-language": _settings.language()})
     except Exception:
         git("worktree", "remove", "--force", str(worktree), cwd=checkout)
         shutil.rmtree(worktree, ignore_errors=True)

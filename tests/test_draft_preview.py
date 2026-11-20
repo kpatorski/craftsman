@@ -121,6 +121,12 @@ class DraftPreviewTest(unittest.TestCase):
         self.assertNotIn("class Other", prompt)
         self.assertNotIn("Elsewhere", prompt)
 
+    def test_the_comment_is_in_the_reviews_language_and_the_title_and_description_in_the_drafts(self):
+        prompt = self.prompt_for()
+
+        self.assertIn("Write the comment in Polish", prompt)
+        self.assertIn("the title and the description in the language of the reviewer's draft", prompt)
+
     def prompt_for(self, **asked):
         _draft_preview.preview(self.review, "src/Cancel.java", "tylko reminder", [2, 3], content=self.content,
                                command=self.command, **asked)
