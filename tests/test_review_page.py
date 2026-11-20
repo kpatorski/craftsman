@@ -408,6 +408,33 @@ class AboutChipTest(unittest.TestCase):
         self.assertIn("flex: none", rules(".about-where"))
 
 
+@unittest.skipUnless(NODE, "node is not installed")
+class ExplainTest(unittest.TestCase):
+    """Explain asks the AI Agent about a file's change or a finding; the answer is the thread it opens."""
+
+    def button(self, about):
+        program = "\n".join(["const esc = s => String(s);", function("explainButton")])
+        program += f"\nconsole.log(JSON.stringify(explainButton({json.dumps(about)})));"
+        return json.loads(subprocess.run([NODE, "-e", program], capture_output=True, text=True, check=True).stdout)
+
+    def test_the_button_carries_what_it_explains(self):
+        self.assertIn('data-explain="file|src/A.ts"', self.button({"kind": "file", "path": "src/A.ts"}))
+        self.assertIn('data-explain="finding|f3"', self.button({"kind": "finding", "id": "f3"}))
+
+    def test_a_changed_file_and_a_finding_offer_it(self):
+        self.assertIn('explainButton({ kind: "file", path })', function("diffView"))
+        self.assertIn('explainButton({ kind: "finding", id: f.id })', function("panelFinding"))
+
+    def test_an_explanation_already_asked_for_is_shown_not_asked_again(self):
+        program = "\n".join([function("aboutContext"), function("explainThread"),
+                              "var R = {state: {threads: [{id: 't1', explain: true, about: {kind: 'file', path: 'A.ts'}},"
+                              " {id: 't2', about: {kind: 'file', path: 'B.ts'}}]}}; const S = () => R.state;",
+                              "console.log(JSON.stringify([explainThread({kind: 'file', path: 'A.ts'}), explainThread({kind: 'file', path: 'B.ts'})]));"])
+        found = json.loads(subprocess.run([NODE, "-e", program], capture_output=True, text=True, check=True).stdout)
+
+        self.assertEqual(found, ["t1", None])
+
+
 class ToastTest(unittest.TestCase):
     """A toast stays a small box at the bottom however long its message, such as a rule naming many files."""
 

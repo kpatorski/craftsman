@@ -3,6 +3,12 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.34.0
+
+- "✦ Explain" on a changed file's diff and on a finding asks the AI Agent to explain it, engineer to engineer, in a
+  thread of its own (`explain` in `inbox.jsonl`); a second Explain shows that thread again. Needs the workshop's
+  `serve-page` that handles `explain`.
+
 ## 0.33.0
 
 - A review speaks two languages: what goes to the pull request in the PR's (`language`), everything else for the

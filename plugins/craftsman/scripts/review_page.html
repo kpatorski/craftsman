@@ -1025,7 +1025,7 @@ function panelFinding(id) {
   const places = [...byFile].map(([path, lines]) => `<span title="${esc(path)}">${esc(path.split("/").pop())}</span> ` +
     lines.map(n => n == null ? `<a data-open-file="${esc(path)}" style="color:var(--neon)">whole file</a>` : `<a data-goto="${esc(path)}|${n}" style="color:var(--neon)">${n}</a>`).join(", ")).join(" · ");
   const inCode = (f.locations || []).some(l => l.path && l.line != null && (R.files || []).some(x => x.path === l.path));
-  return `<div class="crumb"><span>Finding ${esc(f.id)} · ${esc(f.category)} · ${who(f.by)}${places ? " · " + places : ""}</span>${inCode && ui.tab !== "code" ? `<button class="btn sm" data-goto-finding="${esc(f.id)}" title="Open the code at this finding">Show in code →</button>` : ""}</div>
+  return `<div class="crumb"><span>Finding ${esc(f.id)} · ${esc(f.category)} · ${who(f.by)}${places ? " · " + places : ""}</span>${explainButton({ kind: "finding", id: f.id })}${inCode && ui.tab !== "code" ? `<button class="btn sm" data-goto-finding="${esc(f.id)}" title="Open the code at this finding">Show in code →</button>` : ""}</div>
     ${editing ? `<input class="field" id="edit-title" value="${esc(f.title)}" style="margin-top:8px">` : `<h2>${inline(f.title)}</h2>`}
     <div class="filters" style="margin:6px 0 0">${SEVS.map(k => `<button class="chip${f.severity === k ? " on" : ""}" data-set-sev="${k}" ${sent ? "disabled" : ""}>${SEV[k]}</button>`).join("")}</div>
     ${f.status === "maybe-resolved" ? `<div class="banner" style="margin:12px 0 0">AI Agent no longer sees this problem at the PR's head. Drop it, or keep it.</div>` : ""}
@@ -1069,6 +1069,16 @@ function ctx() {
 }
 // The developer picked something: it becomes the context of the tab, unless the Code tab's context is pinned. A finding
 // picked anywhere is the one the Findings tab opens on.
+// "Explain": asks the AI Agent to explain a file's change or a finding, engineer to engineer; it answers in a thread.
+function explainButton(about) {
+  const key = about.kind === "file" ? about.path : about.id;
+  return `<button class="btn ghost sm" data-explain="${esc(about.kind + "|" + key)}" title="AI Agent explains it in a few sentences, in your language">✦ Explain</button>`;
+}
+// The thread an earlier Explain of the same file or finding opened, so it is shown instead of asked again.
+function explainThread(about) {
+  const found = (S().threads || []).find(t => t.explain && aboutContext(t.about, about));
+  return found ? found.id : null;
+}
 function setCtx(c, ptab) {
   if (c.kind === "finding") ui.ctxBy.findings = c;
   if (!(ui.tab === "code" && ui.pinned)) ui.ctxBy[ui.tab] = c;
@@ -1437,7 +1447,7 @@ function diffView(path, position) {
     <div class="dtools">${files}${hint}${same ? "" : sevCounts(findingsAt(path))}<span class="grow"></span>${same ? "" : `
       <span class="switch${ui.inline ? " on" : ""}" data-inline title="Every finding under its line, or dots beside the line number"><i></i>Show all inline</span>
       <span style="display:inline-flex;gap:6px;align-items:center;cursor:pointer" data-view="${esc(path)}"><span class="vbox${info.viewed ? " on" : ""}">${info.viewed ? "✓" : ""}</span>Viewed</span>
-      <button class="btn ghost sm" data-comment-file="${esc(path)}">✎ Comment on file</button>`}</div></div>`;
+      ${explainButton({ kind: "file", path })}<button class="btn ghost sm" data-comment-file="${esc(path)}">✎ Comment on file</button>`}</div></div>`;
   if (!hunks) { fileDiff(path); return `<div class="diffcard">${head}<div class="banner">Loading…</div></div>`; }
   let banner = "";
   if (info.change === "added") banner = `<div class="banner"><span class="kd added">+</span> <b>New file</b> · all ${info.added} lines are added, so they carry no colour.</div>`;
@@ -2337,6 +2347,12 @@ document.addEventListener("click", async e => {
     if (d.pop === "ask") { setCtx(s.about, "ask"); render(); return document.getElementById("ask-in")?.focus(); }
     if (d.pop === "quote") { ui.editing = ctx().id; render(); const box = document.getElementById("edit-comment"); box.value = `> ${s.quote}\n\n` + box.value; return box.focus(); }
     return render();
+  }
+  if (d.explain) {
+    const [kind, key] = [d.explain.slice(0, d.explain.indexOf("|")), d.explain.slice(d.explain.indexOf("|") + 1)];
+    const about = kind === "file" ? { kind, path: key } : { kind, id: key };
+    if (explainThread(about)) { setCtx(about, "ask"); return render(); }
+    return change("explain", { about }).then(o => { if (o) { setCtx(about, "ask"); reload(); } });
   }
   if (d.commentFile) { const dr = draftOf(d.commentFile); if (!dr.text.trim()) dr.lines = null; return openComment(d.commentFile); }
   if (d.draftWhole !== undefined) { draftOf(draftAt).lines = null; saveDraft(draftAt, true); return render(); }

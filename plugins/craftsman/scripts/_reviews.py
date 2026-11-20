@@ -15,8 +15,10 @@ import review_state
 from _markdown import render_markdown
 
 ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
-MESSAGE_FIELDS = {"answer": ("checkpoint", "option"), "refresh": (), "ask": ("thread",), "close": (),
+MESSAGE_FIELDS = {"answer": ("checkpoint", "option"), "refresh": (), "ask": ("thread",), "explain": ("thread",), "close": (),
                   "check": ("directive",), "context": (), "find": ()}
+# what "Explain" asks about a file's change or a finding; the session answers in the thread it opens
+EXPLAIN = {"file": "Explain this change", "finding": "Explain this finding"}
 DIFF_HEADER = re.compile(r"^diff --git a/(.*) b/(.*)$")
 
 
@@ -269,6 +271,14 @@ def developer_change(review_id, action, body, content=None):
         thread = review_state.change(review, "open-thread", {key: body.get(key) for key in ("about", "quote", "text")},
                                      "developer")
         add_message(review_id, {"type": "ask", "thread": thread})
+        return thread
+    if action == "explain":
+        about = body.get("about") or {}
+        if about.get("kind") not in EXPLAIN:
+            raise review_state.Refused("only a file or a finding is explained")
+        thread = review_state.change(review, "open-thread", {"about": about, "text": EXPLAIN[about["kind"]],
+                                                             "explain": True}, "developer")
+        add_message(review_id, {"type": "explain", "thread": thread})
         return thread
     if action == "reply":
         review_state.change(review, "reply", {"text": body.get("text")}, "developer", body.get("thread"))

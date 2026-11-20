@@ -247,6 +247,20 @@ class ReviewsTest(unittest.TestCase):
         self.assertEqual(([m["text"] for m in thread["messages"]], thread["status"]), (["Why?", "And?"], "resolved"))
         self.assertEqual([(m["type"], m["thread"]) for m in self.inbox()], [("ask", "t1"), ("ask", "t1")])
 
+    def test_explain_opens_a_thread_about_the_file_or_the_finding_and_asks_the_session_to_explain(self):
+        reviews.developer_change(ID, "explain", {"about": {"kind": "file", "path": "A.java"}})
+        reviews.developer_change(ID, "explain", {"about": {"kind": "finding", "id": "f1"}})
+
+        threads = review_state.read(self.review)["threads"]
+        self.assertEqual([(t["about"], t["explain"], t["messages"][0]["text"]) for t in threads], [
+            ({"kind": "file", "path": "A.java"}, True, "Explain this change"),
+            ({"kind": "finding", "id": "f1"}, True, "Explain this finding")])
+        self.assertEqual([(m["type"], m["thread"]) for m in self.inbox()], [("explain", "t1"), ("explain", "t2")])
+
+    def test_only_a_file_or_a_finding_is_explained(self):
+        with self.assertRaises(review_state.Refused):
+            reviews.developer_change(ID, "explain", {"about": {"kind": "review"}})
+
     def test_the_page_marks_files_viewed_and_archives_the_review(self):
         reviews.developer_change(ID, "view", {"path": "A.java"})
         reviews.developer_change(ID, "unview", {"path": "A.java"})

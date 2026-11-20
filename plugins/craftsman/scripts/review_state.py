@@ -465,7 +465,7 @@ def open_thread(state, payload, by):
     check_about(state, payload.get("about"))
     threads = state.setdefault("threads", [])
     thread = {"id": next_id(threads, "t"), "about": payload["about"], "quote": payload.get("quote"),
-              "status": "open", "messages": [message(payload, by)]}
+              "status": "open", "messages": [message(payload, by)], **({"explain": True} if payload.get("explain") else {})}
     threads.append(thread)
     return state, thread["id"]
 

@@ -416,17 +416,21 @@ Claude session as a message, in order, once the session has finished its current
 records its `id` in `review.json`'s `handled`. When the server starts the session again, for a review that has lines
 not yet in `handled`, it passes those first.
 
-| `type`    | Carries                        | The agent                                                      |
-|-----------|--------------------------------|----------------------------------------------------------------|
-| `answer`  | `checkpoint`, `option`, `note` | goes on; the server has recorded the answer already            |
-| `ask`     | `thread`                       | reads the thread's last message and replies in the same thread |
-| `refresh` | —                              | reads the PR or branches again, re-checks the findings         |
-| `close`   | —                              | sets `closed` and ends the run                                 |
-| `check`   | `directive`                    | checks the use cases already reviewed against that directive   |
-| `find`    | —                              | searches for findings, the developer having asked on the page  |
-| `context` | —                              | reads the notes in `context` and works by them from now on     |
+| `type`    | Carries                        | The agent                                                                     |
+|-----------|--------------------------------|-------------------------------------------------------------------------------|
+| `answer`  | `checkpoint`, `option`, `note` | goes on; the server has recorded the answer already                           |
+| `ask`     | `thread`                       | reads the thread's last message and replies in the same thread                |
+| `explain` | `thread`                       | explains the file's change or the finding in the thread, engineer to engineer |
+| `refresh` | —                              | reads the PR or branches again, re-checks the findings                        |
+| `close`   | —                              | sets `closed` and ends the run                                                |
+| `check`   | `directive`                    | checks the use cases already reviewed against that directive                  |
+| `find`    | —                              | searches for findings, the developer having asked on the page                 |
+| `context` | —                              | reads the notes in `context` and works by them from now on                    |
 
-A question from the page opens a thread, or adds to one, before its `ask` line is written.
+A question from the page opens a thread, or adds to one, before its `ask` line is written. "✦ Explain", on a changed
+file's diff and on a finding, opens a thread about it marked `explain`, with "Explain this change" or "Explain this
+finding" as the developer's message, before its `explain` line is written; a second Explain of the same file or finding
+shows that thread again instead of asking anew.
 
 A note of context is added to or taken out of `review.json` before its `context` line is written.
 
