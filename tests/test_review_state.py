@@ -834,6 +834,18 @@ class ReviewStateTest(unittest.TestCase):
 
         self.assertEqual((self.state()["conversation-language"], self.state()["language"]), ("Polish", "English"))
 
+    def test_one_field_or_one_item_of_it_is_read_without_the_whole_state(self):
+        self.opened()
+        self.run_state("set", payload={"language": "Polish"})
+        self.run_state("open-thread", payload={"about": {"kind": "review"}, "text": "Why?"})
+        self.run_state("open-thread", payload={"about": {"kind": "review"}, "text": "And?"})
+
+        self.assertEqual(json.loads(self.run_state("get", "language").stdout), "Polish")
+        self.assertEqual(json.loads(self.run_state("get", "threads", "t2").stdout)["messages"][0]["text"], "And?")
+        self.assertEqual(len(json.loads(self.run_state("get", "threads").stdout)), 2)
+        self.assertIn("no t9", self.run_state("get", "threads", "t9", expect_ok=False).stderr)
+        self.assertIn("no field", self.run_state("get", "nothing", expect_ok=False).stderr)
+
     def test_an_answered_question_stays_in_the_review_after_the_agent_clears_it(self):
         self.opened()
         self.run_state("set", payload={"checkpoint": {"id": "c1", "step": "read-pr-scope", "question": "Scope?",

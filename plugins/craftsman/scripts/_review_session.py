@@ -40,7 +40,7 @@ def allowed_tools(checkout):
     server their Jira is read through -- but never a whole tool that runs or writes anything (`too_broad`), whatever the
     settings hold. Nothing that writes is on the list: Claude asks for a write under any `.claude` folder whatever the
     rules say, so the plugin-version marker is written by `plugin_version.py`."""
-    return ALLOWED_TOOLS + [rule for rule in _settings.review_tools() if not too_broad(rule)]
+    return ALLOWED_TOOLS + [rule for rule in _settings.review_tools() if not too_broad(rule) and not one_off(rule)]
 
 
 def mcp_rule(server):
@@ -74,8 +74,9 @@ def agent_tools(review):
             servers[rule] = dict(name=rule[len("mcp__"):], status="not connected")
     return [dict(name=s["name"], rule=rule, status=s["status"], allowed=rule in allowed,
                  refused=any(tool.startswith(rule + "__") for tool in refused)) for rule, s in servers.items()] + \
-        [dict(name=rule, rule=rule, status="too broad" if too_broad(rule) else "rule", allowed=not too_broad(rule),
-              refused=False) for rule in allowed if not rule.startswith("mcp__")]
+        [dict(name=rule, rule=rule, status="too broad" if too_broad(rule) else "one-off" if one_off(rule) else "rule",
+              allowed=not too_broad(rule) and not one_off(rule), refused=False)
+         for rule in allowed if not rule.startswith("mcp__")]
 
 
 RULE = re.compile(r"^(?P<tool>[A-Za-z][A-Za-z0-9_-]*)(?:\((?P<content>.+)\))?$")
@@ -88,6 +89,16 @@ def rule_text(rule):
     """A permission rule as the settings write it: `Tool` or `Tool(content)`."""
     content = rule.get("ruleContent")
     return f"{rule['toolName']}({content})" if content else rule["toolName"]
+
+
+# a rule longer than this names one exact command, its payload and all: it never matches a later command
+ONE_OFF_LONGEST = 200
+
+
+def one_off(rule):
+    """Whether a rule names one long command, such as a script run with its whole JSON payload, so no later command
+    would ever match it: allowed once, never kept."""
+    return len(rule or "") > ONE_OFF_LONGEST
 
 
 def too_broad(rule):
@@ -269,7 +280,8 @@ class ReviewSession:
     def asked(self, request_id, request):
         with self.lock:
             self.requests[request_id] = dict(id=request_id, tool=request.get("tool_name"), input=request.get("input"),
-                                             description=request.get("description"), rule=suggested_rule(request))
+                                             description=request.get("description"), rule=suggested_rule(request),
+                                             reusable=not one_off(suggested_rule(request)))
 
     def answer(self, request_id, decision, rule=None, reason=None):
         """The developer's answer to a request: `allow` it once; `always` allow what `rule` matches, in this session
@@ -279,6 +291,8 @@ class ReviewSession:
         matched = RULE.match(rule or "") if decision == "always" else None
         if decision == "always" and not matched:
             raise review_state.Refused(f"not a permission rule, as Tool or Tool(content): {rule!r}")
+        if decision == "always" and one_off(rule):
+            raise review_state.Refused("this rule names one long command, which no later command matches; allow it once")
         if decision == "always" and too_broad(rule):
             raise review_state.Refused(f"{rule} would allow every command or every write in every review; "
                                        f"name the command or the file, or allow it once")

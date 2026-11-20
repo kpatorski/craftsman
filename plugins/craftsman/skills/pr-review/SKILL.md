@@ -46,7 +46,9 @@ repository's checkout; the review's state lives in the folder after `--review`, 
    ask at the step's checkpoint.
 3. Every change to the review's state goes through `scripts/review_state.py`, never by editing `review.json`. Its
    payload is one JSON argument in single quotes, an apostrophe inside it written as `\u0027`, never a
-   heredoc or a pipe.
+   heredoc or a pipe; markdown with backticks inside the quotes is fine. One call per change: never several chained
+   with `&&` or a `for` loop. The state is read with `review_state.py <review dir> get <field> [<id>]` — one field,
+   or one thread, finding or comment by its id — never with `python3 -c` or by reading `review.json` some other way.
    Every shell command goes through the plugin's review gate (`scripts/review_command_gate.py`). `git` and `gh` that
    only read run without asking, and so do fetching the reviewed commits, the review's worktree and the review's own
    scripts, each named by its full path at the start of the command. A command that publishes or changes the repository

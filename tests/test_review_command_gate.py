@@ -172,6 +172,19 @@ class EverythingElseIsLeftToThePermissionRulesTest(GateCase):
             "git log\ngit push", "git log <(cat /etc/passwd)", "(git log)", "git log 2>&1",
         ])
 
+    def test_what_stands_in_single_quotes_is_text_so_markdown_in_a_payload_runs(self):
+        state = SCRIPTS / "review_state.py"
+        self.assert_decisions("allow", [
+            f"python3 {state} {self.review} set '{{\"story\": {{\"does\": \"The PR grows `lfg` to $(two) agents\"}}}}'",
+            f"python3 {state} {self.review} add-finding '{{\"title\": \"a <(b)\nc\"}}'",
+        ])
+
+    def test_outside_single_quotes_a_command_inside_a_command_is_still_left_to_the_rules(self):
+        self.assert_decisions(None, [
+            'git log "$(id)"', 'git log "`id`"', "git log 'a'`id`", "git log 'a'$(id)", 'git log "a\nb"',
+            "git log 'a' <(id)", 'git log "it\'s" `id`', "git log \\' `id` \\'",
+        ])
+
     def test_an_unreadable_command_is_left_to_the_rules(self):
         self.assert_decisions(None, ["git log 'unterminated", ""])
 

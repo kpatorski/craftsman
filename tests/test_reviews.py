@@ -669,6 +669,16 @@ class ReviewEndpointsTest(ReviewsTest):
         self.assertEqual(json.loads((self.home / "settings.json").read_text())["language"], "Polish")
         self.assertEqual(self.call(f"/api/review?id={ID}")[1]["state"]["conversation-language"], "Polish")
 
+    def test_rules_naming_one_long_command_are_removed_at_once_and_the_others_kept(self):
+        long = "Bash(python3 review_state.py r set '" + "x" * 300 + "')"
+        (self.home / "settings.json").write_text(json.dumps({"review-tools": [long, "Bash(npm test)", "mcp__jira"]}))
+
+        status, body = self.call("/api/review/tools/prune", {"id": ID})
+
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads((self.home / "settings.json").read_text())["review-tools"], ["Bash(npm test)", "mcp__jira"])
+        self.assertNotIn(long, [t["rule"] for t in body["tools"]])
+
     def test_the_review_page_sends_through_one_dialog_with_the_fix_prompt_in_it(self):
         served = self.page(f"/review?review={ID}")
         for hook in ("function openSend(", 'id="with-prompt"', "/api/review/fix-prompt", "data-copy-prompt",

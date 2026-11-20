@@ -210,6 +210,16 @@ class ReviewSessionTest(unittest.TestCase):
             {"name": "Bash", "rule": "Bash", "status": "too broad", "allowed": False, "refused": False},
             {"name": "Bash(npm test)", "rule": "Bash(npm test)", "status": "rule", "allowed": True, "refused": False}])
 
+    def test_a_rule_naming_one_long_command_is_listed_to_take_back_and_never_given_to_a_session(self):
+        long = "Bash(python3 review_state.py r set '" + "x" * 300 + "')"
+        (self.tmp / "craftsman-home").mkdir(parents=True, exist_ok=True)
+        (self.tmp / "craftsman-home" / "settings.json").write_text(json.dumps({"review-tools": [long, "Bash(npm test)"]}))
+
+        self.assertEqual(sessions.agent_tools(self.review)[0],
+                         {"name": long, "rule": long, "status": "one-off", "allowed": False, "refused": False})
+        self.assertNotIn(long, sessions.allowed_tools(self.review))
+        self.assertIn("Bash(npm test)", sessions.allowed_tools(self.review))
+
     def test_the_rule_offered_for_every_review_is_what_was_asked_never_the_whole_tool(self):
         cases = [
             ({"tool_name": "Bash", "input": {"command": "ls -la"},
@@ -264,7 +274,7 @@ class ReviewSessionTest(unittest.TestCase):
         request = self.asking()
 
         self.assertEqual({"id": "req-1", "tool": "Bash", "input": {"command": "npm test", "description": "Run the tests"},
-                          "description": "Run the tests", "rule": "Bash(npm test)"}, request)
+                          "description": "Run the tests", "rule": "Bash(npm test)", "reusable": True}, request)
         self.assertTrue(self.runner.busy())
         self.assertFalse(any("answered" in entry for entry in self.logged()))
 
@@ -291,6 +301,14 @@ class ReviewSessionTest(unittest.TestCase):
         self.assertEqual([{"type": "addRules", "behavior": "allow", "destination": "session",
                            "rules": [{"toolName": "Bash", "ruleContent": "npm test:*"}]}], response["updatedPermissions"])
         self.assertEqual(["Bash(npm test:*)"], self.review_tools())
+
+    def test_a_rule_naming_one_long_command_is_never_kept_for_every_review(self):
+        request = self.asking()
+        self.assertTrue(request["reusable"])
+
+        with self.assertRaises(review_state.Refused):
+            self.runner.answer("req-1", "always", rule="Bash(python3 x.py '" + "x" * 300 + "')")
+        self.assertIsNone(self.review_tools())
 
     def test_a_tool_of_an_mcp_server_is_offered_as_the_whole_server(self):
         request = self.asking("mcp__jira__getIssue")

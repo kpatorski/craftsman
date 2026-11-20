@@ -66,9 +66,30 @@ def under(path, folder):
         return False
 
 
+def runs_more(command):
+    """Whether the shell would run something inside the command itself, or read it as more than one line: a backtick,
+    `$(` or `<(`, or a line break, anywhere but between single quotes, where the shell takes every character as text.
+    A payload in single quotes may so hold markdown, with its backticks, and several lines."""
+    quote, at = None, 0
+    while at < len(command):
+        char = command[at]
+        if quote == "'":
+            quote = None if char == "'" else quote
+        elif char == "\\":
+            at += 1  # the next character is taken as it is
+        elif char == "'" and quote is None:
+            quote = "'"
+        elif char == '"':
+            quote = None if quote == '"' else '"'
+        elif char in "`\n" or command.startswith(("$(", "<("), at):
+            return True
+        at += 1
+    return False
+
+
 def split(command):
     """The command's simple commands and the operators between them, or None when the rules cannot read it."""
-    if not command.strip() or "\n" in command or "`" in command or "$(" in command or "<(" in command:
+    if not command.strip() or runs_more(command):
         return None
     lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
     lexer.whitespace_split = True

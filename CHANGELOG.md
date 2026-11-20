@@ -3,6 +3,17 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.35.0
+
+- The review gate runs a review script whose payload, in single quotes, holds markdown with backticks or several
+  lines: between single quotes the shell runs nothing. A `$(…)` or a backtick outside them still waits for the
+  developer.
+- `review_state.py <dir> get <field> [<id>]` reads one field, or one thread, finding or comment, so the agent reads the
+  state without `python3 -c`; the `pr-review` skill says to use it, and to make one call per change.
+- A permission request whose rule is over 200 characters — one exact command, payload and all — is offered once or
+  denied, never "Always in reviews". Such rules already kept are not given to the session, show on one line under ⚙,
+  and "Remove one-off rules" takes them all back.
+
 ## 0.34.2
 
 - Explain, Search for findings and the language's Save on the review page react to a click.

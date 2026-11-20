@@ -340,6 +340,9 @@ class Handler(BaseHTTPRequestHandler):
                 runner.answer(str(body.get("request", "")), str(body.get("answer", "")), rule=body.get("rule"),
                               reason=body.get("reason"))
                 return self.send(200, dict(ok=True, permissions=runner.permission_requests()))
+            if path == "/api/review/tools/prune":
+                _settings.drop_review_tools(_review_session.one_off)
+                return self.send(200, dict(ok=True, tools=_review_session.agent_tools(review)))
             if path == "/api/review/tools":
                 rule = str(body.get("rule", ""))
                 if body.get("allow") and not MCP_SERVER_RULE.match(rule):

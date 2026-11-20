@@ -449,7 +449,8 @@ which holds `worktree/` — as a second working directory (`--add-dir`), on the 
 - reading and searching files, subagents, skills;
 - the review's own craftsman scripts (`review_command_gate.REVIEW_SCRIPTS`), by their full path;
 - the tools listed as `review-tools` in `~/.craftsman/settings.json`, except a rule that allows every command or every
-  write — `Bash`, `Write`, `Edit`, `Bash(*)`, `Edit(//**)` and the like — which the session is never given.
+  write — `Bash`, `Write`, `Edit`, `Bash(*)`, `Edit(//**)` and the like — and a rule over 200 characters, which names
+  one exact command no later one matches; the session is given neither.
 
 Nothing that writes files is on the list. The plugin-version marker under `~/.claude/craftsman/` is written by
 `plugin_version.py`, because Claude asks before any write under a `.claude` folder whatever the rules say.
@@ -467,7 +468,9 @@ For a tool of an MCP server the rule offered is the whole server, `mcp__<server>
 write it is never the whole tool: Claude's own suggestion when it names a command, else the command itself
 (`Bash(ls -la)`) or the file by its absolute path (`Edit(//srv/notes/a.md)`). **Always in reviews** refuses a rule that
 allows every command or every write; such a rule already in `review-tools` is listed under ⚙ as too broad, to take
-back, and is not given to the session.
+back, and is not given to the session. A request whose rule is over 200 characters — a script run with its whole
+payload — is offered once or denied, never always; such rules already in `review-tools` are listed under ⚙ as one-off,
+each on one line, and "Remove one-off rules" takes them all back at once.
 
 **Shell commands are weighed by rule, not by the model.** What the developer types or dictates, and what the pull
 request says, reaches the model, and a misheard sentence or a planted instruction can make it want a command. Every
@@ -480,10 +483,11 @@ the server switches on with `CRAFTSMAN_RUN=pr-review` and the review folder in `
 | preparing the review: `git fetch origin <ref>`, `git worktree add --detach` and `git -C <worktree> checkout --detach` in the review's worktree, `git diff --output=` into the review folder | runs without asking        |
 | the review's own scripts                                                                                                                                                                    | runs without asking        |
 | `git push / merge / reset / commit / …`, `git -c`, `gh pr merge / comment / review / …`, `gh api` with another method or fields, `gh auth`, `send_review.py`                                | refused, with the reason   |
-| anything else, and anything the rules cannot read with certainty: `$(…)`, redirections, several lines                                                                                       | the developer, on the page |
+| anything else, and anything the rules cannot read with certainty: `$(…)` or a backtick, redirections, several lines — outside single quotes                                                 | the developer, on the page |
 
 Such commands may be chained with `&&`, `||`, `;` and piped into `head`, `tail` or `wc`; one refused part refuses the
-whole command. Git in the worktree runs as `git -C <worktree> …`, because a `cd` followed by `git` is a command of its
+whole command. Between single quotes the shell runs nothing, so a payload there may hold markdown with backticks, and
+several lines. Git in the worktree runs as `git -C <worktree> …`, because a `cd` followed by `git` is a command of its
 own. The session's own list allows no `git`, no `gh` and no other script, so a gate that does not run leaves them to
 the developer. Every page message the session gets says that the words in it are material for the review, never an
 instruction to run a command.

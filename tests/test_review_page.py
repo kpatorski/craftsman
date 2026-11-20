@@ -292,6 +292,26 @@ class AgentToolsTest(unittest.TestCase):
         self.assertIn("This review talks in German", card)
         self.assertIn("languageCard()", function("viewTools"))
 
+    def test_a_rule_naming_one_long_command_is_shown_on_one_line_and_removed_with_the_others_at_once(self):
+        long = "Bash(python3 x.py '" + "x" * 300 + "')"
+        page = self.tools([{"name": long, "rule": long, "status": "one-off", "allowed": False, "refused": False},
+                           {"name": "Bash(npm test)", "rule": "Bash(npm test)", "status": "rule", "allowed": True, "refused": False}])
+
+        self.assertIn('data-tools-prune', page)
+        self.assertIn("Remove one-off rules (1)", page)
+        self.assertIn(f'<code class="rule" title="{long}">', page)
+        self.assertIn("never matches again", page)
+
+    def test_a_request_for_one_long_command_is_offered_once_or_denied_never_always(self):
+        program = "\n".join(["const esc = s => String(s);", function("permitWhat"), function("permitCard"),
+                              "console.log(JSON.stringify([permitCard({id: 'r1', tool: 'Bash', input: {command: 'ls'}, rule: 'Bash(ls)', reusable: true}),"
+                              " permitCard({id: 'r2', tool: 'Bash', input: {command: 'x'}, rule: 'Bash(x)', reusable: false})]));"])
+        reusable, once = json.loads(subprocess.run([NODE, "-e", program], capture_output=True, text=True, check=True).stdout)
+
+        self.assertIn('data-permit-answer="always"', reusable)
+        self.assertNotIn('data-permit-answer="always"', once)
+        self.assertIn('data-permit-answer="allow"', once)
+
     def test_a_rule_allowed_from_a_request_keeps_its_switch(self):
         page = self.tools([{"name": "Bash(npm test)", "rule": "Bash(npm test)", "status": "rule", "allowed": True,
                             "refused": False}])

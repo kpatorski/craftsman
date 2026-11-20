@@ -10,7 +10,10 @@ update-comment <id>, comment-status <id>, comment-sent <id>, use-case-status <id
 reply <thread id>, resolve <thread id>, view, unview, archive, answer, handled <message id>,
 switch-directive, clear-directive-switches, record-check, add-context, remove-context <id>,
 in-prompt <id>, save-draft,
-discard-draft, draft-to-finding, search-findings, show.
+discard-draft, draft-to-finding, search-findings, show, get <field> [id].
+
+`get` prints one field of the state, or the item with that id of a list field (a thread, a finding, a comment), so the
+agent reads what it needs without reading the whole state.
 
 The agent and the review page change review.json at the same time. Every change takes an exclusive lock, reads the
 file fresh, checks the change against REVIEW.md's rules, and replaces the file atomically -- so neither side loses
@@ -658,6 +661,19 @@ def main(argv):
     review, command, rest = pathlib.Path(args[0]), args[1], args[2:]
     if command == "show":
         print(json.dumps(read(review), indent=2, ensure_ascii=False))
+        return 0
+    if command == "get":
+        state = read(review)
+        if not rest or rest[0] not in state:
+            print(f"refused: no field {rest[0] if rest else ''!r}", file=sys.stderr)
+            return 1
+        value = state[rest[0]]
+        if len(rest) > 1:
+            value = next((item for item in value or [] if isinstance(item, dict) and item.get("id") == rest[1]), None)
+            if value is None:
+                print(f"refused: no {rest[1]} in {rest[0]}", file=sys.stderr)
+                return 1
+        print(json.dumps(value, indent=1, ensure_ascii=False))
         return 0
     payload = rest.pop() if rest and rest[-1].lstrip().startswith(("{", "[")) else None
     try:

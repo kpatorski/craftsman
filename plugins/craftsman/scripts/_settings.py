@@ -52,6 +52,11 @@ def allow_review_tool(rule, allowed):
     update("review-tools", tools + [rule] if allowed else tools)
 
 
+def drop_review_tools(dropped):
+    """Take back every tool of `review-tools` that `dropped` says, keeping the others in their order."""
+    update("review-tools", [rule for rule in review_tools() if not dropped(rule)])
+
+
 def review_directives():
     """The directives the developer switched on or off for every review, where it differs from the workshop."""
     chosen = read().get("review-directives")
