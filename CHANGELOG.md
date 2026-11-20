@@ -3,6 +3,13 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.34.1
+
+- Explain opens the side panel on what it explains and shows the explanation as a card at the top of "Ask about it",
+  saying while it is coming; questions asked there go on in the same conversation.
+- While the AI Agent has not answered a question about a file or a finding, Explain and Ask wait: nothing more is asked
+  about it.
+
 ## 0.34.0
 
 - "✦ Explain" on a changed file's diff and on a finding asks the AI Agent to explain it, engineer to engineer, in a

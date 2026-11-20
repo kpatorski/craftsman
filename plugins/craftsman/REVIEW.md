@@ -429,8 +429,10 @@ not yet in `handled`, it passes those first.
 
 A question from the page opens a thread, or adds to one, before its `ask` line is written. "✦ Explain", on a changed
 file's diff and on a finding, opens a thread about it marked `explain`, with "Explain this change" or "Explain this
-finding" as the developer's message, before its `explain` line is written; a second Explain of the same file or finding
-shows that thread again instead of asking anew.
+finding" as the developer's message, before its `explain` line is written. The side panel opens on that file or
+finding, pinned or not, and shows the thread as a card at the top of "Ask about it": the explanation, and whether it is
+still coming. A question asked there afterwards goes on in that thread, as an `ask`. While a question about a file or a
+finding waits for its answer, neither Explain nor Ask asks anything more about it.
 
 A note of context is added to or taken out of `review.json` before its `context` line is written.
 

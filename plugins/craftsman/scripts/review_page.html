@@ -250,6 +250,10 @@
   .agent-asks { border: 1px solid var(--should); border-left-width: 3px; border-radius: 12px; padding: 10px 12px; margin-top: 12px; background: var(--should-bg); }
   .agent-asks .who { font-size: .75rem; color: var(--should); margin-bottom: 4px; }
   .agent-asks textarea { width: 100%; min-height: 54px; margin-top: 10px; }
+  .explain-card { border: 1px solid var(--neon-dim); border-left-width: 3px; border-radius: 12px; padding: 10px 12px; margin-top: 12px; font-size: .8125rem; }
+  .explain-card .who { font-size: .75rem; color: var(--neon); margin-bottom: 6px; }
+  .explaining { display: flex; gap: 8px; align-items: center; color: var(--muted); }
+  .explaining .pulse { animation: p 1.6s infinite; }
   .answered { border: 1px solid var(--line); border-left-width: 3px; border-radius: 12px; padding: 8px 12px; margin-top: 12px; font-size: .8125rem; }
   .answered .who { font-size: .75rem; color: var(--muted); margin-bottom: 4px; }
   .answered .reply { margin-top: 6px; } .answered .reply b { color: var(--heading); font-weight: 500; }
@@ -1071,8 +1075,42 @@ function ctx() {
 // picked anywhere is the one the Findings tab opens on.
 // "Explain": asks the AI Agent to explain a file's change or a finding, engineer to engineer; it answers in a thread.
 function explainButton(about) {
-  const key = about.kind === "file" ? about.path : about.id;
-  return `<button class="btn ghost sm" data-explain="${esc(about.kind + "|" + key)}" title="AI Agent explains it in a few sentences, in your language">✦ Explain</button>`;
+  const key = about.kind === "file" ? about.path : about.id, state = explainState(about), busy = awaiting(about);
+  const [label, title] = state === "asked" ? ["✦ Explaining…", "AI Agent is explaining it; the answer comes in the side panel"]
+    : busy ? ["✦ Explanation", "AI Agent is answering a question about it; ask again once it has"]
+    : state === "answered" ? ["✦ Explanation", "Show AI Agent's explanation in the side panel"]
+    : ["✦ Explain", "AI Agent explains it in a few sentences, in your language, in the side panel"];
+  return `<button class="btn ghost sm" data-explain="${esc(about.kind + "|" + key)}" title="${title}"${busy ? " disabled" : ""}>${label}</button>`;
+}
+// Where the explanation of a file or a finding stands: none asked, asked and coming, or answered.
+function explainState(about) {
+  const t = (S().threads || []).find(x => x.explain && aboutContext(x.about, about));
+  return !t ? "none" : t.messages.some(m => m.by === "agent") ? "answered" : "asked";
+}
+// Whether a question about this context is still waiting for AI Agent's answer: nothing more is asked about it then.
+function awaiting(c) {
+  return (S().threads || []).some(t => t.status === "open" && aboutContext(t.about, c) && t.messages[t.messages.length - 1].by === "developer");
+}
+// The explanation's own card at the top of "Ask about it": the conversation it starts — AI Agent's explanation, the
+// developer's questions about it and the answers — and whether an answer is coming.
+function explainCard(about) {
+  const t = (S().threads || []).find(x => x.explain && aboutContext(x.about, about));
+  if (!t) return "";
+  const said = t.messages.slice(1).map((m, n) => m.by === "agent" ? `<div class="md">${md(`thread:${t.id}:${n + 1}`) || esc(m.text)}</div>`
+    : `<div class="msg developer"><div class="who">you</div><div class="body">${esc(m.text)}</div></div>`).join("");
+  const coming = t.messages[t.messages.length - 1].by !== "developer" ? ""
+    : !R.running ? `<div class="banner" style="margin:0">No answer yet: the AI agent's session is stopped. <a style="color:var(--neon)" data-power>Start it</a> and it answers.</div>`
+    : `<div class="explaining"><span class="pulse"></span>${t.messages.length === 1 ? "AI Agent is explaining…" : "AI Agent is answering…"} It answers once it finishes the step it is on, so this may take a moment.</div>`;
+  return `<div class="explain-card"><div class="who">✦ Explanation</div>${said}${coming}</div>`;
+}
+// The questions about a context; an explanation has its card instead.
+function askThreads(c) {
+  return (S().threads || []).filter(t => !t.explain && aboutContext(t.about, c));
+}
+// Where a question about a context goes on: in its explanation when there is one, else in its open thread, else none.
+function askInto(c) {
+  const open = [...askThreads(c)].reverse().find(t => t.status === "open");
+  return explainThread(c) || (open ? open.id : null);
 }
 // The thread an earlier Explain of the same file or finding opened, so it is shown instead of asked again.
 function explainThread(about) {
@@ -1158,27 +1196,28 @@ function answeredBlock(answered) {
 // "Ask about it": the conversation about the context, and the box to ask in. A question goes on in the open thread
 // about the same context, or starts one.
 function askTab(c) {
-  const threads = (S().threads || []).filter(t => aboutContext(t.about, c));
+  const threads = askThreads(c), explained = c.kind === "finding" || (c.kind === "file" && !c.lines) ? explainCard(c) : "";
   const cp = c.kind === "review" && waiting() ? S().checkpoint : null;
   const gh = c.kind === "github" ? ghContext(c.id) : "";
   const quote = c.kind === "file" && c.lines && ui.selection && ui.selection.path === c.path ? ui.selection.quote : null;
   const answered = c.kind === "review" ? S().answered || [] : [];
-  const empty = threads.length || cp || gh || answered.length || (c.kind === "review" && contextNotes(S()).length) ? "" : `<div class="muted" style="padding-top:12px;font-size:.8125rem">No conversation about ${nounOf(c)} yet. It stays with the review and never goes to GitHub.</div>`;
+  const empty = threads.length || explained || cp || gh || answered.length || (c.kind === "review" && contextNotes(S()).length) ? "" : `<div class="muted" style="padding-top:12px;font-size:.8125rem">No conversation about ${nounOf(c)} yet. It stays with the review and never goes to GitHub.</div>`;
   const notes = c.kind === "review" ? contextNotes(S()) : [];
   const context = notes.length ? `<div class="ctx-notes"><div class="who">Context you gave the AI Agent</div>${notes.map(n => `<div class="ctx-note"><div class="ctx-text">${esc(n.text)}</div>
         <span class="muted ctx-at">${when(n.at)}</span><button class="btn ghost ctx-x" data-context-remove="${esc(n.id)}" title="Take this note back; AI Agent is told">×</button></div>`).join("")}</div>` : "";
-  return `<div class="ask-out">${gh}${context}${answeredBlock(answered)}${cp ? agentAsks(cp) : ""}${threadsBlock(threads)}${empty}</div>
+  return `<div class="ask-out">${explained}${gh}${context}${answeredBlock(answered)}${cp ? agentAsks(cp) : ""}${threadsBlock(threads)}${empty}</div>
     <div class="ask-in">${quote ? `<div class="quote">${esc(quote)}</div>` : ""}<textarea id="ask-in" placeholder="Ask AI Agent about ${nounOf(c)}…"></textarea></div>
     <div class="ask-foot">${(SUGGESTIONS[c.kind === "file" && c.lines ? "lines" : c.kind] || []).map(q => `<button class="sugg" data-sugg="${esc(q)}">${esc(q)}</button>`).join("")}
       <span class="grow"></span>${c.kind === "review" ? `<button class="btn ghost sm" data-context-add title="What the PR does not say: the AI Agent takes it into account from its next step on">Add as context</button>` : ""}
-      <button class="btn go sm" data-ask title="${MOD} Enter">Ask</button></div>`;
+      <button class="btn go sm" data-ask title="${awaiting(c) ? "AI Agent is still answering about this" : MOD + " Enter"}"${awaiting(c) ? " disabled" : ""}>Ask</button></div>`;
 }
 async function askNow() {
   const box = document.getElementById("ask-in"), text = box && box.value.trim(); if (!text) return;
-  const c = ctx(), last = [...(S().threads || [])].reverse().find(t => t.status === "open" && aboutContext(t.about, c));
+  const c = ctx(), into = askInto(c);
+  if (awaiting(c)) return toast("AI Agent is still answering about this; ask once it has");
   const { side, ...about } = c, quote = ui.selection && c.lines && ui.selection.path === c.path ? ui.selection.quote : null;
   box.value = "";
-  const out = last ? await change("reply", { thread: last.id, text }) : await change("ask", { about, quote, text });
+  const out = into ? await change("reply", { thread: into, text }) : await change("ask", { about, quote, text });
   if (!out) { box.value = text; return; }
   await reload();
 }
@@ -2351,8 +2390,10 @@ document.addEventListener("click", async e => {
   if (d.explain) {
     const [kind, key] = [d.explain.slice(0, d.explain.indexOf("|")), d.explain.slice(d.explain.indexOf("|") + 1)];
     const about = kind === "file" ? { kind, path: key } : { kind, id: key };
-    if (explainThread(about)) { setCtx(about, "ask"); return render(); }
-    return change("explain", { about }).then(o => { if (o) { setCtx(about, "ask"); reload(); } });
+    t.disabled = true; ui.pinned = false; setCtx(about, "ask");
+    if (explainThread(about)) return render();
+    render();
+    return change("explain", { about }).then(o => { if (o) { toast("AI Agent explains it in the side panel"); reload(); } });
   }
   if (d.commentFile) { const dr = draftOf(d.commentFile); if (!dr.text.trim()) dr.lines = null; return openComment(d.commentFile); }
   if (d.draftWhole !== undefined) { draftOf(draftAt).lines = null; saveDraft(draftAt, true); return render(); }

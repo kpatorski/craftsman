@@ -410,29 +410,70 @@ class AboutChipTest(unittest.TestCase):
 
 @unittest.skipUnless(NODE, "node is not installed")
 class ExplainTest(unittest.TestCase):
-    """Explain asks the AI Agent about a file's change or a finding; the answer is the thread it opens."""
+    """Explain asks the AI Agent about a file's change or a finding; its answer has a card of its own in the side panel,
+    and the button cannot ask again while the AI Agent is explaining."""
 
-    def button(self, about):
-        program = "\n".join(["const esc = s => String(s);", function("explainButton")])
-        program += f"\nconsole.log(JSON.stringify(explainButton({json.dumps(about)})));"
+    ASKED = {"id": "t1", "explain": True, "about": {"kind": "file", "path": "A.ts"}, "status": "open",
+             "messages": [{"by": "developer", "text": "Explain this change"}]}
+    ANSWERED = {**ASKED, "messages": ASKED["messages"] + [{"by": "agent", "text": "It saves the whole view at once."}]}
+    QUESTION = {"id": "t2", "about": {"kind": "file", "path": "A.ts"}, "status": "open",
+                "messages": [{"by": "developer", "text": "Why?"}]}
+
+    def page(self, call, threads=(), running=True):
+        program = "\n".join([
+            "const esc = s => String(s), md = () => '';",
+            f"var R = {json.dumps({'running': running, 'state': {'threads': list(threads)}})}; const S = () => R.state;",
+            function("aboutContext"), function("explainThread"), function("explainState"), function("explainButton"),
+            function("explainCard"), function("askThreads"), function("awaiting"), function("askInto"),
+            f"console.log(JSON.stringify({call}));"])
         return json.loads(subprocess.run([NODE, "-e", program], capture_output=True, text=True, check=True).stdout)
 
     def test_the_button_carries_what_it_explains(self):
-        self.assertIn('data-explain="file|src/A.ts"', self.button({"kind": "file", "path": "src/A.ts"}))
-        self.assertIn('data-explain="finding|f3"', self.button({"kind": "finding", "id": "f3"}))
+        self.assertIn('data-explain="file|src/A.ts"', self.page('explainButton({kind: "file", path: "src/A.ts"})'))
+        self.assertIn('data-explain="finding|f3"', self.page('explainButton({kind: "finding", id: "f3"})'))
 
     def test_a_changed_file_and_a_finding_offer_it(self):
         self.assertIn('explainButton({ kind: "file", path })', function("diffView"))
         self.assertIn('explainButton({ kind: "finding", id: f.id })', function("panelFinding"))
 
-    def test_an_explanation_already_asked_for_is_shown_not_asked_again(self):
-        program = "\n".join([function("aboutContext"), function("explainThread"),
-                              "var R = {state: {threads: [{id: 't1', explain: true, about: {kind: 'file', path: 'A.ts'}},"
-                              " {id: 't2', about: {kind: 'file', path: 'B.ts'}}]}}; const S = () => R.state;",
-                              "console.log(JSON.stringify([explainThread({kind: 'file', path: 'A.ts'}), explainThread({kind: 'file', path: 'B.ts'})]));"])
-        found = json.loads(subprocess.run([NODE, "-e", program], capture_output=True, text=True, check=True).stdout)
+    def test_the_button_waits_while_the_ai_agent_explains_and_then_opens_the_answer(self):
+        file = '{kind: "file", path: "A.ts"}'
+        self.assertNotIn("disabled", self.page(f"explainButton({file})"))
+        waiting = self.page(f"explainButton({file})", [self.ASKED])
+        self.assertIn("disabled", waiting)
+        self.assertIn("Explaining…", waiting)
+        done = self.page(f"explainButton({file})", [self.ANSWERED])
+        self.assertNotIn("disabled", done)
+        self.assertIn("Explanation", done)
 
-        self.assertEqual(found, ["t1", None])
+    def test_nothing_more_is_asked_about_a_context_while_an_answer_about_it_is_coming(self):
+        file = '{kind: "file", path: "A.ts"}'
+        self.assertTrue(self.page(f"awaiting({file})", [self.ASKED]))
+        self.assertTrue(self.page(f"awaiting({file})", [self.QUESTION]))
+        self.assertIn("disabled", self.page(f"explainButton({file})", [self.ANSWERED, self.QUESTION]))
+        self.assertFalse(self.page(f"awaiting({file})", [self.ANSWERED]))
+        self.assertFalse(self.page('awaiting({kind: "file", path: "B.ts"})', [self.ASKED]))
+        self.assertIn("awaiting(c)", function("askTab"))
+        self.assertIn("awaiting(c)", function("askNow", prefix="async "))
+
+    def test_the_card_is_the_conversation_the_explanation_starts(self):
+        file = '{kind: "file", path: "A.ts"}'
+        self.assertEqual(self.page(f"explainCard({file})"), "")
+        self.assertIn("AI Agent is explaining", self.page(f"explainCard({file})", [self.ASKED]))
+        self.assertIn("session is stopped", self.page(f"explainCard({file})", [self.ASKED], running=False))
+        follow = {**self.ANSWERED, "messages": self.ANSWERED["messages"] + [{"by": "developer", "text": "Why one request?"}]}
+        card = self.page(f"explainCard({file})", [follow])
+        for text in ("It saves the whole view at once.", "Why one request?", "AI Agent is answering"):
+            self.assertIn(text, card)
+        self.assertNotIn("Explain this change", card, "the button's own question is not repeated")
+
+    def test_a_question_goes_on_in_the_explanation_of_its_context_else_in_its_open_thread(self):
+        self.assertEqual(self.page('askInto({kind: "file", path: "A.ts"})', [self.ANSWERED, self.QUESTION]), "t1")
+        self.assertEqual(self.page('askInto({kind: "file", path: "A.ts"})', [self.QUESTION]), "t2")
+        self.assertIsNone(self.page('askInto({kind: "file", path: "A.ts", lines: [1, 2]})', [self.ANSWERED]))
+        self.assertEqual(self.page('askThreads({kind: "file", path: "A.ts"}).map(t => t.id)', [self.ASKED, self.QUESTION]),
+                         ["t2"])
+        self.assertIn("askInto(c)", function("askNow", prefix="async "))
 
 
 class ToastTest(unittest.TestCase):
