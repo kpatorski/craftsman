@@ -3,6 +3,12 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.37.0
+
+- Colours with a meaning keep their hue in every palette: green for added, finished or active work, red for removed
+  work, blue for modified or waiting work, amber for a warning. A palette's accent is for navigation and main actions.
+- Onyx has a champagne gold accent, with annotations and numbers in warm stone.
+
 ## 0.36.2
 
 - Onyx, Forest, Plum, Bronze and Petrol have a darker background, and their panels share the page's black.

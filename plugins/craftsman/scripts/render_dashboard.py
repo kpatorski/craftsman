@@ -322,7 +322,7 @@ PAGE_SHELL = """<!DOCTYPE html>
     color: var(--blue); font-size: 1.1rem; border-bottom: 1px solid var(--border); padding-bottom: .4rem;
     margin-top: 2.5rem;
   }
-  h3.category { color: var(--green); font-size: .9rem; text-transform: uppercase; letter-spacing: .04em;
+  h3.category { color: var(--neon); font-size: .9rem; text-transform: uppercase; letter-spacing: .04em;
     margin: 1.5rem 0 .6rem; }
   .list { display: flex; flex-direction: column; gap: .35rem; }
   details.entry { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); }
@@ -346,7 +346,7 @@ PAGE_SHELL = """<!DOCTYPE html>
   .requires { font-size: .75rem; color: var(--muted); margin-bottom: .5rem; }
   .row { display: flex; align-items: center; gap: .8rem; }
   .cmd {
-    flex: 1; min-width: 0; background: var(--code-bg); color: var(--green); border: 1px solid var(--border);
+    flex: 1; min-width: 0; background: var(--code-bg); color: var(--neon); border: 1px solid var(--border);
     border-radius: var(--radius-sm); padding: .3rem .5rem; font-family: var(--mono); font-size: .78rem;
   }
   .members { display: flex; flex-direction: column; gap: .3rem; margin-top: .8rem; }

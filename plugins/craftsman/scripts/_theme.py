@@ -5,9 +5,12 @@ Each palette is a set of base colours; `theme_css` turns one into CSS variables,
 a `-dim` tint of an accent for borders, a `-bg` tint for fills, lines and shadows from the palette's `ink` and `shade`.
 The meaning of a colour is the same in every palette:
 
-- neon: progress and the one thing to do now; neon-strong is its filled button, with on-strong text on it;
-- must, should, nit: the severity of a finding; change: a modified file; select: the selected text;
-- blue, green, amber, pink, violet, red: the accents of the dashboard and the reports;
+- neon: the accent, for navigation, progress and the one thing to do now; neon-strong is its filled button, with
+  on-strong text on it;
+- green: added, finished or active work; must: removed work and the worst severity; change: modified or waiting work;
+  should: a warning. These keep their hue in every palette, whatever its accent;
+- nit: the lowest severity; select: the selected text;
+- blue, amber, pink, violet, red: the other colours of the dashboard and the reports;
 - inline-code: code inside the text of a Markdown page;
 - syn-keyword, syn-string, syn-comment, syn-number, syn-type, syn-annotation: the code of a diff, by its syntax.
 
@@ -73,40 +76,40 @@ PALETTES = {
         change="#93b4e8", select="#a1a1aa", removed_text="#f5c6c6", green="#5fd4a0", knob="#8b8b93",
         ink="255, 255, 255"),
     "onyx": _palette(
-        "Onyx", "neutral black and greys, dark gold accent",
+        "Onyx", "neutral black and greys, champagne gold accent",
         bg="#070707", panel="#070707", card="#0f0f0f", card2="#151515", float="#1a1a1a", code_bg="#0b0b0b",
         text="#e4e4e4", heading="#f7f7f7", muted="#8c8c8c", dim="#595959", nit="#8c8c8c", nit_dot="#6b6b6b",
-        must="#e06c6c", removed_text="#b8b8b8", change="#b8b8b8", ink="255, 255, 255",
-        neon="#c9a54a", neon_strong="#8a6d1f", on_strong="#ffffff", green="#c9a54a", blue="#a8852f", inline_code="#d0d0d0",
-        select="#dcc489", should="#e08a4f"),
+        must="#d9686a", removed_text="#b8b8b8", change="#6f9fd8", syn_string="#b8b8b8", ink="255, 255, 255",
+        neon="#d9bd82", neon_strong="#837040", on_strong="#ffffff", green="#5fae7b", syn_type="#d9bd82", syn_number="#b5a98f", syn_annotation="#b5a98f", blue="#c4a86c", inline_code="#d0d0d0",
+        select="#eddcb4", should="#e8a33d"),
     "forest": _palette(
         "Forest", "neutral black and greys, dark green accent",
         bg="#070707", panel="#070707", card="#0f0f0f", card2="#151515", float="#1a1a1a", code_bg="#0b0b0b",
         text="#e4e4e4", heading="#f7f7f7", muted="#8c8c8c", dim="#595959", nit="#8c8c8c", nit_dot="#6b6b6b",
-        must="#e06c6c", removed_text="#b8b8b8", change="#b8b8b8", ink="255, 255, 255",
-        neon="#5fae7b", neon_strong="#2f6e47", on_strong="#ffffff", green="#5fae7b", blue="#4a9365", inline_code="#d0d0d0",
-        select="#9ccfad", should="#dcb466"),
+        must="#d9686a", removed_text="#b8b8b8", change="#6f9fd8", syn_string="#b8b8b8", ink="255, 255, 255",
+        neon="#5fae7b", neon_strong="#2f6e47", on_strong="#ffffff", green="#5fae7b", syn_type="#5fae7b", syn_number="#a3a3a3", syn_annotation="#a3a3a3", blue="#4a9365", inline_code="#d0d0d0",
+        select="#9ccfad", should="#e8a33d"),
     "plum": _palette(
         "Plum", "neutral black and greys, muted violet accent",
         bg="#070707", panel="#070707", card="#0f0f0f", card2="#151515", float="#1a1a1a", code_bg="#0b0b0b",
         text="#e4e4e4", heading="#f7f7f7", muted="#8c8c8c", dim="#595959", nit="#8c8c8c", nit_dot="#6b6b6b",
-        must="#e06c6c", removed_text="#b8b8b8", change="#b8b8b8", ink="255, 255, 255",
-        neon="#a58bd0", neon_strong="#6a4fa0", on_strong="#ffffff", green="#a58bd0", blue="#9078c5", inline_code="#d0d0d0",
-        select="#c7b6e6", should="#dcb466"),
+        must="#d9686a", removed_text="#b8b8b8", change="#6f9fd8", syn_string="#b8b8b8", ink="255, 255, 255",
+        neon="#a58bd0", neon_strong="#6a4fa0", on_strong="#ffffff", green="#5fae7b", syn_type="#a58bd0", syn_number="#a3a3a3", syn_annotation="#a3a3a3", blue="#9078c5", inline_code="#d0d0d0",
+        select="#c7b6e6", should="#e8a33d"),
     "bronze": _palette(
         "Bronze", "neutral black and greys, copper accent",
         bg="#070707", panel="#070707", card="#0f0f0f", card2="#151515", float="#1a1a1a", code_bg="#0b0b0b",
         text="#e4e4e4", heading="#f7f7f7", muted="#8c8c8c", dim="#595959", nit="#8c8c8c", nit_dot="#6b6b6b",
-        must="#e06c6c", removed_text="#b8b8b8", change="#b8b8b8", ink="255, 255, 255",
-        neon="#c58a55", neon_strong="#8a5a2e", on_strong="#ffffff", green="#c58a55", blue="#ad7744", inline_code="#d0d0d0",
-        select="#ddb48c", should="#dcb466"),
+        must="#d9686a", removed_text="#b8b8b8", change="#6f9fd8", syn_string="#b8b8b8", ink="255, 255, 255",
+        neon="#c58a55", neon_strong="#8a5a2e", on_strong="#ffffff", green="#5fae7b", syn_type="#c58a55", syn_number="#a3a3a3", syn_annotation="#a3a3a3", blue="#ad7744", inline_code="#d0d0d0",
+        select="#ddb48c", should="#e8a33d"),
     "petrol": _palette(
         "Petrol", "neutral black and greys, dark teal accent",
         bg="#070707", panel="#070707", card="#0f0f0f", card2="#151515", float="#1a1a1a", code_bg="#0b0b0b",
         text="#e4e4e4", heading="#f7f7f7", muted="#8c8c8c", dim="#595959", nit="#8c8c8c", nit_dot="#6b6b6b",
-        must="#e06c6c", removed_text="#b8b8b8", change="#b8b8b8", ink="255, 255, 255",
-        neon="#4fa3a5", neon_strong="#26696b", on_strong="#ffffff", green="#4fa3a5", blue="#3d9092", inline_code="#d0d0d0",
-        select="#93cdce", should="#dcb466"),
+        must="#d9686a", removed_text="#b8b8b8", change="#6f9fd8", syn_string="#b8b8b8", ink="255, 255, 255",
+        neon="#4fa3a5", neon_strong="#26696b", on_strong="#ffffff", green="#5fae7b", syn_type="#4fa3a5", syn_number="#a3a3a3", syn_annotation="#a3a3a3", blue="#3d9092", inline_code="#d0d0d0",
+        select="#93cdce", should="#e8a33d"),
     "paper": _palette(
         "Paper", "light: white cards on a pale grey page, green accent",
         bg="#f6f7f9", card="#ffffff", card2="#f1f3f6", float="#ffffff", hover="#eef0f3", code_bg="#f3f4f7",
@@ -148,8 +151,8 @@ def theme_css(palette=None):
         css[f"{accent}-dim"], css[f"{accent}-bg"] = _tint(c[accent], .35), _tint(c[accent], .12)
     css.update({
         "neon-dim": _tint(c["neon"], .4), "neon-bg": _tint(c["neon"], .1),
-        "added-bg": _tint(c["neon"], .06), "removed-bg": _tint(c["must"], .08),
-        "change-bg": _tint(c["change"], .1), "must-bg": _tint(c["must"], .1), "should-bg": _tint(c["should"], .1),
+        "added-bg": _tint(c["green"], .1), "removed-bg": _tint(c["must"], .1),
+        "change-dim": _tint(c["change"], .35), "change-bg": _tint(c["change"], .1), "must-bg": _tint(c["must"], .1), "should-bg": _tint(c["should"], .1),
         "nit-bg": f"rgba({c['ink']}, .06)", "select-bg": _tint(c["select"], .14),
         "line": f"rgba({c['ink']}, .08)", "line2": f"rgba({c['ink']}, .14)",
         "shadow": f"rgba({c['shade']}, {_alpha(c['shadow'])})", "scrim": f"rgba({c['shade']}, {_alpha(c['scrim'])})",

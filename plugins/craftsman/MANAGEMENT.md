@@ -301,11 +301,13 @@ older plugin version is replaced on the next start. It exits by itself after 8 h
 
 **The colour palette.** Every craftsman page — the dashboard, the review page, the report, a rendered diff — takes its
 colours from one palette in `scripts/_theme.py`: eleven dark ones (Graphite, Slate, Steel, Ink, Carbon, Mono, and Onyx,
-Forest, Plum, Bronze and Petrol: neutral black and greys with one muted accent each — dark gold, dark green, violet,
-copper, teal) and a light one (Paper). ◐ Palette on the dashboard, or ◐ in the review page's rail, picks one; the open
-page changes at once, and another open page changes when it comes back into view. The choice is kept as `theme` in
-`~/.craftsman/settings.json`, and the report and diff files rendered afterwards use it too. Graphite is the palette
-until one is picked.
+Forest, Plum, Bronze and Petrol: neutral black and greys with one muted accent each — champagne gold, dark green,
+violet, copper, teal) and a light one (Paper). A palette's accent is for navigation and the main actions; colours with
+a meaning keep their hue in every palette: green for added, finished or active work, red for removed work, blue for
+modified or waiting work, amber for a warning. ◐ Palette on the dashboard, or ◐ in the review page's rail, picks one;
+the open page changes at once, and another open page changes when it comes back into view. The choice is kept as
+`theme` in `~/.craftsman/settings.json`, and the report and diff files rendered afterwards use it too. Graphite is the
+palette until one is picked.
 
 **Model tiers.** The Manage view's Models section maps each tier — `fast`, `balanced`, `deep` (`EXECUTION.md`,
 "Choosing a model") — to a model: an alias Claude Code knows or a full model id, suggested from `availableModels` in

@@ -152,7 +152,7 @@ PAGE_SHELL = """<!DOCTYPE html>
   #search:focus { outline: none; border-color: var(--blue); }
   #count { color: var(--muted); font-size: .72rem; min-height: 1rem; margin-bottom: .6rem; }
   .navgroup h3 {
-    color: var(--green); font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; margin: 1.1rem 0 .3rem;
+    color: var(--neon); font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; margin: 1.1rem 0 .3rem;
   }
   .navlink {
     display: block; padding: .4rem .6rem; border-radius: var(--radius-sm); border-left: 3px solid transparent;
@@ -160,7 +160,7 @@ PAGE_SHELL = """<!DOCTYPE html>
     color: var(--text); margin-bottom: 2px;
   }
   .navlink:hover { background: var(--hover); }
-  .navlink.active { background: var(--panel2); border-left-color: var(--green); }
+  .navlink.active { background: var(--panel2); border-left-color: var(--neon); }
   .navlink.hidden, .navgroup.hidden { display: none; }
   .navtitle { display: block; font-size: .86rem; }
   .navpath { display: block; color: var(--muted); font-size: .68rem; font-family: var(--mono); }

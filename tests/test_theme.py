@@ -3,6 +3,7 @@ dashboard, reports and diffs look the same. The developer picks the palette; the
 
 Run: python3 -m unittest discover -s tests
 """
+import colorsys
 import json
 import os
 import pathlib
@@ -37,6 +38,10 @@ def luminance(hex_colour):
 def contrast(a, b):
     light, dark = sorted((luminance(a), luminance(b)), reverse=True)
     return (light + .05) / (dark + .05)
+
+
+def hue(hex_colour):
+    return colorsys.rgb_to_hsv(*(int(hex_colour[i:i + 2], 16) / 255 for i in (1, 3, 5)))[0] * 360
 
 
 class HomeTest(unittest.TestCase):
@@ -132,6 +137,46 @@ class PaletteTest(unittest.TestCase):
 
     def test_markdown_inline_code_takes_the_inline_code_colour(self):
         self.assertRegex((SCRIPTS / "_markdown.py").read_text(), r"\.md code \{[^}]*color: var\(--inline-code\)")
+
+    def test_meaningful_colours_keep_their_hue_in_every_palette(self):
+        for palette, colours in _theme.PALETTES.items():
+            with self.subTest(palette=palette):
+                self.assertTrue(120 <= hue(colours["green"]) <= 175, "added is green")
+                self.assertTrue(hue(colours["must"]) >= 340 or hue(colours["must"]) <= 10, "removed is red")
+                self.assertTrue(185 <= hue(colours["change"]) <= 235, "modified is blue")
+                self.assertTrue(30 <= hue(colours["should"]) <= 50, "a warning is amber")
+
+    def test_added_and_removed_lines_are_tinted_by_their_meaning_not_by_the_accent(self):
+        for palette, colours in _theme.PALETTES.items():
+            with self.subTest(palette=palette):
+                css = variables(_theme.theme_css(palette))
+                self.assertEqual(_theme._tint(colours["green"], .1), css["--added-bg"])
+                self.assertEqual(_theme._tint(colours["must"], .1), css["--removed-bg"])
+
+    def test_marks_of_added_and_finished_work_take_green_on_the_review_page(self):
+        page = (SCRIPTS / "review_page.html").read_text()
+        for mark in (r"\.kd\.added \{ color: var\(--green\)", r"\.ln\.add \.sg \{ color: var\(--green\)",
+                     r"\.sub \.plus \{ color: var\(--green\)", r"\.ck\.clean \{ background: var\(--green\)",
+                     r'added: \["--green"', r"M3\.5 8\.5l3 3 6-7\" fill=\"none\" style=\"stroke:var\(--green\)"):
+            with self.subTest(mark=mark):
+                self.assertRegex(page, mark)
+
+    def test_what_only_decorates_a_page_takes_the_accent_not_green(self):
+        for name, mark in (("dashboard_page.html", r"\.brand \{[^}]*color: var\(--neon\)"),
+                           ("dashboard_page.html", r"\.switch\.on::after \{[^}]*background: var\(--neon\)"),
+                           ("render_dashboard.py", r"h3\.category \{ color: var\(--neon\)"),
+                           ("render_report.py", r"\.navlink\.active \{[^}]*border-left-color: var\(--neon\)")):
+            with self.subTest(page=name, mark=mark):
+                self.assertRegex((SCRIPTS / name).read_text(), mark)
+
+    def test_work_that_waits_shows_as_modified_on_the_dashboard(self):
+        self.assertRegex((SCRIPTS / "dashboard_page.html").read_text(), r"\.badge\.pending \{ color: var\(--change\)")
+
+    def test_onyx_is_champagne_with_stone_annotations(self):
+        onyx = _theme.PALETTES["onyx"]
+        self.assertEqual(("#d9bd82", "#837040", "#c4a86c", "#eddcb4", "#b5a98f", "#b5a98f"),
+                         (onyx["neon"], onyx["neon-strong"], onyx["blue"], onyx["select"],
+                          onyx["syn-annotation"], onyx["syn-number"]))
 
     def test_there_are_dark_palettes_and_a_light_one(self):
         light = [p for p, colours in _theme.PALETTES.items() if luminance(colours["bg"]) > .5]
