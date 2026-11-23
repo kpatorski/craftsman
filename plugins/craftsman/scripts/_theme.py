@@ -39,18 +39,6 @@ PALETTES = {
         neon="#53e36b", neon_strong="#2f9e44", on_strong="#fafafa", removed_text="#f3c4c4", change="#7fb2ff",
         must="#ff6b6b", should="#f5c26b", nit="#9a9a9a", nit_dot="#6b6b6b", select="#b69cff",
         card="#141414", card2="#1a1a1a", float="#1d1d1d", dim="#5a5a5a", ink="255, 255, 255"),
-    "midnight": _palette(
-        "Midnight", "navy blue, sky-blue accent",
-        bg="#0d1117", card="#151b24", card2="#1b2330", float="#1d2633", code_bg="#10151d",
-        text="#d5dde9", heading="#f2f6fc", muted="#8792a4", dim="#556072", nit="#8792a4", nit_dot="#6a7486",
-        neon="#58a6ff", neon_strong="#1f6feb", on_strong="#ffffff", must="#ff7b72", should="#e3b341",
-        change="#a5b4fc", select="#d2a8ff", removed_text="#ffc9c4", green="#56d364", ink="160, 190, 240"),
-    "arctic": _palette(
-        "Arctic", "lighter slate grey, frost-cyan accent, muted colours",
-        bg="#1b1f27", card="#232832", card2="#2a303b", float="#2e3440", code_bg="#1f242c",
-        text="#d8dee9", heading="#eceff4", muted="#a0a8b6", dim="#646d7d", nit="#a0a8b6", nit_dot="#7a8292",
-        neon="#88d0dc", neon_strong="#2f7f94", on_strong="#ffffff", must="#e0727c", should="#e5c07b",
-        change="#8fb0d8", select="#c09bc4", removed_text="#f2c9cd", green="#a3d39c", ink="200, 215, 235"),
     "slate": _palette(
         "Slate", "cool neutral grey, indigo accent",
         bg="#101114", card="#17181d", card2="#1d1f25", float="#22242b", code_bg="#131418",
@@ -63,12 +51,6 @@ PALETTES = {
         text="#dce2ea", heading="#f5f8fc", muted="#8d97a6", dim="#58616f", nit="#8d97a6", nit_dot="#6c7584",
         neon="#4fc3f7", neon_strong="#1a78b4", on_strong="#ffffff", must="#ef6f6f", should="#f0bd5e",
         change="#9fb4ff", select="#c7a4ff", removed_text="#f5c6c6", green="#5fd4a0", ink="185, 205, 230"),
-    "dim": _palette(
-        "Dim", "the softest dark: mid grey-blue, calm blue accent",
-        bg="#22272e", card="#2a3038", card2="#313842", float="#363e49", code_bg="#262c34",
-        text="#cdd9e5", heading="#e6edf3", muted="#a0acb9", dim="#636e7b", nit="#a0acb9", nit_dot="#768390",
-        neon="#6cb6ff", neon_strong="#316dca", on_strong="#ffffff", must="#f47067", should="#daaa3f",
-        change="#96d0ff", select="#dcbdfb", removed_text="#ffc6c0", green="#57ab5a", ink="205, 217, 229"),
     "ink": _palette(
         "Ink", "deep indigo-navy, periwinkle accent",
         bg="#0b0d18", card="#121526", card2="#181c30", float="#1d2238", code_bg="#0e101d",
@@ -88,6 +70,41 @@ PALETTES = {
         neon="#e4e4e7", neon_strong="#e4e4e7", on_strong="#0c0c0d", must="#f87171", should="#f5c26b",
         change="#93b4e8", select="#a1a1aa", removed_text="#f5c6c6", green="#5fd4a0", knob="#8b8b93",
         ink="255, 255, 255"),
+    "onyx": _palette(
+        "Onyx", "neutral black and greys, dark gold accent",
+        bg="#0c0c0c", card="#151515", card2="#1b1b1b", float="#202020", code_bg="#101010",
+        text="#e4e4e4", heading="#f7f7f7", muted="#8c8c8c", dim="#595959", nit="#8c8c8c", nit_dot="#6b6b6b",
+        must="#e06c6c", removed_text="#b8b8b8", change="#b8b8b8", ink="255, 255, 255",
+        neon="#c9a54a", neon_strong="#8a6d1f", on_strong="#ffffff", green="#c9a54a", blue="#dcc489",
+        select="#dcc489", should="#e08a4f"),
+    "forest": _palette(
+        "Forest", "neutral black and greys, dark green accent",
+        bg="#0c0c0c", card="#151515", card2="#1b1b1b", float="#202020", code_bg="#101010",
+        text="#e4e4e4", heading="#f7f7f7", muted="#8c8c8c", dim="#595959", nit="#8c8c8c", nit_dot="#6b6b6b",
+        must="#e06c6c", removed_text="#b8b8b8", change="#b8b8b8", ink="255, 255, 255",
+        neon="#5fae7b", neon_strong="#2f6e47", on_strong="#ffffff", green="#5fae7b", blue="#9ccfad",
+        select="#9ccfad", should="#dcb466"),
+    "plum": _palette(
+        "Plum", "neutral black and greys, muted violet accent",
+        bg="#0c0c0c", card="#151515", card2="#1b1b1b", float="#202020", code_bg="#101010",
+        text="#e4e4e4", heading="#f7f7f7", muted="#8c8c8c", dim="#595959", nit="#8c8c8c", nit_dot="#6b6b6b",
+        must="#e06c6c", removed_text="#b8b8b8", change="#b8b8b8", ink="255, 255, 255",
+        neon="#a58bd0", neon_strong="#6a4fa0", on_strong="#ffffff", green="#a58bd0", blue="#c7b6e6",
+        select="#c7b6e6", should="#dcb466"),
+    "bronze": _palette(
+        "Bronze", "neutral black and greys, copper accent",
+        bg="#0c0c0c", card="#151515", card2="#1b1b1b", float="#202020", code_bg="#101010",
+        text="#e4e4e4", heading="#f7f7f7", muted="#8c8c8c", dim="#595959", nit="#8c8c8c", nit_dot="#6b6b6b",
+        must="#e06c6c", removed_text="#b8b8b8", change="#b8b8b8", ink="255, 255, 255",
+        neon="#c58a55", neon_strong="#8a5a2e", on_strong="#ffffff", green="#c58a55", blue="#ddb48c",
+        select="#ddb48c", should="#dcb466"),
+    "petrol": _palette(
+        "Petrol", "neutral black and greys, dark teal accent",
+        bg="#0c0c0c", card="#151515", card2="#1b1b1b", float="#202020", code_bg="#101010",
+        text="#e4e4e4", heading="#f7f7f7", muted="#8c8c8c", dim="#595959", nit="#8c8c8c", nit_dot="#6b6b6b",
+        must="#e06c6c", removed_text="#b8b8b8", change="#b8b8b8", ink="255, 255, 255",
+        neon="#4fa3a5", neon_strong="#26696b", on_strong="#ffffff", green="#4fa3a5", blue="#93cdce",
+        select="#93cdce", should="#dcb466"),
     "paper": _palette(
         "Paper", "light: white cards on a pale grey page, green accent",
         bg="#f6f7f9", card="#ffffff", card2="#f1f3f6", float="#ffffff", hover="#eef0f3", code_bg="#f3f4f7",

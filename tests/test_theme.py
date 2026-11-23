@@ -102,6 +102,10 @@ class PaletteTest(unittest.TestCase):
                 self.assertIn(f"font-size: {_theme.TEXT_SIZE};", _theme.theme_css(palette))
         self.assertEqual("109%", _theme.TEXT_SIZE)
 
+    def test_the_palettes_are_mostly_greys_with_one_muted_accent_and_a_light_one(self):
+        self.assertEqual(["graphite", "slate", "steel", "ink", "carbon", "mono", "onyx", "forest", "plum", "bronze",
+                          "petrol", "paper"], list(_theme.PALETTES))
+
     def test_there_are_dark_palettes_and_a_light_one(self):
         light = [p for p, colours in _theme.PALETTES.items() if luminance(colours["bg"]) > .5]
         self.assertEqual(["paper"], light)
@@ -116,10 +120,10 @@ class ChoiceTest(HomeTest):
     def test_the_choice_is_kept_in_the_craftsman_home_beside_other_settings(self):
         self.home.mkdir(parents=True)
         (self.home / "settings.json").write_text(json.dumps({"other": 1}))
-        _theme.choose("midnight")
-        self.assertEqual("midnight", _theme.chosen())
-        self.assertEqual({"other": 1, "theme": "midnight"}, json.loads((self.home / "settings.json").read_text()))
-        self.assertEqual(_theme.theme_css("midnight"), _theme.theme_css())
+        _theme.choose("forest")
+        self.assertEqual("forest", _theme.chosen())
+        self.assertEqual({"other": 1, "theme": "forest"}, json.loads((self.home / "settings.json").read_text()))
+        self.assertEqual(_theme.theme_css("forest"), _theme.theme_css())
 
     def test_an_unknown_palette_is_refused_and_a_stale_choice_falls_back_to_graphite(self):
         with self.assertRaises(ValueError):

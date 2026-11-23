@@ -3,6 +3,12 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.36.0
+
+- Five new dark palettes, neutral black and greys with one muted accent each: Onyx (dark gold), Forest (dark green),
+  Plum (violet), Bronze (copper) and Petrol (teal). Midnight, Arctic and Dim are gone; a page that had one of them
+  picked shows Graphite until another is picked.
+
 ## 0.35.0
 
 - The review gate runs a review script whose payload, in single quotes, holds markdown with backticks or several

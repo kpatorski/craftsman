@@ -299,12 +299,13 @@ project it was started from; starting it from another project adds that project.
 older plugin version is replaced on the next start. It exits by itself after 8 hours with no page open. State:
 `~/.claude/craftsman-dashboard.json`; log: `~/.claude/craftsman-dashboard.log`.
 
-**The colour palette.** Every craftsman page — the dashboard, the review page, the report, a rendered diff — takes
-its colours from one palette in `scripts/_theme.py`: nine dark ones (Graphite, Midnight, Arctic, Slate, Steel, Dim,
-Ink, Carbon, Mono) and a light one (Paper). ◐ Palette on the dashboard, or ◐ in the review page's rail, picks one;
-the open page changes at once, and another open page changes when it comes back into view. The choice is kept as
-`theme` in `~/.craftsman/settings.json`, and the report and diff files rendered afterwards use it too. Graphite is
-the palette until one is picked.
+**The colour palette.** Every craftsman page — the dashboard, the review page, the report, a rendered diff — takes its
+colours from one palette in `scripts/_theme.py`: eleven dark ones (Graphite, Slate, Steel, Ink, Carbon, Mono, and Onyx,
+Forest, Plum, Bronze and Petrol: neutral black and greys with one muted accent each — dark gold, dark green, violet,
+copper, teal) and a light one (Paper). ◐ Palette on the dashboard, or ◐ in the review page's rail, picks one; the open
+page changes at once, and another open page changes when it comes back into view. The choice is kept as `theme` in
+`~/.craftsman/settings.json`, and the report and diff files rendered afterwards use it too. Graphite is the palette
+until one is picked.
 
 **Model tiers.** The Manage view's Models section maps each tier — `fast`, `balanced`, `deep` (`EXECUTION.md`,
 "Choosing a model") — to a model: an alias Claude Code knows or a full model id, suggested from `availableModels` in
