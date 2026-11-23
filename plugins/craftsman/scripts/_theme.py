@@ -8,6 +8,7 @@ The meaning of a colour is the same in every palette:
 - neon: progress and the one thing to do now; neon-strong is its filled button, with on-strong text on it;
 - must, should, nit: the severity of a finding; change: a modified file; select: the selected text;
 - blue, green, amber, pink, violet, red: the accents of the dashboard and the reports;
+- inline-code: code inside the text of a Markdown page;
 - syn-keyword, syn-string, syn-comment, syn-number, syn-type, syn-annotation: the code of a diff, by its syntax.
 
 The developer picks the palette on the dashboard or the review page; the choice is kept as `theme` in
@@ -25,6 +26,7 @@ def _palette(name, note, **colours):
         "violet": colours["select"], "pink": colours["select"], "shade": "0, 0, 0", "shadow": .7, "scrim": .55,
         "syn-keyword": colours["select"], "syn-string": colours["change"], "syn-comment": colours["muted"],
         "syn-number": colours["should"], "syn-type": colours.get("green", colours["neon"]), "syn-annotation": colours["should"],
+        "inline-code": colours.get("green", colours["neon"]),
     }
     return {"name": name, "note": note, **defaults, **colours}
 
@@ -75,35 +77,35 @@ PALETTES = {
         bg="#0c0c0c", card="#151515", card2="#1b1b1b", float="#202020", code_bg="#101010",
         text="#e4e4e4", heading="#f7f7f7", muted="#8c8c8c", dim="#595959", nit="#8c8c8c", nit_dot="#6b6b6b",
         must="#e06c6c", removed_text="#b8b8b8", change="#b8b8b8", ink="255, 255, 255",
-        neon="#c9a54a", neon_strong="#8a6d1f", on_strong="#ffffff", green="#c9a54a", blue="#dcc489",
+        neon="#c9a54a", neon_strong="#8a6d1f", on_strong="#ffffff", green="#c9a54a", blue="#a8852f", inline_code="#d0d0d0",
         select="#dcc489", should="#e08a4f"),
     "forest": _palette(
         "Forest", "neutral black and greys, dark green accent",
         bg="#0c0c0c", card="#151515", card2="#1b1b1b", float="#202020", code_bg="#101010",
         text="#e4e4e4", heading="#f7f7f7", muted="#8c8c8c", dim="#595959", nit="#8c8c8c", nit_dot="#6b6b6b",
         must="#e06c6c", removed_text="#b8b8b8", change="#b8b8b8", ink="255, 255, 255",
-        neon="#5fae7b", neon_strong="#2f6e47", on_strong="#ffffff", green="#5fae7b", blue="#9ccfad",
+        neon="#5fae7b", neon_strong="#2f6e47", on_strong="#ffffff", green="#5fae7b", blue="#4a9365", inline_code="#d0d0d0",
         select="#9ccfad", should="#dcb466"),
     "plum": _palette(
         "Plum", "neutral black and greys, muted violet accent",
         bg="#0c0c0c", card="#151515", card2="#1b1b1b", float="#202020", code_bg="#101010",
         text="#e4e4e4", heading="#f7f7f7", muted="#8c8c8c", dim="#595959", nit="#8c8c8c", nit_dot="#6b6b6b",
         must="#e06c6c", removed_text="#b8b8b8", change="#b8b8b8", ink="255, 255, 255",
-        neon="#a58bd0", neon_strong="#6a4fa0", on_strong="#ffffff", green="#a58bd0", blue="#c7b6e6",
+        neon="#a58bd0", neon_strong="#6a4fa0", on_strong="#ffffff", green="#a58bd0", blue="#9078c5", inline_code="#d0d0d0",
         select="#c7b6e6", should="#dcb466"),
     "bronze": _palette(
         "Bronze", "neutral black and greys, copper accent",
         bg="#0c0c0c", card="#151515", card2="#1b1b1b", float="#202020", code_bg="#101010",
         text="#e4e4e4", heading="#f7f7f7", muted="#8c8c8c", dim="#595959", nit="#8c8c8c", nit_dot="#6b6b6b",
         must="#e06c6c", removed_text="#b8b8b8", change="#b8b8b8", ink="255, 255, 255",
-        neon="#c58a55", neon_strong="#8a5a2e", on_strong="#ffffff", green="#c58a55", blue="#ddb48c",
+        neon="#c58a55", neon_strong="#8a5a2e", on_strong="#ffffff", green="#c58a55", blue="#ad7744", inline_code="#d0d0d0",
         select="#ddb48c", should="#dcb466"),
     "petrol": _palette(
         "Petrol", "neutral black and greys, dark teal accent",
         bg="#0c0c0c", card="#151515", card2="#1b1b1b", float="#202020", code_bg="#101010",
         text="#e4e4e4", heading="#f7f7f7", muted="#8c8c8c", dim="#595959", nit="#8c8c8c", nit_dot="#6b6b6b",
         must="#e06c6c", removed_text="#b8b8b8", change="#b8b8b8", ink="255, 255, 255",
-        neon="#4fa3a5", neon_strong="#26696b", on_strong="#ffffff", green="#4fa3a5", blue="#93cdce",
+        neon="#4fa3a5", neon_strong="#26696b", on_strong="#ffffff", green="#4fa3a5", blue="#3d9092", inline_code="#d0d0d0",
         select="#93cdce", should="#dcb466"),
     "paper": _palette(
         "Paper", "light: white cards on a pale grey page, green accent",
@@ -137,7 +139,7 @@ def theme_css(palette=None):
     measured from: pages size text in `rem` only."""
     c = PALETTES[palette or chosen()]
     names = ("bg", "panel", "panel2", "hover", "border", "text", "heading", "muted",
-             "blue", "green", "amber", "pink", "violet", "red", "code-bg", "switch-off", "knob",
+             "blue", "green", "inline-code", "amber", "pink", "violet", "red", "code-bg", "switch-off", "knob",
              "neon", "neon-strong", "on-strong", "removed-text", "change", "must", "should", "nit", "nit-dot",
              "select", "card", "card2", "float", "dim",
              "syn-keyword", "syn-string", "syn-comment", "syn-number", "syn-type", "syn-annotation")

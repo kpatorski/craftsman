@@ -159,7 +159,7 @@ MD_CSS = '''
   .md h1, .md h2, .md h3, .md h4 { color: var(--heading); border: 0; margin: 1.3rem 0 .5rem; }
   .md h1 { font-size: 1.25rem; } .md h2 { font-size: 1.05rem; color: var(--blue); } .md h3, .md h4 { font-size: .95rem; }
   .md p { margin: .5rem 0; }
-  .md code { background: var(--code-bg); border-radius: 3px; padding: .05rem .3rem; color: var(--green);
+  .md code { background: var(--code-bg); border-radius: 3px; padding: .05rem .3rem; color: var(--inline-code);
     font-family: "SF Mono", Menlo, Consolas, monospace; font-size: .8rem; }
   .md pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
     padding: .7rem .9rem; overflow-x: auto; }

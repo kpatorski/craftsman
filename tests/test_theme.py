@@ -106,6 +106,25 @@ class PaletteTest(unittest.TestCase):
         self.assertEqual(["graphite", "slate", "steel", "ink", "carbon", "mono", "onyx", "forest", "plum", "bronze",
                           "petrol", "paper"], list(_theme.PALETTES))
 
+    def test_grey_palettes_keep_headings_in_a_darker_accent_and_inline_code_grey(self):
+        for palette in ("onyx", "forest", "plum", "bronze", "petrol"):
+            with self.subTest(palette=palette):
+                colours = _theme.PALETTES[palette]
+                self.assertLess(luminance(colours["blue"]), luminance(colours["neon"]))
+                self.assertGreaterEqual(contrast(colours["blue"], colours["card2"]), 4.5)
+                code = colours["inline-code"]
+                self.assertEqual(1, len({code[1:3], code[3:5], code[5:7]}))
+                self.assertGreaterEqual(contrast(code, colours["code-bg"]), 7)
+
+    def test_inline_code_of_the_other_palettes_keeps_their_green(self):
+        for palette in ("graphite", "slate", "steel", "ink", "carbon", "mono", "paper"):
+            with self.subTest(palette=palette):
+                colours = _theme.PALETTES[palette]
+                self.assertEqual(colours["green"], variables(_theme.theme_css(palette))["--inline-code"])
+
+    def test_markdown_inline_code_takes_the_inline_code_colour(self):
+        self.assertRegex((SCRIPTS / "_markdown.py").read_text(), r"\.md code \{[^}]*color: var\(--inline-code\)")
+
     def test_there_are_dark_palettes_and_a_light_one(self):
         light = [p for p, colours in _theme.PALETTES.items() if luminance(colours["bg"]) > .5]
         self.assertEqual(["paper"], light)
