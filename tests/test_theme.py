@@ -116,6 +116,14 @@ class PaletteTest(unittest.TestCase):
                 self.assertEqual(1, len({code[1:3], code[3:5], code[5:7]}))
                 self.assertGreaterEqual(contrast(code, colours["code-bg"]), 7)
 
+    def test_grey_palettes_share_one_near_black_neutral_background(self):
+        for palette in ("onyx", "forest", "plum", "bronze", "petrol"):
+            with self.subTest(palette=palette):
+                colours = _theme.PALETTES[palette]
+                self.assertEqual(("#070707", "#0b0b0b", "#0f0f0f", "#151515", "#1a1a1a"),
+                                 (colours["bg"], colours["code-bg"], colours["card"], colours["card2"], colours["float"]))
+                self.assertEqual(colours["bg"], colours["panel"])
+
     def test_inline_code_of_the_other_palettes_keeps_their_green(self):
         for palette in ("graphite", "slate", "steel", "ink", "carbon", "mono", "paper"):
             with self.subTest(palette=palette):

@@ -3,6 +3,10 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.36.2
+
+- Onyx, Forest, Plum, Bronze and Petrol have a darker background, and their panels share the page's black.
+
 ## 0.36.1
 
 - Onyx, Forest, Plum, Bronze and Petrol show section headings and links in a darker shade of their accent and code
