@@ -300,11 +300,13 @@ older plugin version is replaced on the next start. It exits by itself after 8 h
 `~/.claude/craftsman-dashboard.json`; log: `~/.claude/craftsman-dashboard.log`.
 
 **The colour palette.** Every craftsman page — the dashboard, the review page, the report, a rendered diff — takes its
-colours from one palette in `scripts/_theme.py`: eleven dark ones (Graphite, Slate, Steel, Ink, Carbon, Mono, and Onyx,
-Forest, Plum, Bronze and Petrol: neutral black and greys with one muted accent each — champagne gold, dark green,
-violet, copper, teal) and a light one (Paper). A palette's accent is for navigation and the main actions; colours with
-a meaning keep their hue in every palette: green for added, finished or active work, red for removed work, blue for
-modified or waiting work, amber for a warning. ◐ Palette on the dashboard, or ◐ in the review page's rail, picks one;
+colours from one palette in `scripts/_theme.py`: thirteen dark ones (Slate and Steel, with a blue-grey background;
+Graphite, Carbon and Mono, in black with a neon green, emerald or no colour accent; and Ash, Onyx, Forest, Plum, Bronze,
+Petrol, Garnet and Citrine: near-black and greys with one accent each — silver, champagne gold, dark green, violet,
+copper, teal, raspberry red, lemon yellow) and a light one (Paper). A palette's accent is for navigation and the main
+actions; colours with a meaning keep their hue in every palette: green for added, finished or active work, red for
+removed work, blue for modified or waiting work, amber for a warning. In the black and near-black palettes, code keeps
+to greys and shades of the accent, with annotations in a muted hue of their own. ◐ Palette on the dashboard, or ◐ in the review page's rail, picks one;
 the open page changes at once, and another open page changes when it comes back into view. The choice is kept as
 `theme` in `~/.craftsman/settings.json`, and the report and diff files rendered afterwards use it too. Graphite is the
 palette until one is picked.

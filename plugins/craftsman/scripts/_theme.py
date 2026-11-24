@@ -34,16 +34,29 @@ def _palette(name, note, **colours):
     return {"name": name, "note": note, **defaults, **colours}
 
 
+def _grey(name, note, accent, strong, heading, light, annotation, **colours):
+    """A palette of the near-black neutral family: greys, one accent and its shades, a muted hue for annotations."""
+    family = dict(
+        bg="#070707", panel="#070707", card="#0f0f0f", card2="#151515", float="#1a1a1a", code_bg="#0b0b0b",
+        text="#e4e4e4", heading="#f7f7f7", muted="#8c8c8c", dim="#595959", nit="#8c8c8c", nit_dot="#6b6b6b",
+        must="#d9686a", removed_text="#b8b8b8", change="#6f9fd8", should="#e8a33d", green="#5fae7b",
+        ink="255, 255, 255", inline_code="#d0d0d0", syn_string="#b8b8b8", syn_number="#a3a3a3",
+        neon=accent, neon_strong=strong, on_strong="#ffffff", blue=heading, select=light, syn_type=accent,
+        syn_annotation=annotation)
+    return _palette(name, note, **{**family, **colours})
+
+
 PALETTES = {
     "graphite": _palette(
         "Graphite", "neutral black, neon green",
         bg="#0b0b0c", panel="#121214", panel2="#1a1a1e", hover="#1f1f24", border="#26262b",
         text="#e4e4e7", heading="#fafafa", muted="#8a8a93",
-        blue="#8b93f8", green="#5fd4a0", amber="#f2a65a", pink="#ec7ab8", violet="#a78bfa", red="#f47174",
+        blue="#46b35a", green="#5fae7b", amber="#f2a65a", pink="#a8e6b3", violet="#a8e6b3", red="#f47174",
         code_bg="#0f0f11", switch_off="#3a3a40", knob="#d4d4d8",
         neon="#53e36b", neon_strong="#2f9e44", on_strong="#fafafa", removed_text="#f3c4c4", change="#7fb2ff",
-        must="#ff6b6b", should="#f5c26b", nit="#9a9a9a", nit_dot="#6b6b6b", select="#b69cff",
-        card="#141414", card2="#1a1a1a", float="#1d1d1d", dim="#5a5a5a", ink="255, 255, 255"),
+        must="#ff6b6b", should="#f5c26b", nit="#9a9a9a", nit_dot="#6b6b6b", select="#a8e6b3",
+        card="#141414", card2="#1a1a1a", float="#1d1d1d", dim="#5a5a5a", ink="255, 255, 255",
+        syn_type="#53e36b", syn_string="#b8b8b8", syn_number="#a3a3a3", syn_annotation="#c2b48f", inline_code="#d0d0d0"),
     "slate": _palette(
         "Slate", "cool neutral grey, indigo accent",
         bg="#101114", card="#17181d", card2="#1d1f25", float="#22242b", code_bg="#131418",
@@ -56,60 +69,38 @@ PALETTES = {
         text="#dce2ea", heading="#f5f8fc", muted="#8d97a6", dim="#58616f", nit="#8d97a6", nit_dot="#6c7584",
         neon="#4fc3f7", neon_strong="#1a78b4", on_strong="#ffffff", must="#ef6f6f", should="#f0bd5e",
         change="#9fb4ff", select="#c7a4ff", removed_text="#f5c6c6", green="#5fd4a0", ink="185, 205, 230"),
-    "ink": _palette(
-        "Ink", "deep indigo-navy, periwinkle accent",
-        bg="#0b0d18", card="#121526", card2="#181c30", float="#1d2238", code_bg="#0e101d",
-        text="#dadff5", heading="#f4f6ff", muted="#8a90b0", dim="#535878", nit="#8a90b0", nit_dot="#686e8f",
-        neon="#8ea2ff", neon_strong="#4d63e0", on_strong="#ffffff", must="#ff7a85", should="#f5c46e",
-        change="#6fd3f0", select="#e2a4ff", removed_text="#ffcbd0", green="#5fd4a0", ink="170, 180, 255"),
     "carbon": _palette(
         "Carbon", "true black, emerald accent, higher contrast",
         bg="#000000", card="#0c0c0c", card2="#131313", float="#181818", code_bg="#060606",
         text="#ececec", heading="#ffffff", muted="#909090", dim="#5c5c5c", nit="#909090", nit_dot="#707070",
         neon="#34d399", neon_strong="#047857", on_strong="#ffffff", must="#ff6b6b", should="#fbbf4f",
-        change="#7cb7ff", select="#b9a0ff", removed_text="#f6c5c5", ink="255, 255, 255"),
+        change="#7cb7ff", select="#a7f0d1", removed_text="#f6c5c5", ink="255, 255, 255", green="#5fae7b",
+        blue="#2bb583", syn_type="#34d399", syn_string="#b8b8b8", syn_number="#a3a3a3", syn_annotation="#c2b48f",
+        inline_code="#d0d0d0"),
     "mono": _palette(
         "Mono", "neutral black, no colour accent: white buttons; colour only for severity",
         bg="#0c0c0d", card="#151517", card2="#1b1b1e", float="#202023", code_bg="#101012",
         text="#e4e4e7", heading="#ffffff", muted="#8b8b93", dim="#57575e", nit="#8b8b93", nit_dot="#6c6c73",
         neon="#e4e4e7", neon_strong="#e4e4e7", on_strong="#0c0c0d", must="#f87171", should="#f5c26b",
-        change="#93b4e8", select="#a1a1aa", removed_text="#f5c6c6", green="#5fd4a0", knob="#8b8b93",
-        ink="255, 255, 255"),
-    "onyx": _palette(
-        "Onyx", "neutral black and greys, champagne gold accent",
-        bg="#070707", panel="#070707", card="#0f0f0f", card2="#151515", float="#1a1a1a", code_bg="#0b0b0b",
-        text="#e4e4e4", heading="#f7f7f7", muted="#8c8c8c", dim="#595959", nit="#8c8c8c", nit_dot="#6b6b6b",
-        must="#d9686a", removed_text="#b8b8b8", change="#6f9fd8", syn_string="#b8b8b8", ink="255, 255, 255",
-        neon="#d9bd82", neon_strong="#837040", on_strong="#ffffff", green="#5fae7b", syn_type="#d9bd82", syn_number="#b5a98f", syn_annotation="#b5a98f", blue="#c4a86c", inline_code="#d0d0d0",
-        select="#eddcb4", should="#e8a33d"),
-    "forest": _palette(
-        "Forest", "neutral black and greys, dark green accent",
-        bg="#070707", panel="#070707", card="#0f0f0f", card2="#151515", float="#1a1a1a", code_bg="#0b0b0b",
-        text="#e4e4e4", heading="#f7f7f7", muted="#8c8c8c", dim="#595959", nit="#8c8c8c", nit_dot="#6b6b6b",
-        must="#d9686a", removed_text="#b8b8b8", change="#6f9fd8", syn_string="#b8b8b8", ink="255, 255, 255",
-        neon="#5fae7b", neon_strong="#2f6e47", on_strong="#ffffff", green="#5fae7b", syn_type="#5fae7b", syn_number="#a3a3a3", syn_annotation="#a3a3a3", blue="#4a9365", inline_code="#d0d0d0",
-        select="#9ccfad", should="#e8a33d"),
-    "plum": _palette(
-        "Plum", "neutral black and greys, muted violet accent",
-        bg="#070707", panel="#070707", card="#0f0f0f", card2="#151515", float="#1a1a1a", code_bg="#0b0b0b",
-        text="#e4e4e4", heading="#f7f7f7", muted="#8c8c8c", dim="#595959", nit="#8c8c8c", nit_dot="#6b6b6b",
-        must="#d9686a", removed_text="#b8b8b8", change="#6f9fd8", syn_string="#b8b8b8", ink="255, 255, 255",
-        neon="#a58bd0", neon_strong="#6a4fa0", on_strong="#ffffff", green="#5fae7b", syn_type="#a58bd0", syn_number="#a3a3a3", syn_annotation="#a3a3a3", blue="#9078c5", inline_code="#d0d0d0",
-        select="#c7b6e6", should="#e8a33d"),
-    "bronze": _palette(
-        "Bronze", "neutral black and greys, copper accent",
-        bg="#070707", panel="#070707", card="#0f0f0f", card2="#151515", float="#1a1a1a", code_bg="#0b0b0b",
-        text="#e4e4e4", heading="#f7f7f7", muted="#8c8c8c", dim="#595959", nit="#8c8c8c", nit_dot="#6b6b6b",
-        must="#d9686a", removed_text="#b8b8b8", change="#6f9fd8", syn_string="#b8b8b8", ink="255, 255, 255",
-        neon="#c58a55", neon_strong="#8a5a2e", on_strong="#ffffff", green="#5fae7b", syn_type="#c58a55", syn_number="#a3a3a3", syn_annotation="#a3a3a3", blue="#ad7744", inline_code="#d0d0d0",
-        select="#ddb48c", should="#e8a33d"),
-    "petrol": _palette(
-        "Petrol", "neutral black and greys, dark teal accent",
-        bg="#070707", panel="#070707", card="#0f0f0f", card2="#151515", float="#1a1a1a", code_bg="#0b0b0b",
-        text="#e4e4e4", heading="#f7f7f7", muted="#8c8c8c", dim="#595959", nit="#8c8c8c", nit_dot="#6b6b6b",
-        must="#d9686a", removed_text="#b8b8b8", change="#6f9fd8", syn_string="#b8b8b8", ink="255, 255, 255",
-        neon="#4fa3a5", neon_strong="#26696b", on_strong="#ffffff", green="#5fae7b", syn_type="#4fa3a5", syn_number="#a3a3a3", syn_annotation="#a3a3a3", blue="#3d9092", inline_code="#d0d0d0",
-        select="#93cdce", should="#e8a33d"),
+        change="#93b4e8", select="#d4d4d8", removed_text="#f5c6c6", green="#5fae7b", knob="#8b8b93",
+        ink="255, 255, 255", blue="#d4d4d8", syn_keyword="#ffffff", syn_type="#c8c8cc", syn_string="#b8b8b8",
+        syn_number="#a3a3a3", syn_annotation="#9aaab8", inline_code="#d0d0d0"),
+    "ash": _grey("Ash", "neutral black and greys, silver accent with grey buttons",
+                 "#c8c8cc", "#4a4a4f", "#b0b0b5", "#ececee", "#9aaab8"),
+    "onyx": _grey("Onyx", "neutral black and greys, champagne gold accent",
+                  "#d9bd82", "#837040", "#c4a86c", "#eddcb4", "#9fb59a", syn_number="#b5a98f"),
+    "forest": _grey("Forest", "neutral black and greys, dark green accent",
+                    "#5fae7b", "#2f6e47", "#4a9365", "#9ccfad", "#c2b48f"),
+    "plum": _grey("Plum", "neutral black and greys, muted violet accent",
+                  "#a58bd0", "#6a4fa0", "#9078c5", "#c7b6e6", "#9fb59a"),
+    "bronze": _grey("Bronze", "neutral black and greys, copper accent",
+                    "#c58a55", "#8a5a2e", "#ad7744", "#ddb48c", "#9aaab8"),
+    "petrol": _grey("Petrol", "neutral black and greys, dark teal accent",
+                    "#4fa3a5", "#26696b", "#3d9092", "#93cdce", "#c2b48f"),
+    "garnet": _grey("Garnet", "neutral black and greys, raspberry red accent",
+                    "#e0607e", "#9e2a44", "#d05a75", "#f2b3c2", "#9fb59a"),
+    "citrine": _grey("Citrine", "neutral black and greys, lemon yellow accent",
+                     "#e2cc52", "#7a6a14", "#c9b23c", "#f0e4a0", "#9aaab8"),
     "paper": _palette(
         "Paper", "light: white cards on a pale grey page, green accent",
         bg="#f6f7f9", card="#ffffff", card2="#f1f3f6", float="#ffffff", hover="#eef0f3", code_bg="#f3f4f7",

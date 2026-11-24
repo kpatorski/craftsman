@@ -3,6 +3,15 @@
 What a developer with content already installed in `~/.claude/craftsman/` needs to know about each plugin version —
 not a full commit log. See `MANAGEMENT.md`, "Plugin version" for how this gets surfaced automatically.
 
+## 0.38.0
+
+- Three new palettes: Ash (silver, with grey buttons), Garnet (raspberry red) and Citrine (lemon yellow).
+- Ink is gone; a developer who had picked it gets Graphite.
+- Graphite, Carbon and Mono drop their violet and turquoise: headings, keywords and types take shades of the accent,
+  or greys in Mono.
+- Annotations such as `@Transactional` stand out from the grey code in a muted hue of their own in Graphite, Carbon,
+  Mono and the near-black palettes; in Onyx they are sage.
+
 ## 0.37.0
 
 - Colours with a meaning keep their hue in every palette: green for added, finished or active work, red for removed

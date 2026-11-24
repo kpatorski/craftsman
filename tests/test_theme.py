@@ -21,6 +21,7 @@ import _theme  # noqa: E402
 
 PAGES = ["dashboard_page.html", "review_page.html", "theme_picker.js", "syntax.js", "render_dashboard.py", "render_diff.py", "render_report.py",
          "_markdown.py"]
+GREY = ("graphite", "carbon", "mono", "ash", "onyx", "forest", "plum", "bronze", "petrol", "garnet", "citrine")
 PIXEL_TEXT = re.compile(r"font-size:\s*[\d.]+px|font:[^;]*?\b[\d.]+px")
 COLOUR = re.compile(r"#[0-9a-fA-F]{3,8}\b|rgba?\(")
 
@@ -108,11 +109,11 @@ class PaletteTest(unittest.TestCase):
         self.assertEqual("109%", _theme.TEXT_SIZE)
 
     def test_the_palettes_are_mostly_greys_with_one_muted_accent_and_a_light_one(self):
-        self.assertEqual(["graphite", "slate", "steel", "ink", "carbon", "mono", "onyx", "forest", "plum", "bronze",
-                          "petrol", "paper"], list(_theme.PALETTES))
+        self.assertEqual(["graphite", "slate", "steel", "carbon", "mono", "ash", "onyx", "forest", "plum", "bronze",
+                          "petrol", "garnet", "citrine", "paper"], list(_theme.PALETTES))
 
     def test_grey_palettes_keep_headings_in_a_darker_accent_and_inline_code_grey(self):
-        for palette in ("onyx", "forest", "plum", "bronze", "petrol"):
+        for palette in GREY:
             with self.subTest(palette=palette):
                 colours = _theme.PALETTES[palette]
                 self.assertLess(luminance(colours["blue"]), luminance(colours["neon"]))
@@ -122,7 +123,7 @@ class PaletteTest(unittest.TestCase):
                 self.assertGreaterEqual(contrast(code, colours["code-bg"]), 7)
 
     def test_grey_palettes_share_one_near_black_neutral_background(self):
-        for palette in ("onyx", "forest", "plum", "bronze", "petrol"):
+        for palette in ("ash", "onyx", "forest", "plum", "bronze", "petrol", "garnet", "citrine"):
             with self.subTest(palette=palette):
                 colours = _theme.PALETTES[palette]
                 self.assertEqual(("#070707", "#0b0b0b", "#0f0f0f", "#151515", "#1a1a1a"),
@@ -130,7 +131,7 @@ class PaletteTest(unittest.TestCase):
                 self.assertEqual(colours["bg"], colours["panel"])
 
     def test_inline_code_of_the_other_palettes_keeps_their_green(self):
-        for palette in ("graphite", "slate", "steel", "ink", "carbon", "mono", "paper"):
+        for palette in ("slate", "steel", "paper"):
             with self.subTest(palette=palette):
                 colours = _theme.PALETTES[palette]
                 self.assertEqual(colours["green"], variables(_theme.theme_css(palette))["--inline-code"])
@@ -172,9 +173,25 @@ class PaletteTest(unittest.TestCase):
     def test_work_that_waits_shows_as_modified_on_the_dashboard(self):
         self.assertRegex((SCRIPTS / "dashboard_page.html").read_text(), r"\.badge\.pending \{ color: var\(--change\)")
 
-    def test_onyx_is_champagne_with_stone_annotations(self):
+    def test_grey_palettes_give_annotations_a_muted_hue_of_their_own(self):
+        for palette in GREY:
+            with self.subTest(palette=palette):
+                colours = _theme.PALETTES[palette]
+                annotation = colours["syn-annotation"]
+                saturation = colorsys.rgb_to_hsv(*(int(annotation[i:i + 2], 16) / 255 for i in (1, 3, 5)))[1]
+                self.assertTrue(.1 <= saturation <= .35, "a muted hue, neither grey nor loud")
+                self.assertNotIn(annotation, (colours["neon"], colours["blue"], colours["select"], colours["syn-type"]))
+
+    def test_grey_palettes_keep_violet_and_teal_out(self):
+        for palette in GREY:
+            for name in ("blue", "select", "violet", "pink", "syn-keyword", "syn-type", "green"):
+                with self.subTest(palette=palette, colour=name):
+                    self.assertFalse(250 <= hue(_theme.PALETTES[palette][name]) <= 300 and palette != "plum")
+                    self.assertNotEqual("#5fd4a0", _theme.PALETTES[palette][name])
+
+    def test_onyx_is_champagne_with_sage_annotations(self):
         onyx = _theme.PALETTES["onyx"]
-        self.assertEqual(("#d9bd82", "#837040", "#c4a86c", "#eddcb4", "#b5a98f", "#b5a98f"),
+        self.assertEqual(("#d9bd82", "#837040", "#c4a86c", "#eddcb4", "#9fb59a", "#b5a98f"),
                          (onyx["neon"], onyx["neon-strong"], onyx["blue"], onyx["select"],
                           onyx["syn-annotation"], onyx["syn-number"]))
 
